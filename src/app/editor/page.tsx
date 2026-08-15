@@ -8,36 +8,43 @@ export default function EditorPage() {
   const [showReview, setShowReview] = useState(false);
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-1">Create Article</h1>
-        <p className="text-forge-accent italic text-sm mb-1">
+    <main className="max-w-4xl mx-auto px-4 py-10">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Write Your Article</h1>
+        <p className="text-forge-accent italic mb-1">
           “We don’t make sports fun. You do!”
         </p>
         <p className="text-gray-400 text-sm">
-          Write your take. Add images. AI will only check quality and relevance before publishing.
+          Create something original. AI only checks quality and relevance — rankings come from readers.
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4 mb-6">
+      {/* Title & Section */}
+      <div className="grid md:grid-cols-2 gap-5 mb-6">
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Title</label>
+          <label className="block text-sm font-medium text-gray-300 mb-1.5">
+            Title
+          </label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter a clear, specific title..."
-            className="w-full bg-forge-900 border border-forge-700 rounded-lg px-4 py-2.5 focus:border-forge-accent outline-none transition"
+            placeholder="Give your article a strong, clear title..."
+            className="w-full bg-forge-900 border border-forge-700 rounded-xl px-4 py-3 focus:border-forge-accent focus:ring-1 focus:ring-forge-accent outline-none transition"
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Section</label>
-          <select className="w-full bg-forge-900 border border-forge-700 rounded-lg px-4 py-2.5 focus:border-forge-accent outline-none">
+          <label className="block text-sm font-medium text-gray-300 mb-1.5">
+            Section
+          </label>
+          <select className="w-full bg-forge-900 border border-forge-700 rounded-xl px-4 py-3 focus:border-forge-accent outline-none">
             <option>Sports – NFL</option>
             <option>Sports – NBA</option>
             <option>Sports – MLB</option>
-            <option>Sports – Soccer</option>
-            <option>Sports – College</option>
+            <option>Sports – Soccer / MLS</option>
+            <option>Sports – College Football</option>
+            <option>Sports – Other</option>
             <option>Pop Culture – Music</option>
             <option>Pop Culture – Film & TV</option>
             <option>Pop Culture – Other</option>
@@ -45,77 +52,110 @@ export default function EditorPage() {
         </div>
       </div>
 
-      <div className="bg-forge-900 border border-forge-800 rounded-t-xl p-2 flex flex-wrap gap-1">
-        <button type="button" className="px-3 py-1.5 rounded hover:bg-forge-700 text-sm font-bold">B</button>
-        <button type="button" className="px-3 py-1.5 rounded hover:bg-forge-700 text-sm italic">I</button>
-        <button type="button" className="px-3 py-1.5 rounded hover:bg-forge-700 text-sm">H2</button>
-        <button type="button" className="px-3 py-1.5 rounded hover:bg-forge-700 text-sm">Link</button>
-        <div className="w-px bg-forge-700 mx-1"></div>
-        <button type="button" className="px-3 py-1.5 rounded hover:bg-forge-700 text-sm">Upload Image</button>
-        <button type="button" className="px-3 py-1.5 rounded hover:bg-forge-700 text-sm text-forge-accent">AI Generate Image</button>
-        <button type="button" className="px-3 py-1.5 rounded hover:bg-forge-700 text-sm">Stat Block</button>
+      {/* Toolbar */}
+      <div className="bg-forge-900 border border-forge-800 rounded-t-xl px-3 py-2 flex flex-wrap items-center gap-1">
+        <button className="px-3 py-1.5 rounded-lg hover:bg-forge-700 text-sm font-bold transition">B</button>
+        <button className="px-3 py-1.5 rounded-lg hover:bg-forge-700 text-sm italic transition">I</button>
+        <button className="px-3 py-1.5 rounded-lg hover:bg-forge-700 text-sm transition">H2</button>
+        <button className="px-3 py-1.5 rounded-lg hover:bg-forge-700 text-sm transition">Link</button>
+        <div className="w-px h-5 bg-forge-700 mx-1"></div>
+        <button className="px-3 py-1.5 rounded-lg hover:bg-forge-700 text-sm transition">
+          📷 Upload Image
+        </button>
+        <button className="px-3 py-1.5 rounded-lg bg-forge-accent/15 text-forge-accent hover:bg-forge-accent/25 text-sm transition">
+          ✨ AI Generate Image
+        </button>
+        <button className="px-3 py-1.5 rounded-lg hover:bg-forge-700 text-sm transition">
+          📊 Stat Block
+        </button>
       </div>
 
+      {/* Writing Area */}
       <div
         contentEditable
         suppressContentEditableWarning
-        className="bg-forge-900 border border-t-0 border-forge-800 rounded-b-xl min-h-[380px] p-6 text-gray-200 leading-relaxed focus:outline-none"
+        className="bg-forge-900 border border-t-0 border-forge-800 rounded-b-xl min-h-[420px] p-6 text-gray-200 leading-relaxed focus:outline-none"
       >
-        <p>Start writing your article here...</p>
-        <p className="text-gray-500 mt-4">
-          Use the toolbar above to format text or add images. You can upload your own photos or generate new ones with AI.
+        <p className="text-gray-500">
+          Start writing here. Tell the story, make your case, or share the take only you can write...
         </p>
       </div>
 
-      <div className="mt-8 p-5 bg-forge-900 border border-forge-800 rounded-xl">
-        <h3 className="font-semibold mb-2">Article Thumbnail</h3>
-        <p className="text-sm text-gray-400 mb-4">
-          Choose or generate a thumbnail. It must be reasonably related to your article. AI will check this.
-        </p>
+      {/* Thumbnail Section */}
+      <div className="mt-8 bg-forge-900 border border-forge-800 rounded-2xl p-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h3 className="font-semibold text-lg mb-1">Thumbnail Image</h3>
+            <p className="text-sm text-gray-400">
+              This image appears on the homepage and in feeds. It must be reasonably related to your article.
+            </p>
+          </div>
+        </div>
+
         <div className="flex flex-wrap gap-3">
-          <button className="px-4 py-2 bg-forge-800 hover:bg-forge-700 rounded-lg text-sm transition">
-            Upload Thumbnail
+          <button className="flex items-center gap-2 px-5 py-2.5 bg-forge-800 hover:bg-forge-700 rounded-xl text-sm font-medium transition">
+            📁 Upload from Computer
           </button>
-          <button className="px-4 py-2 bg-forge-accent/20 text-forge-accent hover:bg-forge-accent/30 rounded-lg text-sm transition">
-            Generate with AI
+          <button className="flex items-center gap-2 px-5 py-2.5 bg-forge-accent hover:bg-forge-accentHover text-white rounded-xl text-sm font-medium transition">
+            ✨ Generate with AI
           </button>
         </div>
+
+        <p className="text-xs text-gray-500 mt-4">
+          AI will check that the image is relevant and doesn’t contain obvious copyrighted material.
+        </p>
       </div>
 
-      <div className="mt-8 flex flex-wrap gap-3">
-        <button className="px-5 py-2.5 text-sm bg-forge-800 hover:bg-forge-700 rounded-lg transition">
-          Save Draft
-        </button>
+      {/* Bottom Actions */}
+      <div className="mt-10 flex flex-wrap items-center gap-4">
         <button
           onClick={() => setShowReview(true)}
-          className="px-5 py-2.5 text-sm bg-forge-accent hover:bg-forge-accentHover rounded-lg font-medium transition"
+          className="px-8 py-3 bg-forge-accent hover:bg-forge-accentHover text-white font-semibold rounded-xl transition shadow-lg shadow-orange-500/20"
         >
           Submit for Review
         </button>
-        <Link href="/" className="px-5 py-2.5 text-sm text-gray-400 hover:text-white transition">
+        <button className="px-6 py-3 bg-forge-800 hover:bg-forge-700 rounded-xl text-sm font-medium transition">
+          Save Draft
+        </button>
+        <Link href="/" className="text-sm text-gray-400 hover:text-white transition ml-auto">
           Cancel
         </Link>
       </div>
 
+      {/* AI Review Panel */}
       {showReview && (
-        <div className="mt-8 bg-forge-900 border border-forge-700 rounded-xl p-6">
-          <h3 className="font-bold text-lg mb-3">AI Review Result</h3>
-          <div className="space-y-2 text-sm mb-4">
-            <p className="text-green-400">✓ Content quality check passed</p>
-            <p className="text-green-400">✓ No major copyright issues detected</p>
-            <p className="text-green-400">✓ Thumbnail appears relevant to the article</p>
+        <div className="mt-8 bg-forge-900 border border-forge-700 rounded-2xl p-6 animate-in fade-in">
+          <h3 className="font-bold text-lg mb-4">Review Results</h3>
+
+          <div className="space-y-3 mb-5">
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-green-400 text-lg">✓</span>
+              <span>Content quality and originality look good</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-green-400 text-lg">✓</span>
+              <span>No major copyright concerns detected</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-green-400 text-lg">✓</span>
+              <span>Thumbnail appears relevant to the article</span>
+            </div>
           </div>
-          <p className="text-green-400 font-medium mb-2">Ready to publish</p>
-          <p className="text-sm text-gray-400 mb-4">
-            Ranking will be based on reader engagement (views, comments, star ratings) — not AI scores.
-          </p>
+
+          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-5">
+            <p className="text-green-400 font-medium">Ready to publish</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Once published, ranking will be driven by real reader engagement (views, comments, and star ratings).
+            </p>
+          </div>
+
           <div className="flex gap-3">
-            <button className="bg-forge-accent hover:bg-forge-accentHover px-5 py-2 rounded-lg text-sm font-medium transition">
+            <button className="px-6 py-2.5 bg-forge-accent hover:bg-forge-accentHover text-white font-medium rounded-xl transition">
               Publish Now
             </button>
             <button
               onClick={() => setShowReview(false)}
-              className="bg-forge-800 hover:bg-forge-700 px-5 py-2 rounded-lg text-sm transition"
+              className="px-6 py-2.5 bg-forge-800 hover:bg-forge-700 rounded-xl text-sm transition"
             >
               Keep Editing
             </button>
