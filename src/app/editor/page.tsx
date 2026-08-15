@@ -39,15 +39,8 @@ export default function EditorPage() {
             Section
           </label>
           <select className="w-full bg-forge-900 border border-forge-700 rounded-xl px-4 py-3 focus:border-forge-accent outline-none">
-            <option>Sports – NFL</option>
-            <option>Sports – NBA</option>
-            <option>Sports – MLB</option>
-            <option>Sports – Soccer / MLS</option>
-            <option>Sports – College Football</option>
-            <option>Sports – Other</option>
-            <option>Pop Culture – Music</option>
-            <option>Pop Culture – Film & TV</option>
-            <option>Pop Culture – Other</option>
+            <option>Sports</option>
+            <option>Pop Culture</option>
           </select>
         </div>
       </div>
@@ -124,7 +117,7 @@ export default function EditorPage() {
 
       {/* AI Review Panel */}
       {showReview && (
-        <div className="mt-8 bg-forge-900 border border-forge-700 rounded-2xl p-6 animate-in fade-in">
+        <div className="mt-8 bg-forge-900 border border-forge-700 rounded-2xl p-6">
           <h3 className="font-bold text-lg mb-4">Review Results</h3>
 
           <div className="space-y-3 mb-5">
