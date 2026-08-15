@@ -3,8 +3,8 @@ import "./globals.css";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "PressMe – Ranked Sports & Pop Culture Writing",
-  description: "Public articles reviewed by AI for authenticity, accuracy & form. We don’t make sports fun. You do!",
+  title: "PressMe – Sports & Pop Culture",
+  description: "Public sports and pop culture writing platform. Rankings driven by real engagement.",
 };
 
 export default function RootLayout({
@@ -48,9 +48,8 @@ export default function RootLayout({
         </nav>
         {children}
         <footer className="border-t border-forge-800 py-8 text-center text-sm text-gray-500 mt-12">
-          <p className="italic text-forge-accent mb-1">“We don’t make sports fun. You do!”</p>
-          <p>PressMe – Public sports & pop culture writing, AI-reviewed, community-ranked.</p>
-          <p className="mt-1">pressme.ai • Prototype</p>
+          <p>PressMe – Sports & Pop Culture</p>
+          <p className="mt-1">pressme.ai</p>
         </footer>
       </body>
     </html>
