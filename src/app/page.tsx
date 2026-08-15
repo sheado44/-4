@@ -74,39 +74,49 @@ const topPublishers = [
 export default function Home() {
   return (
     <main className="min-h-screen">
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-orange-600/20 via-transparent to-blue-900/30 pointer-events-none" />
-        <div className="max-w-6xl mx-auto px-4 pt-12 pb-10 relative">
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-3">
-            Ranked Writing by the Public
-          </h1>
-          <p className="text-2xl text-forge-accent font-medium italic mb-3">
-            “We don’t make sports fun. You do!”
-          </p>
-          <p className="text-gray-400 text-lg max-w-2xl mb-8">
-            Real takes. Real engagement. AI only helps keep quality high — the rankings come from readers.
-          </p>
-
-          <div className="flex flex-wrap gap-2 mb-6">
-            <button className="px-5 py-2 rounded-full bg-forge-accent text-white text-sm font-semibold shadow-lg shadow-orange-500/20">
-              All
-            </button>
-            <button className="px-5 py-2 rounded-full bg-forge-800 hover:bg-forge-700 text-sm font-medium transition">
-              Sports
-            </button>
-            <button className="px-5 py-2 rounded-full bg-forge-800 hover:bg-forge-700 text-sm font-medium transition">
-              Pop Culture
-            </button>
-          </div>
-
-          <div className="flex gap-6 text-sm font-medium">
-            <button className="text-forge-accent border-b-2 border-forge-accent pb-1">Top Ranked</button>
-            <button className="text-gray-400 hover:text-white pb-1">Newest</button>
-            <button className="text-gray-400 hover:text-white pb-1">Rising</button>
-          </div>
-        </div>
+      {/* Big Logo Hero */}
+      <section className="pt-16 pb-10 text-center">
+        <h1 className="text-6xl md:text-8xl font-black tracking-tight select-none">
+          <span className="text-white">Press</span>
+          <span 
+            className="text-transparent bg-clip-text"
+            style={{
+              backgroundImage: "url('https://www.transparenttextures.com/patterns/newsprint.png'), linear-gradient(to bottom, #e5e5e5, #a3a3a3)",
+              backgroundBlendMode: "multiply",
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              color: "transparent",
+              textShadow: "0 2px 0 rgba(0,0,0,0.3)"
+            }}
+          >
+            ME
+          </span>
+        </h1>
+        <p className="text-gray-500 mt-3 text-sm tracking-widest uppercase">
+          Sports & Pop Culture
+        </p>
       </section>
+
+      {/* Filters */}
+      <div className="max-w-6xl mx-auto px-4 mb-8">
+        <div className="flex flex-wrap gap-2 mb-5 justify-center md:justify-start">
+          <button className="px-5 py-2 rounded-full bg-forge-accent text-white text-sm font-semibold">
+            All
+          </button>
+          <button className="px-5 py-2 rounded-full bg-forge-800 hover:bg-forge-700 text-sm font-medium transition">
+            Sports
+          </button>
+          <button className="px-5 py-2 rounded-full bg-forge-800 hover:bg-forge-700 text-sm font-medium transition">
+            Pop Culture
+          </button>
+        </div>
+
+        <div className="flex gap-6 text-sm font-medium justify-center md:justify-start">
+          <button className="text-forge-accent border-b-2 border-forge-accent pb-1">Top Ranked</button>
+          <button className="text-gray-400 hover:text-white pb-1">Newest</button>
+          <button className="text-gray-400 hover:text-white pb-1">Rising</button>
+        </div>
+      </div>
 
       <div className="max-w-6xl mx-auto px-4 pb-16 grid lg:grid-cols-3 gap-8">
         {/* Main feed */}
@@ -114,7 +124,7 @@ export default function Home() {
           {sampleArticles.map((article) => (
             <article
               key={article.id}
-              className="group bg-forge-900/80 border border-forge-800 hover:border-forge-accent/50 rounded-2xl p-5 transition-all duration-200 hover:shadow-xl hover:shadow-orange-500/5"
+              className="group bg-forge-900/80 border border-forge-800 hover:border-forge-accent/50 rounded-2xl p-5 transition-all duration-200"
             >
               <div className="flex gap-5">
                 <div className="flex-1 min-w-0">
