@@ -17,6 +17,21 @@ const sampleArticles = [
     emoji: "🏈",
   },
   {
+    id: "5",
+    rank: 1,
+    section: "Fan Fiction",
+    category: "Satire",
+    title: "Caleb Williams Accidentally Invents Time Travel During a Scramble",
+    excerpt: "In this clearly untrue tale, a broken play sends the Bears QB into 1985, where he teaches Walter Payton the RPO.",
+    author: "Sam Rivera",
+    authorInitials: "SR",
+    authorColor: "bg-orange-600",
+    views: "6.3k",
+    comments: 91,
+    stars: 4.9,
+    emoji: "🌀",
+  },
+  {
     id: "2",
     rank: 2,
     section: "Sports",
@@ -45,21 +60,6 @@ const sampleArticles = [
     comments: 52,
     stars: 4.7,
     emoji: "🎵",
-  },
-  {
-    id: "4",
-    rank: 3,
-    section: "Sports",
-    category: "Soccer",
-    title: "MLS Attendance Is Surging — But Not Where You Think",
-    excerpt: "Secondary markets and midweek games are driving unexpected growth. The data challenges the big-market narrative.",
-    author: "Tom Keller",
-    authorInitials: "TK",
-    authorColor: "bg-green-600",
-    views: "7.1k",
-    comments: 29,
-    stars: 4.5,
-    emoji: "⚽",
   },
 ];
 
@@ -103,6 +103,9 @@ export default function Home() {
           <button className="px-5 py-2 rounded-full bg-forge-800 hover:bg-forge-700 text-sm font-medium transition">
             Pop Culture
           </button>
+          <button className="px-5 py-2 rounded-full bg-forge-800 hover:bg-forge-700 text-sm font-medium transition">
+            Fan Fiction
+          </button>
         </div>
 
         <div className="flex gap-6 text-sm font-medium justify-center md:justify-start">
@@ -123,7 +126,13 @@ export default function Home() {
               <div className="flex gap-5">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
-                    <span className="bg-forge-accent/15 text-forge-accent px-2 py-0.5 rounded-md font-semibold">
+                    <span
+                      className={`px-2 py-0.5 rounded-md font-semibold ${
+                        article.section === "Fan Fiction"
+                          ? "bg-purple-500/20 text-purple-300"
+                          : "bg-forge-accent/15 text-forge-accent"
+                      }`}
+                    >
                       #{article.rank} {article.section}
                     </span>
                     <span>{article.category}</span>
