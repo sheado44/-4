@@ -45,12 +45,15 @@ const templates = [
   },
 ];
 
+const tones = ["Funny", "Serious", "Mad", "Chaotic", "Deadpan"] as const;
+
 export default function FanFictionPage() {
   const [step, setStep] = useState<"madlibs" | "result">("madlibs");
   const [generationsLeft, setGenerationsLeft] = useState(2);
   const [templateIndex, setTemplateIndex] = useState(0);
   const [values, setValues] = useState<Record<string, string>>({});
   const [twist, setTwist] = useState("");
+  const [tone, setTone] = useState<(typeof tones)[number]>("Funny");
 
   const template = templates[templateIndex];
 
@@ -67,7 +70,6 @@ export default function FanFictionPage() {
   };
 
   const filled = template.fields.every((f) => (values[f] || "").trim().length > 0);
-
   const title = `${values.player || "Someone"} and the ${values.noun || "Thing"}`;
 
   return (
@@ -79,7 +81,7 @@ export default function FanFictionPage() {
         </div>
         <h1 className="text-2xl md:text-3xl font-bold mb-2">Fan Fiction Mad Libs</h1>
         <p className="text-gray-400 text-sm">
-          Fill in the blanks. Generate something ridiculous. Always clearly labeled untrue.
+          Fill in the blanks. Pick a tone. Generate something clearly untrue.
         </p>
       </div>
 
@@ -95,6 +97,26 @@ export default function FanFictionPage() {
 
       {step === "madlibs" && (
         <>
+          {/* Tone */}
+          <div className="mb-5">
+            <div className="text-sm text-gray-300 mb-2">Writing tone</div>
+            <div className="flex flex-wrap gap-2">
+              {tones.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTone(t)}
+                  className={`px-3.5 py-1.5 rounded-full text-sm transition ${
+                    tone === t
+                      ? "bg-purple-600 text-white"
+                      : "bg-forge-900 border border-forge-800 hover:border-purple-500/40 text-gray-300"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Template card */}
           <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 mb-4">
             <div className="flex items-center justify-between mb-4">
@@ -164,9 +186,12 @@ export default function FanFictionPage() {
       {step === "result" && (
         <>
           <div className="bg-forge-900 border border-purple-500/30 rounded-2xl p-5 mb-6">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex flex-wrap items-center gap-2 mb-4">
               <span className="bg-purple-500/20 text-purple-300 text-xs font-semibold px-2 py-0.5 rounded">
                 Fan Fiction
+              </span>
+              <span className="bg-forge-800 text-gray-300 text-xs px-2 py-0.5 rounded">
+                Tone: {tone}
               </span>
               <span className="text-xs text-gray-500">Clearly untrue · AI generated</span>
             </div>
@@ -176,6 +201,7 @@ export default function FanFictionPage() {
             <div className="text-sm text-gray-300 leading-relaxed space-y-3">
               <p>{template.build(values)}</p>
               <p>
+                Written in a <span className="text-purple-300">{tone.toLowerCase()}</span> tone.
                 What happened next made almost no sense. According to extremely unreliable witnesses, everything only got stranger once {twist || "the bonus twist"} entered the picture.
               </p>
               <p>
