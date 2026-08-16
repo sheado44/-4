@@ -71,6 +71,12 @@ const topPublishers = [
   { rank: 5, name: "Sam Rivera", initials: "SR", color: "bg-orange-600", points: 1180, articles: 3 },
 ];
 
+const hottestCommenters = [
+  { rank: 1, name: "Derek K.", initials: "DK", color: "bg-green-700", heat: "On Fire", heatColor: "text-orange-400" },
+  { rank: 2, name: "Aisha L.", initials: "AL", color: "bg-purple-600", heat: "Hot", heatColor: "text-orange-300" },
+  { rank: 3, name: "Maya Chen", initials: "MC", color: "bg-pink-600", heat: "Hot", heatColor: "text-orange-300" },
+];
+
 export default function Home() {
   return (
     <main className="min-h-screen">
@@ -78,38 +84,7 @@ export default function Home() {
       <section className="pt-16 pb-12 text-center">
         <h1 className="text-6xl md:text-8xl font-black tracking-tight select-none leading-none">
           <span className="text-white">Press</span>
-          <span
-            className="relative inline-block ml-1"
-            style={{
-              color: "#d4d4d4",
-              textShadow: `
-                1px 1px 0 #888,
-                2px 2px 0 #666,
-                0 0 1px #999
-              `,
-              backgroundImage: `
-                repeating-linear-gradient(
-                  0deg,
-                  transparent,
-                  transparent 2px,
-                  rgba(0,0,0,0.03) 2px,
-                  rgba(0,0,0,0.03) 4px
-                ),
-                repeating-linear-gradient(
-                  90deg,
-                  transparent,
-                  transparent 2px,
-                  rgba(0,0,0,0.03) 2px,
-                  rgba(0,0,0,0.03) 4px
-                )
-              `,
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              filter: "contrast(1.1) brightness(0.95)",
-            }}
-          >
-            ME
-          </span>
+          <span className="text-gray-300">ME</span>
         </h1>
         <p className="text-gray-500 mt-4 text-xs tracking-[0.25em] uppercase">
           Sports & Pop Culture
@@ -190,9 +165,10 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Sidebar - Publisher Leaderboard */}
+        {/* Sidebar */}
         <aside className="space-y-6">
-          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 sticky top-24">
+          {/* Publisher Leaderboard */}
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-lg">Publisher Leaderboard</h3>
               <span className="text-xs text-gray-500 bg-forge-800 px-2 py-1 rounded">Last 7 days</span>
@@ -232,6 +208,36 @@ export default function Home() {
             </button>
           </div>
 
+          {/* Hottest Commenters */}
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg">Hottest Commenters</h3>
+              <span className="text-xs text-gray-500 bg-forge-800 px-2 py-1 rounded">Last 48 hrs</span>
+            </div>
+
+            <div className="space-y-3">
+              {hottestCommenters.map((c) => (
+                <Link
+                  href="/profile"
+                  key={c.rank}
+                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-forge-800/70 transition"
+                >
+                  <div className="w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm bg-forge-700 text-gray-300">
+                    {c.rank}
+                  </div>
+                  <div className={`w-9 h-9 rounded-full ${c.color} flex items-center justify-center text-sm font-bold`}>
+                    {c.initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{c.name}</div>
+                    <div className={`text-xs ${c.heatColor}`}>{c.heat}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* CTA */}
           <div className="bg-gradient-to-br from-orange-600/20 to-forge-900 border border-orange-500/30 rounded-2xl p-5 text-center">
             <p className="font-semibold mb-2">Got a take?</p>
             <p className="text-sm text-gray-400 mb-4">Write it. Rank it. Own the board.</p>
