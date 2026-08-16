@@ -171,7 +171,7 @@ export default async function ArticlePage({
           </div>
         </div>
 
-        {/* Sample comments */}
+        {/* Sample comments with Like / Dislike + who voted */}
         <div className="space-y-6">
           {[
             {
@@ -181,6 +181,9 @@ export default async function ArticlePage({
               time: "2h ago",
               text: "Finally someone posting the actual film grades instead of the same old “Bears line is bad” narrative. The right tackle improvement alone is massive.",
               likes: 24,
+              dislikes: 3,
+              likedBy: ["Maya Chen", "Aisha Lane", "Tom Keller", "Sam Rivera", "+20 more"],
+              dislikedBy: ["Chris P.", "Jordan M.", "Alex T."],
             },
             {
               initials: "SR",
@@ -189,6 +192,9 @@ export default async function ArticlePage({
               time: "4h ago",
               text: "I’m still skeptical until we see them against the better edge rushers in December. But the data is hard to argue with right now.",
               likes: 11,
+              dislikes: 8,
+              likedBy: ["Jordan Reyes", "Derek K.", "Lisa M.", "+8 more"],
+              dislikedBy: ["Mike T.", "Chris P.", "Alex R.", "Sam K.", "+4 more"],
             },
             {
               initials: "AL",
@@ -197,6 +203,9 @@ export default async function ArticlePage({
               time: "6h ago",
               text: "This is the kind of analysis that actually moves the conversation forward. Great work.",
               likes: 19,
+              dislikes: 1,
+              likedBy: ["Jordan Reyes", "Maya Chen", "Tom Keller", "Derek K.", "+15 more"],
+              dislikedBy: ["Anonymous"],
             },
           ].map((c) => (
             <div key={c.name} className="flex gap-3">
@@ -210,10 +219,29 @@ export default async function ArticlePage({
                   <span className="font-medium">{c.name}</span>
                   <span className="text-gray-500">{c.time}</span>
                 </div>
-                <p className="text-gray-300 text-sm leading-relaxed">{c.text}</p>
-                <div className="flex gap-4 mt-2 text-xs text-gray-500">
-                  <button className="hover:text-forge-accent transition">👍 {c.likes}</button>
+                <p className="text-gray-300 text-sm leading-relaxed mb-3">{c.text}</p>
+
+                {/* Like / Dislike row */}
+                <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                  <button className="flex items-center gap-1.5 hover:text-green-400 transition">
+                    👍 {c.likes}
+                  </button>
+                  <button className="flex items-center gap-1.5 hover:text-red-400 transition">
+                    👎 {c.dislikes}
+                  </button>
                   <button className="hover:text-forge-accent transition">Reply</button>
+                </div>
+
+                {/* Who liked / disliked */}
+                <div className="mt-3 text-xs text-gray-500 space-y-1">
+                  <div>
+                    <span className="text-green-500/80">Liked by:</span>{" "}
+                    {c.likedBy.join(", ")}
+                  </div>
+                  <div>
+                    <span className="text-red-400/80">Disliked by:</span>{" "}
+                    {c.dislikedBy.join(", ")}
+                  </div>
                 </div>
               </div>
             </div>
