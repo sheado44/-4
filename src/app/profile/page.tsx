@@ -6,10 +6,19 @@ import Link from "next/link";
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"articles" | "comments" | "about">("articles");
 
+  // Prototype: this would only show when viewing someone else's profile
+  const relationship = {
+    status: "Ally", // Ally | Neutral | Foe | Unknown
+    likes: 14,
+    dislikes: 2,
+    color: "text-green-400",
+    bg: "bg-green-500/10 border-green-500/30",
+  };
+
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
       {/* Profile Header */}
-      <div className="flex flex-col sm:flex-row gap-6 items-start mb-10">
+      <div className="flex flex-col sm:flex-row gap-6 items-start mb-6">
         <div className="w-24 h-24 rounded-full bg-blue-600 flex items-center justify-center text-3xl font-bold shrink-0">
           JR
         </div>
@@ -39,6 +48,21 @@ export default function ProfilePage() {
           <p className="text-gray-300 max-w-2xl text-sm leading-relaxed">
             Former D-II offensive lineman turned film and data nerd. I write about the trenches, scheme evolution, and the numbers that actually matter. Also an active commenter who isn’t afraid to push back.
           </p>
+        </div>
+      </div>
+
+      {/* Private Relationship Signal (only visible to you) */}
+      <div className={`mb-8 rounded-xl border px-4 py-3 ${relationship.bg}`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div className="text-xs text-gray-400 mb-0.5">Your relationship (only visible to you)</div>
+            <div className={`font-semibold ${relationship.color}`}>
+              {relationship.status}
+            </div>
+          </div>
+          <div className="text-sm text-gray-400">
+            {relationship.likes} likes · {relationship.dislikes} dislikes on your content
+          </div>
         </div>
       </div>
 
@@ -133,22 +157,6 @@ export default function ProfilePage() {
             </h2>
             <p className="text-gray-400 text-sm">6.2k views • 22 comments</p>
           </div>
-
-          <div className="bg-forge-900 border border-forge-800 rounded-xl p-5">
-            <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-              <span className="bg-forge-700 px-2 py-0.5 rounded">#19</span>
-              <span>•</span>
-              <span>College Football</span>
-              <span>•</span>
-              <span className="text-yellow-500">★ 4.3</span>
-              <span>•</span>
-              <span>Jul 14, 2026</span>
-            </div>
-            <h2 className="text-lg font-bold mb-1">
-              Why Group of 5 Programs Are Closing the Talent Gap
-            </h2>
-            <p className="text-gray-400 text-sm">4.1k views • 31 comments</p>
-          </div>
         </div>
       )}
 
@@ -169,13 +177,6 @@ export default function ProfilePage() {
               text: "The biometric data angle is underrated. Most people still think load management is just resting stars.",
               likes: 17,
               dislikes: 2,
-            },
-            {
-              article: "MLS Attendance Is Surging — But Not Where You Think",
-              time: "3d ago",
-              text: "Secondary markets driving growth makes total sense if you’ve been watching the league closely.",
-              likes: 9,
-              dislikes: 1,
             },
           ].map((c, i) => (
             <div
@@ -205,7 +206,7 @@ export default function ProfilePage() {
             Former D-II offensive lineman who now spends most of his time breaking down film and advanced metrics. Focused on the trenches, scheme trends, and the numbers that actually predict success.
           </p>
           <p className="text-gray-300 text-sm leading-relaxed">
-            Based in Chicago. Writes primarily about the NFL and college football, with occasional crossover into broader sports strategy topics.
+            Based in Chicago. Writes primarily about the NFL and college football.
           </p>
         </div>
       )}
