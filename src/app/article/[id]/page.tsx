@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { formatTime, formatTimeFull } from "@/lib/time";
 
 type Article = {
   id: string;
@@ -169,7 +170,7 @@ export default function ArticlePage() {
   if (loading) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-10">
-        <p className="text-gray-400">Loading article...</p>
+        <p className="text-gray-300">Loading article...</p>
       </main>
     );
   }
@@ -177,7 +178,7 @@ export default function ArticlePage() {
   if (error || !article) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-10">
-        <p className="text-gray-300 mb-4">{error || "Article not found."}</p>
+        <p className="text-gray-200 mb-4">{error || "Article not found."}</p>
         <Link href="/" className="text-forge-accent hover:text-orange-300 text-sm">
           ← Back home
         </Link>
@@ -204,19 +205,21 @@ export default function ArticlePage() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-400 mb-4">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-300 mb-4">
         <span
           className={`px-2.5 py-1 rounded-md font-semibold ${
             isSatire
-              ? "bg-purple-500/15 text-purple-300"
+              ? "bg-purple-500/15 text-purple-200"
               : "bg-forge-accent/15 text-forge-accent"
           }`}
         >
           {article.section}
         </span>
-        <span>{new Date(article.created_at).toLocaleDateString()}</span>
+        <span title={formatTimeFull(article.created_at)}>
+          {formatTime(article.created_at)}
+        </span>
         {avgRating !== null && (
-          <span className="text-yellow-500">
+          <span className="text-yellow-300">
             ★ {avgRating.toFixed(1)} · {ratingCount} rating{ratingCount === 1 ? "" : "s"}
           </span>
         )}
@@ -237,34 +240,34 @@ export default function ArticlePage() {
           <div className="font-semibold group-hover:text-forge-accent transition">
             {author}
           </div>
-          <div className="text-sm text-gray-400">Rank —</div>
+          <div className="text-sm text-gray-300">Rank —</div>
         </div>
       </Link>
 
       <article className="max-w-none mb-10">
         {article.body.split("\n").filter(Boolean).map((paragraph, i) => (
-          <p key={i} className="text-gray-300 leading-relaxed mb-5">
+          <p key={i} className="text-gray-100 leading-relaxed mb-5">
             {paragraph}
           </p>
         ))}
       </article>
 
       <div className="mb-10 p-5 bg-forge-900 border border-forge-800 rounded-2xl">
-        <div className="text-sm text-gray-400 mb-2">Rate this article</div>
+        <div className="text-sm text-gray-300 mb-2">Rate this article</div>
         <div className="flex items-center gap-1 text-2xl">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
               key={star}
               onClick={() => handleRating(star)}
               className={`transition hover:scale-110 ${
-                (myRating ?? 0) >= star ? "text-yellow-500" : "text-gray-600"
+                (myRating ?? 0) >= star ? "text-yellow-300" : "text-gray-500"
               }`}
             >
               ★
             </button>
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-gray-300 mt-2">
           {userId
             ? myRating
               ? `Your rating: ${myRating} star${myRating === 1 ? "" : "s"}`
@@ -284,7 +287,7 @@ export default function ArticlePage() {
             onChange={(e) => setCommentText(e.target.value)}
             placeholder={userId ? "Write a comment..." : "Log in to comment"}
             disabled={!userId}
-            className="w-full min-h-[100px] bg-forge-950 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition disabled:opacity-60"
+            className="w-full min-h-[100px] bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition disabled:opacity-60"
           />
           <div className="mt-3 flex items-center gap-3">
             <button
@@ -295,17 +298,17 @@ export default function ArticlePage() {
               {posting ? "Posting..." : "Post Comment"}
             </button>
             {!userId && (
-              <Link href="/login" className="text-sm text-gray-400 hover:text-white">
+              <Link href="/login" className="text-sm text-gray-300 hover:text-white">
                 Log in
               </Link>
             )}
           </div>
         </div>
 
-        {message && <p className="text-sm text-yellow-300 mb-4">{message}</p>}
+        {message && <p className="text-sm text-yellow-200 mb-4">{message}</p>}
 
         {comments.length === 0 ? (
-          <div className="bg-forge-900/50 border border-forge-800 rounded-xl p-6 text-center text-sm text-gray-500">
+          <div className="bg-forge-900/50 border border-forge-800 rounded-xl p-6 text-center text-sm text-gray-300">
             No comments yet. Be the first.
           </div>
         ) : (
@@ -323,11 +326,14 @@ export default function ArticlePage() {
                   ) : (
                     <span className="font-medium">{c.author_name}</span>
                   )}
-                  <span className="text-gray-500 text-xs">
-                    {new Date(c.created_at).toLocaleString()}
+                  <span
+                    className="text-gray-300 text-xs"
+                    title={formatTimeFull(c.created_at)}
+                  >
+                    {formatTime(c.created_at)}
                   </span>
                 </div>
-                <p className="text-gray-300 text-sm leading-relaxed">{c.body}</p>
+                <p className="text-gray-100 text-sm leading-relaxed">{c.body}</p>
               </div>
             ))}
           </div>
@@ -335,7 +341,7 @@ export default function ArticlePage() {
       </section>
 
       <div className="mt-10">
-        <Link href="/" className="text-sm text-gray-400 hover:text-white transition">
+        <Link href="/" className="text-sm text-gray-300 hover:text-white transition">
           ← Back home
         </Link>
       </div>
