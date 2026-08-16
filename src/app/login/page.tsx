@@ -18,6 +18,18 @@ function calcAge(birthday: string): number | null {
   return age;
 }
 
+function BrandMark({ className = "text-2xl" }: { className?: string }) {
+  return (
+    <span className={`font-bold tracking-tight ${className}`}>
+      <span className="text-white">The B</span>
+      <span className="text-forge-accent">a</span>
+      <span className="text-white">llp</span>
+      <span className="text-forge-accent">i</span>
+      <span className="text-white">t</span>
+    </span>
+  );
+}
+
 export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -66,7 +78,6 @@ export default function LoginPage() {
         if (error) {
           setMessage(error.message);
         } else if (data.user) {
-          // create profile row
           await supabase.from("profiles").upsert({
             id: data.user.id,
             display_name: displayName.trim(),
@@ -75,7 +86,7 @@ export default function LoginPage() {
             updated_at: new Date().toISOString(),
           });
 
-          setMessage("Account created. You can log in now.");
+          setMessage("Account created. Check your email if confirmation is required, then log in.");
           setMode("login");
         }
       } else {
@@ -102,22 +113,21 @@ export default function LoginPage() {
     <main className="min-h-[70vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold tracking-tight inline-block mb-4">
-            <span className="text-forge-accent">Press</span>
-            <span className="text-white">Me</span>
+          <Link href="/" className="inline-block mb-4">
+            <BrandMark />
           </Link>
           <h1 className="text-xl font-semibold mb-1">
             {mode === "login" ? "Welcome back" : "Create your account"}
           </h1>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-300">
             {mode === "login"
               ? "Log in to write, comment, and track your ranks."
-              : "Join to publish articles, satire, and comments."}
+              : "Join The Ballpit to publish articles, satire, and comments."}
           </p>
         </div>
 
         <div className="bg-forge-900 border border-forge-800 rounded-2xl p-6">
-          <div className="flex mb-6 bg-forge-950 rounded-xl p-1">
+          <div className="flex mb-6 bg-black/20 rounded-xl p-1">
             <button
               type="button"
               onClick={() => {
@@ -127,7 +137,7 @@ export default function LoginPage() {
               className={`flex-1 py-2 text-sm rounded-lg transition ${
                 mode === "login"
                   ? "bg-forge-800 text-white font-medium"
-                  : "text-gray-400 hover:text-white"
+                  : "text-gray-300 hover:text-white"
               }`}
             >
               Log in
@@ -141,7 +151,7 @@ export default function LoginPage() {
               className={`flex-1 py-2 text-sm rounded-lg transition ${
                 mode === "signup"
                   ? "bg-forge-800 text-white font-medium"
-                  : "text-gray-400 hover:text-white"
+                  : "text-gray-300 hover:text-white"
               }`}
             >
               Sign up
@@ -152,7 +162,7 @@ export default function LoginPage() {
             {mode === "signup" && (
               <>
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1.5">
+                  <label className="block text-xs text-gray-300 mb-1.5">
                     Display name <span className="text-red-400">*</span>
                   </label>
                   <input
@@ -161,12 +171,12 @@ export default function LoginPage() {
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="How you want to appear"
                     required
-                    className="w-full bg-forge-950 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
+                    className="w-full bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1.5">
+                  <label className="block text-xs text-gray-300 mb-1.5">
                     Birthday <span className="text-red-400">*</span>
                   </label>
                   <input
@@ -174,14 +184,14 @@ export default function LoginPage() {
                     value={birthday}
                     onChange={(e) => setBirthday(e.target.value)}
                     required
-                    className="w-full bg-forge-950 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
+                    className="w-full bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
                   />
                 </div>
               </>
             )}
 
             <div>
-              <label className="block text-xs text-gray-400 mb-1.5">
+              <label className="block text-xs text-gray-300 mb-1.5">
                 Email <span className="text-red-400">*</span>
               </label>
               <input
@@ -190,12 +200,12 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@email.com"
                 required
-                className="w-full bg-forge-950 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
+                className="w-full bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
               />
             </div>
 
             <div>
-              <label className="block text-xs text-gray-400 mb-1.5">
+              <label className="block text-xs text-gray-300 mb-1.5">
                 Password <span className="text-red-400">*</span>
               </label>
               <input
@@ -205,7 +215,7 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 required
                 minLength={6}
-                className="w-full bg-forge-950 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
+                className="w-full bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
               />
             </div>
 
@@ -223,7 +233,7 @@ export default function LoginPage() {
           </form>
 
           {message && (
-            <p className="text-center text-sm mt-4 text-gray-300">
+            <p className="text-center text-sm mt-4 text-gray-200">
               {message}
             </p>
           )}
