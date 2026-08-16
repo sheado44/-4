@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { formatTime, formatTimeFull } from "@/lib/time";
 
 type ProfileUser = {
   id: string;
@@ -116,7 +117,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <main className="max-w-4xl mx-auto px-4 py-10">
-        <p className="text-gray-400">Loading profile...</p>
+        <p className="text-gray-300">Loading profile...</p>
       </main>
     );
   }
@@ -132,11 +133,7 @@ export default function ProfilePage() {
     );
   }
 
-  const details = [
-    user.sex,
-    user.age ? `${user.age}` : "",
-    user.location,
-  ].filter(Boolean);
+  const details = [user.sex, user.age ? `${user.age}` : "", user.location].filter(Boolean);
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
@@ -146,15 +143,13 @@ export default function ProfilePage() {
         </div>
 
         <h1 className="text-3xl md:text-4xl font-bold mb-1">{user.displayName}</h1>
-        <p className="text-gray-400 mb-2">{user.email}</p>
+        <p className="text-gray-300 mb-2">{user.email}</p>
 
         {details.length > 0 && (
-          <p className="text-sm text-gray-400 mb-3">{details.join(" · ")}</p>
+          <p className="text-sm text-gray-300 mb-3">{details.join(" · ")}</p>
         )}
 
-        {user.bio && (
-          <p className="text-gray-300 text-sm max-w-xl mb-3">{user.bio}</p>
-        )}
+        {user.bio && <p className="text-gray-100 text-sm max-w-xl mb-3">{user.bio}</p>}
 
         {user.link && (
           <a
@@ -173,39 +168,24 @@ export default function ProfilePage() {
         >
           Edit Profile
         </Link>
-
-        <div className="flex flex-wrap justify-center gap-3">
-          <div className="bg-forge-900 border border-forge-700 rounded-xl px-4 py-2">
-            <div className="text-xs text-gray-400">Publisher Rank</div>
-            <div className="font-bold text-gray-300 text-lg">—</div>
-          </div>
-          <div className="bg-forge-900 border border-forge-700 rounded-xl px-4 py-2">
-            <div className="text-xs text-gray-400">Commenter Rank</div>
-            <div className="font-bold text-gray-300 text-lg">—</div>
-          </div>
-          <div className="bg-forge-900 border border-forge-700 rounded-xl px-4 py-2">
-            <div className="text-xs text-gray-400">Heat</div>
-            <div className="font-bold text-gray-300 text-lg">—</div>
-          </div>
-        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
           <div className="text-2xl font-bold text-white">{articles.length}</div>
-          <div className="text-xs text-gray-400 mt-1">Articles</div>
+          <div className="text-xs text-gray-300 mt-1">Articles</div>
         </div>
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
           <div className="text-2xl font-bold text-white">0</div>
-          <div className="text-xs text-gray-400 mt-1">Article Views</div>
+          <div className="text-xs text-gray-300 mt-1">Article Views</div>
         </div>
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
           <div className="text-2xl font-bold text-white">{comments.length}</div>
-          <div className="text-xs text-gray-400 mt-1">Comments</div>
+          <div className="text-xs text-gray-300 mt-1">Comments</div>
         </div>
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
           <div className="text-2xl font-bold text-white">0</div>
-          <div className="text-xs text-gray-400 mt-1">Likes Received</div>
+          <div className="text-xs text-gray-300 mt-1">Likes Received</div>
         </div>
       </div>
 
@@ -215,7 +195,7 @@ export default function ProfilePage() {
           className={`pb-3 whitespace-nowrap transition ${
             activeTab === "articles"
               ? "border-b-2 border-forge-accent text-forge-accent"
-              : "text-gray-400 hover:text-white"
+              : "text-gray-300 hover:text-white"
           }`}
         >
           Articles
@@ -225,7 +205,7 @@ export default function ProfilePage() {
           className={`pb-3 whitespace-nowrap transition ${
             activeTab === "comments"
               ? "border-b-2 border-forge-accent text-forge-accent"
-              : "text-gray-400 hover:text-white"
+              : "text-gray-300 hover:text-white"
           }`}
         >
           Comments
@@ -234,8 +214,8 @@ export default function ProfilePage() {
           onClick={() => setActiveTab("satire")}
           className={`pb-3 whitespace-nowrap transition ${
             activeTab === "satire"
-              ? "border-b-2 border-purple-400 text-purple-300"
-              : "text-gray-400 hover:text-white"
+              ? "border-b-2 border-purple-300 text-purple-200"
+              : "text-gray-300 hover:text-white"
           }`}
         >
           Satire
@@ -245,7 +225,7 @@ export default function ProfilePage() {
       {activeTab === "articles" && (
         articles.length === 0 ? (
           <div className="bg-forge-900 border border-forge-800 rounded-2xl p-10 text-center">
-            <p className="text-gray-300 font-medium mb-1">No articles yet</p>
+            <p className="text-gray-100 font-medium mb-1">No articles yet</p>
             <Link href="/editor" className="text-sm text-forge-accent">
               Write an article →
             </Link>
@@ -258,13 +238,15 @@ export default function ProfilePage() {
                 href={`/article/${article.id}`}
                 className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
               >
-                <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
+                <div className="flex items-center gap-2 text-xs text-gray-300 mb-1">
                   <span className="text-forge-accent font-medium">{article.section}</span>
                   <span>•</span>
-                  <span>{new Date(article.created_at).toLocaleDateString()}</span>
+                  <span title={formatTimeFull(article.created_at)}>
+                    {formatTime(article.created_at)}
+                  </span>
                 </div>
                 <h2 className="text-lg font-bold mb-2">{article.title}</h2>
-                <p className="text-gray-400 text-sm line-clamp-3">{article.body}</p>
+                <p className="text-gray-300 text-sm line-clamp-3">{article.body}</p>
               </Link>
             ))}
           </div>
@@ -274,7 +256,7 @@ export default function ProfilePage() {
       {activeTab === "comments" && (
         comments.length === 0 ? (
           <div className="bg-forge-900 border border-forge-800 rounded-2xl p-10 text-center">
-            <p className="text-gray-300 font-medium mb-1">No comments yet</p>
+            <p className="text-gray-100 font-medium mb-1">No comments yet</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -284,12 +266,14 @@ export default function ProfilePage() {
                 href={`/article/${comment.article_id}`}
                 className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
               >
-                <div className="text-xs text-gray-500 mb-2">
-                  On <span className="text-gray-300">{comment.article_title}</span>
+                <div className="text-xs text-gray-300 mb-2">
+                  On <span className="text-white">{comment.article_title}</span>
                   {" · "}
-                  {new Date(comment.created_at).toLocaleString()}
+                  <span title={formatTimeFull(comment.created_at)}>
+                    {formatTime(comment.created_at)}
+                  </span>
                 </div>
-                <p className="text-gray-300 text-sm leading-relaxed">{comment.body}</p>
+                <p className="text-gray-100 text-sm leading-relaxed">{comment.body}</p>
               </Link>
             ))}
           </div>
@@ -298,8 +282,8 @@ export default function ProfilePage() {
 
       {activeTab === "satire" && (
         <div className="bg-forge-900 border border-purple-500/20 rounded-2xl p-10 text-center">
-          <p className="text-gray-300 font-medium mb-1">No satire yet</p>
-          <Link href="/fan-fiction" className="text-sm text-purple-300">
+          <p className="text-gray-100 font-medium mb-1">No satire yet</p>
+          <Link href="/fan-fiction" className="text-sm text-purple-200">
             Write Satire →
           </Link>
         </div>
@@ -311,7 +295,7 @@ export default function ProfilePage() {
             await supabase.auth.signOut();
             window.location.href = "/login";
           }}
-          className="text-sm text-gray-400 hover:text-white transition"
+          className="text-sm text-gray-300 hover:text-white transition"
         >
           Log out
         </button>
