@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 export default function ProfilePage() {
-  const [activeTab, setActiveTab] = useState<"articles" | "comments" | "about">("articles");
+  const [activeTab, setActiveTab] = useState<"articles" | "comments" | "fanfiction">("articles");
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
@@ -79,10 +79,10 @@ export default function ProfilePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-6 border-b border-forge-800 mb-6 text-sm font-medium">
+      <div className="flex gap-6 border-b border-forge-800 mb-6 text-sm font-medium overflow-x-auto">
         <button
           onClick={() => setActiveTab("articles")}
-          className={`pb-3 transition ${
+          className={`pb-3 whitespace-nowrap transition ${
             activeTab === "articles"
               ? "border-b-2 border-forge-accent text-forge-accent"
               : "text-gray-400 hover:text-white"
@@ -92,7 +92,7 @@ export default function ProfilePage() {
         </button>
         <button
           onClick={() => setActiveTab("comments")}
-          className={`pb-3 transition ${
+          className={`pb-3 whitespace-nowrap transition ${
             activeTab === "comments"
               ? "border-b-2 border-forge-accent text-forge-accent"
               : "text-gray-400 hover:text-white"
@@ -101,14 +101,14 @@ export default function ProfilePage() {
           Comments
         </button>
         <button
-          onClick={() => setActiveTab("about")}
-          className={`pb-3 transition ${
-            activeTab === "about"
-              ? "border-b-2 border-forge-accent text-forge-accent"
+          onClick={() => setActiveTab("fanfiction")}
+          className={`pb-3 whitespace-nowrap transition ${
+            activeTab === "fanfiction"
+              ? "border-b-2 border-purple-400 text-purple-300"
               : "text-gray-400 hover:text-white"
           }`}
         >
-          About
+          Fan Fiction
         </button>
       </div>
 
@@ -190,16 +190,43 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* About Tab */}
-      {activeTab === "about" && (
-        <div className="bg-forge-900 border border-forge-800 rounded-xl p-6">
-          <h3 className="font-semibold mb-3">About Jordan</h3>
-          <p className="text-gray-300 text-sm leading-relaxed mb-4">
-            Former D-II offensive lineman who now spends most of his time breaking down film and advanced metrics. Focused on the trenches, scheme trends, and the numbers that actually predict success.
-          </p>
-          <p className="text-gray-300 text-sm leading-relaxed">
-            Based in Chicago. Writes primarily about the NFL and college football.
-          </p>
+      {/* Fan Fiction Tab */}
+      {activeTab === "fanfiction" && (
+        <div className="space-y-4">
+          <Link
+            href="/article/5"
+            className="block bg-forge-900 border border-purple-500/20 rounded-xl p-5 hover:border-purple-500/40 transition"
+          >
+            <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
+              <span className="bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded font-medium">
+                Fan Fiction
+              </span>
+              <span>•</span>
+              <span className="text-yellow-500">★ 4.9</span>
+              <span>•</span>
+              <span>Aug 10, 2026</span>
+            </div>
+            <h2 className="text-lg font-bold mb-1">
+              Caleb Williams Accidentally Invents Time Travel During a Scramble
+            </h2>
+            <p className="text-gray-400 text-sm">6.3k views • 91 comments</p>
+          </Link>
+
+          <div className="bg-forge-900 border border-purple-500/20 rounded-xl p-5">
+            <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
+              <span className="bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded font-medium">
+                Fan Fiction
+              </span>
+              <span>•</span>
+              <span className="text-yellow-500">★ 4.6</span>
+              <span>•</span>
+              <span>Jul 22, 2026</span>
+            </div>
+            <h2 className="text-lg font-bold mb-1">
+              The Day the Mascot Took Over Play-Calling
+            </h2>
+            <p className="text-gray-400 text-sm">3.1k views • 44 comments</p>
+          </div>
         </div>
       )}
     </main>
