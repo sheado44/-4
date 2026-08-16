@@ -12,6 +12,7 @@ type Article = {
   body: string;
   created_at: string;
   user_id: string;
+  author_name: string | null;
 };
 
 export default function ArticlePage() {
@@ -28,7 +29,7 @@ export default function ArticlePage() {
 
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, section, body, created_at, user_id")
+        .select("id, title, section, body, created_at, user_id, author_name")
         .eq("id", id)
         .single();
 
@@ -65,6 +66,13 @@ export default function ArticlePage() {
   }
 
   const isSatire = article.section === "Satire";
+  const author = article.author_name || "Unknown author";
+  const initials = author
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
@@ -89,9 +97,19 @@ export default function ArticlePage() {
         <span>{new Date(article.created_at).toLocaleDateString()}</span>
       </div>
 
-      <h1 className="text-3xl md:text-4xl font-extrabold leading-tight mb-8 tracking-tight">
+      <h1 className="text-3xl md:text-4xl font-extrabold leading-tight mb-6 tracking-tight">
         {article.title}
       </h1>
+
+      <div className="flex items-center gap-3 mb-8 pb-6 border-b border-forge-800">
+        <div className="w-11 h-11 rounded-full bg-blue-600 flex items-center justify-center font-bold">
+          {initials}
+        </div>
+        <div>
+          <div className="font-semibold">{author}</div>
+          <div className="text-sm text-gray-400">Rank —</div>
+        </div>
+      </div>
 
       <article className="max-w-none mb-12">
         {article.body.split("\n").filter(Boolean).map((paragraph, i) => (
@@ -114,7 +132,6 @@ export default function ArticlePage() {
         </div>
       )}
 
-      {/* Comments section */}
       <section className="border-t border-forge-800 pt-8">
         <h3 className="text-xl font-bold mb-5">Comments</h3>
 
