@@ -1,11 +1,11 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 
-export default async function ArticlePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+export default function ArticlePage() {
+  const [imagesUsedToday, setImagesUsedToday] = useState(0);
+  const canGenerateImage = imagesUsedToday < 1;
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
@@ -158,20 +158,42 @@ export default async function ArticlePage({
           <p className="text-sm text-gray-500">Free speech zone — legal speech only</p>
         </div>
 
-        {/* Comment form */}
+        {/* Comment form with AI image */}
         <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 mb-8">
           <textarea
             placeholder="Add your take..."
             className="w-full bg-transparent border-0 text-gray-200 placeholder-gray-500 resize-none h-24 outline-none text-sm"
           />
-          <div className="flex justify-end mt-3">
+
+          {/* Image options for comments */}
+          <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-forge-800">
+            <button className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition">
+              📷 Upload Image
+            </button>
+            <button
+              disabled={!canGenerateImage}
+              onClick={() => canGenerateImage && setImagesUsedToday(1)}
+              className={`flex items-center gap-1.5 text-xs transition ${
+                canGenerateImage
+                  ? "text-forge-accent hover:text-orange-300"
+                  : "text-gray-600 cursor-not-allowed"
+              }`}
+            >
+              ✨ AI Generate Image
+            </button>
+            <span className="text-xs text-gray-600 ml-auto">
+              {canGenerateImage ? "1 AI image left today" : "Daily AI image used"}
+            </span>
+          </div>
+
+          <div className="flex justify-end mt-4">
             <button className="bg-forge-accent hover:bg-forge-accentHover text-white text-sm font-medium px-5 py-2 rounded-xl transition">
               Post Comment
             </button>
           </div>
         </div>
 
-        {/* Comments */}
+        {/* Existing comments */}
         <div className="space-y-6">
           {[
             {
@@ -225,7 +247,6 @@ export default async function ArticlePage({
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 text-sm mb-1">
-                  {/* Name with hover tooltip */}
                   <div className="relative group">
                     <Link
                       href="/profile"
@@ -233,7 +254,6 @@ export default async function ArticlePage({
                     >
                       {c.name}
                     </Link>
-                    {/* Tooltip */}
                     <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
                       <div className="bg-forge-800 border border-forge-600 text-xs text-white px-3 py-2 rounded-lg whitespace-nowrap shadow-lg">
                         <div>#{c.rank} Commenter</div>
@@ -248,7 +268,6 @@ export default async function ArticlePage({
 
                 <p className="text-gray-300 text-sm leading-relaxed mb-3">{c.text}</p>
 
-                {/* Like / Dislike */}
                 <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
                   <button className="flex items-center gap-1.5 hover:text-green-400 transition">
                     👍 {c.likes}
@@ -259,7 +278,6 @@ export default async function ArticlePage({
                   <button className="hover:text-forge-accent transition">Reply</button>
                 </div>
 
-                {/* Who voted */}
                 <div className="mt-3 text-xs text-gray-500 space-y-1">
                   <div>
                     <span className="text-green-500/80">Liked by:</span>{" "}
