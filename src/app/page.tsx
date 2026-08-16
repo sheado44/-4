@@ -37,12 +37,12 @@ export default function Home() {
 
   return (
     <main className="min-h-screen">
-      <section className="pt-10 pb-8 text-center px-4">
-        <div className="flex justify-center mb-4">
+      <section className="pt-8 pb-6 text-center px-4">
+        <div className="flex justify-center mb-3">
           <img
             src="/ballpit-logo.png"
             alt="The Ballpit"
-            className="w-full max-w-sm md:max-w-md h-auto"
+            className="w-full max-w-3xl md:max-w-4xl h-auto mix-blend-multiply brightness-110 contrast-125"
           />
         </div>
         <p className="text-gray-500 text-xs tracking-[0.3em] uppercase">
