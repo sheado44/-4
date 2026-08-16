@@ -4,12 +4,26 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
+function calcAge(birthday: string): number | null {
+  if (!birthday) return null;
+  const birth = new Date(birthday);
+  if (Number.isNaN(birth.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age -= 1;
+  }
+  return age;
+}
+
 export default function SettingsPage() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [link, setLink] = useState("");
   const [sex, setSex] = useState("");
-  const [age, setAge] = useState("");
+  const [birthday, setBirthday] = useState("");
   const [location, setLocation] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -29,7 +43,7 @@ export default function SettingsPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, bio, link, sex, age, location")
+        .select("display_name, bio, link, sex, birthday, location")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -42,7 +56,7 @@ export default function SettingsPage() {
       setBio(profile?.bio || "");
       setLink(profile?.link || "");
       setSex(profile?.sex || "");
-      setAge(profile?.age ? String(profile.age) : "");
+      setBirthday(profile?.birthday || "");
       setLocation(profile?.location || "");
       setLoading(false);
     };
@@ -56,15 +70,19 @@ export default function SettingsPage() {
       return;
     }
 
-    setSaving(true);
-    setMessage("");
-
-    const ageNumber = age.trim() ? Number(age) : null;
-    if (age.trim() && (Number.isNaN(ageNumber) || ageNumber! < 13 || ageNumber! > 120)) {
-      setMessage("Please enter a valid age.");
-      setSaving(false);
+    if (!birthday) {
+      setMessage("Birthday is required.");
       return;
     }
+
+    const age = calcAge(birthday);
+    if (age === null || age < 13 || age > 120) {
+      setMessage("Please enter a valid birthday. You must be at least 13.");
+      return;
+    }
+
+    setSaving(true);
+    setMessage("");
 
     const { error } = await supabase.from("profiles").upsert({
       id: userId,
@@ -72,7 +90,8 @@ export default function SettingsPage() {
       bio: bio.trim() || null,
       link: link.trim() || null,
       sex: sex.trim() || null,
-      age: ageNumber,
+      birthday,
+      age,
       location: location.trim() || null,
       updated_at: new Date().toISOString(),
     });
@@ -88,6 +107,8 @@ export default function SettingsPage() {
 
     setSaving(false);
   };
+
+  const previewAge = calcAge(birthday);
 
   if (loading) {
     return (
@@ -112,7 +133,7 @@ export default function SettingsPage() {
     <main className="max-w-xl mx-auto px-4 py-10">
       <h1 className="text-2xl font-bold mb-2">Edit Profile</h1>
       <p className="text-sm text-gray-400 mb-6">
-        All fields below are optional except display name.
+        Birthday is required. Other fields are optional.
       </p>
 
       <div className="space-y-4">
@@ -123,6 +144,22 @@ export default function SettingsPage() {
             onChange={(e) => setDisplayName(e.target.value)}
             className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm text-gray-400 mb-1.5">
+            Birthday <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="date"
+            value={birthday}
+            onChange={(e) => setBirthday(e.target.value)}
+            required
+            className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none"
+          />
+          {previewAge !== null && (
+            <p className="text-xs text-gray-500 mt-1.5">Age: {previewAge}</p>
+          )}
         </div>
 
         <div>
@@ -148,7 +185,7 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm text-gray-400 mb-1.5">Sex</label>
             <select
@@ -161,19 +198,6 @@ export default function SettingsPage() {
               <option value="Female">Female</option>
               <option value="Other">Other</option>
             </select>
-          </div>
-
-          <div>
-            <label className="block text-sm text-gray-400 mb-1.5">Age</label>
-            <input
-              type="number"
-              min={13}
-              max={120}
-              value={age}
-              onChange={(e) => setAge(e.target.value)}
-              placeholder="Optional"
-              className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none"
-            />
           </div>
 
           <div>
