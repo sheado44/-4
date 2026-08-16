@@ -6,15 +6,6 @@ import Link from "next/link";
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"articles" | "comments" | "about">("articles");
 
-  // Prototype: this would only show when viewing someone else's profile
-  const relationship = {
-    status: "Ally", // Ally | Neutral | Foe | Unknown
-    likes: 14,
-    dislikes: 2,
-    color: "text-green-400",
-    bg: "bg-green-500/10 border-green-500/30",
-  };
-
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
       {/* Profile Header */}
@@ -51,20 +42,21 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Private Relationship Signal (only visible to you) */}
-      <div className={`mb-8 rounded-xl border px-4 py-3 ${relationship.bg}`}>
+      {/* Private Relationship Signal */}
+      <Link
+        href="/relationship"
+        className="block mb-8 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 hover:bg-green-500/15 transition"
+      >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <div className="text-xs text-gray-400 mb-0.5">Your relationship (only visible to you)</div>
-            <div className={`font-semibold ${relationship.color}`}>
-              {relationship.status}
-            </div>
+            <div className="font-semibold text-green-400">Ally</div>
           </div>
           <div className="text-sm text-gray-400">
-            {relationship.likes} likes · {relationship.dislikes} dislikes on your content
+            14 likes · 2 dislikes · 5 comments · 3 replies →
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
