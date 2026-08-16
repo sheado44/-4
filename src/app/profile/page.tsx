@@ -24,6 +24,7 @@ type Comment = {
   article_id: string;
   body: string;
   created_at: string;
+  article_title?: string;
 };
 
 export default function ProfilePage() {
@@ -75,7 +76,21 @@ export default function ProfilePage() {
         .select("id, article_id, body, created_at")
         .eq("user_id", authUser.id)
         .order("created_at", { ascending: false });
-      setComments(commentData || []);
+
+      const commentsWithTitles: Comment[] = [];
+      for (const comment of commentData || []) {
+        const { data: art } = await supabase
+          .from("articles")
+          .select("title")
+          .eq("id", comment.article_id)
+          .single();
+
+        commentsWithTitles.push({
+          ...comment,
+          article_title: art?.title || "Article",
+        });
+      }
+      setComments(commentsWithTitles);
 
       setLoading(false);
     };
@@ -228,9 +243,12 @@ export default function ProfilePage() {
                 className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
               >
                 <div className="text-xs text-gray-500 mb-2">
+                  On <span className="text-gray-300">{comment.article_title}</span>
+                  {" · "}
                   {new Date(comment.created_at).toLocaleString()}
                 </div>
                 <p className="text-gray-300 text-sm leading-relaxed">{comment.body}</p>
+                <div className="text-xs text-forge-accent mt-3">View article →</div>
               </Link>
             ))}
           </div>
