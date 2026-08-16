@@ -47,7 +47,7 @@ const templates = [
 
 const tones = ["Funny", "Serious", "Mad", "Chaotic", "Deadpan"] as const;
 
-export default function FanFictionPage() {
+export default function SatirePage() {
   const [step, setStep] = useState<"madlibs" | "result">("madlibs");
   const [generationsLeft, setGenerationsLeft] = useState(2);
   const [templateIndex, setTemplateIndex] = useState(0);
@@ -74,21 +74,19 @@ export default function FanFictionPage() {
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10">
-      {/* Header */}
       <div className="mb-8">
         <div className="inline-block bg-purple-500/20 text-purple-300 text-xs font-semibold px-2.5 py-1 rounded-md mb-3">
-          Fan Fiction
+          Satire
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">Fan Fiction Mad Libs</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-2">Write Satire</h1>
         <p className="text-gray-400 text-sm">
-          Fill in the blanks. Pick a tone. Generate something clearly untrue.
+          Fill in the blanks. Pick a tone. Generate something clearly untrue for entertainment.
         </p>
       </div>
 
-      {/* Daily limit */}
       <div className="mb-6 rounded-xl px-4 py-3 text-sm bg-forge-900 border border-forge-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          ✨ <span className="font-semibold text-white">{generationsLeft}</span> Fan Fiction generations left today
+          ✨ <span className="font-semibold text-white">{generationsLeft}</span> Satire generations left today
         </div>
         <div className="text-xs text-gray-500">
           Separate from your 1 AI image / day
@@ -97,7 +95,6 @@ export default function FanFictionPage() {
 
       {step === "madlibs" && (
         <>
-          {/* Tone */}
           <div className="mb-5">
             <div className="text-sm text-gray-300 mb-2">Writing tone</div>
             <div className="flex flex-wrap gap-2">
@@ -117,7 +114,6 @@ export default function FanFictionPage() {
             </div>
           </div>
 
-          {/* Template card */}
           <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 mb-4">
             <div className="flex items-center justify-between mb-4">
               <div className="text-xs text-gray-500">Setup: {template.label}</div>
@@ -174,7 +170,7 @@ export default function FanFictionPage() {
                   : "bg-forge-800 text-gray-600 cursor-not-allowed"
               }`}
             >
-              Generate Fan Fiction
+              Generate Satire
             </button>
             <Link href="/" className="text-sm text-gray-400 hover:text-white transition">
               Cancel
@@ -188,12 +184,12 @@ export default function FanFictionPage() {
           <div className="bg-forge-900 border border-purple-500/30 rounded-2xl p-5 mb-6">
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <span className="bg-purple-500/20 text-purple-300 text-xs font-semibold px-2 py-0.5 rounded">
-                Fan Fiction
+                Satire
               </span>
               <span className="bg-forge-800 text-gray-300 text-xs px-2 py-0.5 rounded">
                 Tone: {tone}
               </span>
-              <span className="text-xs text-gray-500">Clearly untrue · AI generated</span>
+              <span className="text-xs text-gray-500">Clearly untrue · For entertainment</span>
             </div>
 
             <h2 className="text-xl font-bold mb-3">{title}</h2>
@@ -212,7 +208,7 @@ export default function FanFictionPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <button className="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-xl transition">
-              Publish Fan Fiction
+              Publish Satire
             </button>
             <button
               onClick={() => {
