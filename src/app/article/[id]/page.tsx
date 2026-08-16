@@ -189,6 +189,8 @@ export default async function ArticlePage({
               text: "Finally someone posting the actual film grades instead of the same old “Bears line is bad” narrative. The right tackle improvement alone is massive.",
               likes: 24,
               dislikes: 3,
+              likedBy: ["Maya Chen", "Aisha Lane", "Tom Keller", "Sam Rivera", "+20 more"],
+              dislikedBy: ["Chris P.", "Jordan M.", "Alex T."],
             },
             {
               initials: "SR",
@@ -201,6 +203,8 @@ export default async function ArticlePage({
               text: "I’m still skeptical until we see them against the better edge rushers in December. But the data is hard to argue with right now.",
               likes: 11,
               dislikes: 8,
+              likedBy: ["Jordan Reyes", "Derek K.", "Lisa M.", "+8 more"],
+              dislikedBy: ["Mike T.", "Chris P.", "Alex R.", "Sam K.", "+4 more"],
             },
             {
               initials: "AL",
@@ -213,6 +217,8 @@ export default async function ArticlePage({
               text: "This is the kind of analysis that actually moves the conversation forward. Great work.",
               likes: 19,
               dislikes: 1,
+              likedBy: ["Jordan Reyes", "Maya Chen", "Tom Keller", "Derek K.", "+15 more"],
+              dislikedBy: ["Anonymous"],
             },
           ].map((c) => (
             <div key={c.name} className="flex gap-3">
@@ -245,8 +251,32 @@ export default async function ArticlePage({
                 </p>
 
                 <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <button className="hover:text-green-400 transition">👍 {c.likes}</button>
-                  <button className="hover:text-red-400 transition">👎 {c.dislikes}</button>
+                  {/* Like with hover list */}
+                  <div className="relative group/like">
+                    <button className="hover:text-green-400 transition">
+                      👍 {c.likes}
+                    </button>
+                    <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/like:block z-10">
+                      <div className="bg-forge-800 border border-forge-700 text-xs text-white px-2.5 py-1.5 rounded-lg shadow-lg max-w-[220px]">
+                        <div className="text-green-400 mb-1">Liked by</div>
+                        <div className="text-gray-300">{c.likedBy.join(", ")}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dislike with hover list */}
+                  <div className="relative group/dislike">
+                    <button className="hover:text-red-400 transition">
+                      👎 {c.dislikes}
+                    </button>
+                    <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/dislike:block z-10">
+                      <div className="bg-forge-800 border border-forge-700 text-xs text-white px-2.5 py-1.5 rounded-lg shadow-lg max-w-[220px]">
+                        <div className="text-red-400 mb-1">Disliked by</div>
+                        <div className="text-gray-300">{c.dislikedBy.join(", ")}</div>
+                      </div>
+                    </div>
+                  </div>
+
                   <Link
                     href="/article/1/comment"
                     className="hover:text-forge-accent transition"
