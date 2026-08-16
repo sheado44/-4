@@ -6,29 +6,24 @@ export default async function ArticlePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const isFanFiction = id === "5";
+  const isSatire = id === "5";
 
-  if (isFanFiction) {
+  if (isSatire) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-10">
-        {/* Fan Fiction banner */}
-        <div className="mb-6 rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="bg-purple-500/20 text-purple-300 font-semibold px-2.5 py-1 rounded-md">
-              Fan Fiction
-            </span>
-            <span className="text-purple-200/80">
-              Clearly untrue · Written for entertainment
-            </span>
+        {/* Frozen Satire bar */}
+        <div className="sticky top-14 z-40 -mx-4 px-4 mb-6">
+          <div className="bg-purple-600 text-white text-center text-sm font-semibold py-2 rounded-xl shadow-lg">
+            Satire
           </div>
         </div>
 
         {/* Meta */}
         <div className="flex flex-wrap items-center gap-2 text-sm text-gray-400 mb-4">
           <span className="bg-purple-500/15 text-purple-300 px-2.5 py-1 rounded-md font-semibold">
-            #1 Fan Fiction
+            #1 Satire
           </span>
-          <span className="bg-forge-800 px-2.5 py-1 rounded-md">Satire</span>
+          <span className="bg-forge-800 px-2.5 py-1 rounded-md">Humor</span>
           <span className="text-yellow-500 font-medium">★ 4.9</span>
           <span className="text-gray-600">•</span>
           <span>Aug 10, 2026</span>
@@ -48,7 +43,7 @@ export default async function ArticlePage({
               <div className="font-semibold group-hover:text-forge-accent transition">
                 Sam Rivera
               </div>
-              <div className="text-sm text-gray-400">Fan Fiction · 6 pieces</div>
+              <div className="text-sm text-gray-400">Satire · 6 pieces</div>
             </div>
           </Link>
 
@@ -72,9 +67,7 @@ export default async function ArticlePage({
         <div className="w-full h-56 md:h-72 rounded-2xl bg-gradient-to-br from-purple-700/30 to-forge-900 mb-10 flex items-center justify-center border border-purple-500/20">
           <div className="text-center">
             <div className="text-5xl mb-2">🌀</div>
-            <div className="text-sm text-purple-200/70 font-medium">
-              Clearly untrue Fan Fiction
-            </div>
+            <div className="text-sm text-purple-200/70 font-medium">Satire</div>
           </div>
         </div>
 
@@ -93,10 +86,6 @@ export default async function ArticlePage({
             The rest of the story involves a talking mascot, a cursed playbook, and one very confused time-traveling quarterback who just wanted a first down.
           </p>
         </article>
-
-        <div className="mt-8 rounded-xl border border-purple-500/20 bg-purple-500/5 px-4 py-3 text-sm text-purple-200/80">
-          This is Fan Fiction. It is intentionally untrue and written for entertainment.
-        </div>
 
         {/* Comments CTA */}
         <section className="mt-12">
@@ -122,7 +111,7 @@ export default async function ArticlePage({
     );
   }
 
-  // Regular article treatment
+  // Regular article
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
       <div className="flex flex-wrap items-center gap-2 text-sm text-gray-400 mb-4">
@@ -184,11 +173,7 @@ export default async function ArticlePage({
           For years, the Chicago Bears offensive line was a punchline. In 2026, the joke is over.
         </p>
         <p className="text-gray-300 leading-relaxed mb-5">
-          Advanced metrics from multiple independent sources now rank the Bears’ front five among the top units in the NFL — a transformation that has flown under the radar while the spotlight stays locked on Caleb Williams and the skill players.
-        </p>
-        <h2 className="text-xl font-bold mt-9 mb-4 text-white">The Numbers Don’t Lie</h2>
-        <p className="text-gray-300 leading-relaxed mb-5">
-          According to next-gen tracking and independent film graders, Chicago currently sits near the top of the league in pass-block win rate and pressure rate allowed.
+          Advanced metrics from multiple independent sources now rank the Bears’ front five among the top units in the NFL.
         </p>
       </article>
 
