@@ -28,8 +28,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="bg-forge-950 text-gray-100 min-h-screen">
-        <nav className="border-b border-forge-800/80 bg-forge-900/70 backdrop-blur sticky top-0 z-50 relative">
+      <body className="bg-gray-500 text-gray-100 min-h-screen">
+        <nav className="border-b border-gray-400/40 bg-gray-600/80 backdrop-blur sticky top-0 z-50 relative">
           <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <MobileNav />
@@ -39,16 +39,16 @@ export default function RootLayout({
             </div>
 
             <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-              <Link href="/" className="text-gray-300 hover:text-white transition">
+              <Link href="/" className="text-gray-200 hover:text-white transition">
                 Home
               </Link>
-              <Link href="/" className="text-gray-300 hover:text-white transition">
+              <Link href="/" className="text-gray-200 hover:text-white transition">
                 Sports
               </Link>
-              <Link href="/" className="text-gray-300 hover:text-white transition">
+              <Link href="/" className="text-gray-200 hover:text-white transition">
                 Pop Culture
               </Link>
-              <Link href="/" className="text-gray-300 hover:text-white transition">
+              <Link href="/" className="text-gray-200 hover:text-white transition">
                 Satire
               </Link>
               <Link
@@ -65,12 +65,12 @@ export default function RootLayout({
 
         {children}
 
-        <footer className="border-t border-forge-800/80 mt-16 py-8">
-          <div className="max-w-6xl mx-auto px-4 text-center text-sm text-gray-500">
+        <footer className="border-t border-gray-400/40 mt-16 py-8">
+          <div className="max-w-6xl mx-auto px-4 text-center text-sm text-gray-200">
             <p className="mb-1">
               <BrandMark className="text-base" />
             </p>
-            <p>Sports & Pop Culture</p>
+            <p className="text-gray-300">Sports & Pop Culture</p>
           </div>
         </footer>
       </body>
