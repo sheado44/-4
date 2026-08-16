@@ -93,7 +93,7 @@ export default function ArticlePage() {
         {article.title}
       </h1>
 
-      <article className="max-w-none">
+      <article className="max-w-none mb-12">
         {article.body.split("\n").filter(Boolean).map((paragraph, i) => (
           <p key={i} className="text-gray-300 leading-relaxed mb-5">
             {paragraph}
@@ -102,11 +102,9 @@ export default function ArticlePage() {
       </article>
 
       {isSatire && (
-        <div className="mt-10 mb-10 rounded-2xl border border-purple-500/30 bg-purple-500/10 p-5 text-center">
+        <div className="mb-10 rounded-2xl border border-purple-500/30 bg-purple-500/10 p-5 text-center">
           <p className="font-semibold text-purple-200 mb-1">Inspired?</p>
-          <p className="text-sm text-gray-400 mb-4">
-            Make your own satire piece.
-          </p>
+          <p className="text-sm text-gray-400 mb-4">Make your own satire piece.</p>
           <Link
             href="/fan-fiction"
             className="inline-block bg-purple-600 hover:bg-purple-500 text-white font-medium px-6 py-2.5 rounded-xl transition text-sm"
@@ -115,6 +113,32 @@ export default function ArticlePage() {
           </Link>
         </div>
       )}
+
+      {/* Comments section */}
+      <section className="border-t border-forge-800 pt-8">
+        <h3 className="text-xl font-bold mb-5">Comments</h3>
+
+        <Link
+          href={`/article/${article.id}/comment`}
+          className="block bg-forge-900 border border-forge-800 hover:border-forge-accent/40 rounded-2xl p-4 mb-6 transition group"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium group-hover:text-forge-accent transition">
+                Write a comment
+              </div>
+              <div className="text-sm text-gray-500 mt-0.5">
+                Images · GIFs · AI tools
+              </div>
+            </div>
+            <div className="text-forge-accent text-sm font-medium">Open →</div>
+          </div>
+        </Link>
+
+        <div className="bg-forge-900/50 border border-forge-800 rounded-xl p-6 text-center text-sm text-gray-500">
+          No comments yet. Be the first.
+        </div>
+      </section>
 
       <div className="mt-10">
         <Link href="/" className="text-sm text-gray-400 hover:text-white transition">
