@@ -87,8 +87,22 @@ export default async function ArticlePage({
           </p>
         </article>
 
+        {/* Write Satire CTA */}
+        <div className="mt-10 mb-10 rounded-2xl border border-purple-500/30 bg-purple-500/10 p-5 text-center">
+          <p className="font-semibold text-purple-200 mb-1">Inspired?</p>
+          <p className="text-sm text-gray-400 mb-4">
+            Make your own clearly labeled satire piece.
+          </p>
+          <Link
+            href="/fan-fiction"
+            className="inline-block bg-purple-600 hover:bg-purple-500 text-white font-medium px-6 py-2.5 rounded-xl transition text-sm"
+          >
+            Write Satire
+          </Link>
+        </div>
+
         {/* Comments CTA */}
-        <section className="mt-12">
+        <section className="mt-4">
           <h3 className="text-xl font-bold mb-5">Comments (91)</h3>
           <Link
             href="/article/1/comment"
