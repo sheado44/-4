@@ -171,13 +171,14 @@ export default async function ArticlePage({
           </div>
         </div>
 
-        {/* Sample comments with Like / Dislike + who voted */}
+        {/* Comments with hover rank */}
         <div className="space-y-6">
           {[
             {
               initials: "DK",
               color: "bg-green-700",
               name: "Derek K.",
+              rank: 14,
               time: "2h ago",
               text: "Finally someone posting the actual film grades instead of the same old “Bears line is bad” narrative. The right tackle improvement alone is massive.",
               likes: 24,
@@ -189,6 +190,7 @@ export default async function ArticlePage({
               initials: "SR",
               color: "bg-red-700",
               name: "Sam R.",
+              rank: 47,
               time: "4h ago",
               text: "I’m still skeptical until we see them against the better edge rushers in December. But the data is hard to argue with right now.",
               likes: 11,
@@ -200,6 +202,7 @@ export default async function ArticlePage({
               initials: "AL",
               color: "bg-purple-600",
               name: "Aisha L.",
+              rank: 9,
               time: "6h ago",
               text: "This is the kind of analysis that actually moves the conversation forward. Great work.",
               likes: 19,
@@ -216,12 +219,27 @@ export default async function ArticlePage({
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 text-sm mb-1">
-                  <span className="font-medium">{c.name}</span>
+                  {/* Name with hover rank tooltip */}
+                  <div className="relative group">
+                    <Link
+                      href="/profile"
+                      className="font-medium hover:text-forge-accent transition cursor-pointer"
+                    >
+                      {c.name}
+                    </Link>
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
+                      <div className="bg-forge-800 border border-forge-600 text-xs text-white px-3 py-1.5 rounded-lg whitespace-nowrap shadow-lg">
+                        #{c.rank} All-Time Commenter
+                      </div>
+                    </div>
+                  </div>
                   <span className="text-gray-500">{c.time}</span>
                 </div>
+
                 <p className="text-gray-300 text-sm leading-relaxed mb-3">{c.text}</p>
 
-                {/* Like / Dislike row */}
+                {/* Like / Dislike */}
                 <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
                   <button className="flex items-center gap-1.5 hover:text-green-400 transition">
                     👍 {c.likes}
@@ -232,7 +250,7 @@ export default async function ArticlePage({
                   <button className="hover:text-forge-accent transition">Reply</button>
                 </div>
 
-                {/* Who liked / disliked */}
+                {/* Who voted */}
                 <div className="mt-3 text-xs text-gray-500 space-y-1">
                   <div>
                     <span className="text-green-500/80">Liked by:</span>{" "}
