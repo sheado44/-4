@@ -11,6 +11,9 @@ type ProfileUser = {
   initials: string;
   bio: string;
   link: string;
+  sex: string;
+  age: number | null;
+  location: string;
 };
 
 type Article = {
@@ -49,7 +52,7 @@ export default function ProfilePage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, bio, link")
+        .select("display_name, bio, link, sex, age, location")
         .eq("id", authUser.id)
         .maybeSingle();
 
@@ -73,6 +76,9 @@ export default function ProfilePage() {
         initials,
         bio: profile?.bio || "",
         link: profile?.link || "",
+        sex: profile?.sex || "",
+        age: profile?.age ?? null,
+        location: profile?.location || "",
       });
 
       const { data: articleData } = await supabase
@@ -126,6 +132,12 @@ export default function ProfilePage() {
     );
   }
 
+  const details = [
+    user.sex,
+    user.age ? `${user.age}` : "",
+    user.location,
+  ].filter(Boolean);
+
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
       <div className="flex flex-col items-center text-center mb-10">
@@ -134,7 +146,11 @@ export default function ProfilePage() {
         </div>
 
         <h1 className="text-3xl md:text-4xl font-bold mb-1">{user.displayName}</h1>
-        <p className="text-gray-400 mb-3">{user.email}</p>
+        <p className="text-gray-400 mb-2">{user.email}</p>
+
+        {details.length > 0 && (
+          <p className="text-sm text-gray-400 mb-3">{details.join(" · ")}</p>
+        )}
 
         {user.bio && (
           <p className="text-gray-300 text-sm max-w-xl mb-3">{user.bio}</p>
