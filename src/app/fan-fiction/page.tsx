@@ -4,23 +4,23 @@ import { useState } from "react";
 import Link from "next/link";
 
 export default function FanFictionPage() {
-  const [step, setStep] = useState<"prompts" | "result">("prompts");
+  const [step, setStep] = useState<"madlibs" | "result">("madlibs");
   const [generationsLeft, setGenerationsLeft] = useState(2);
-  const [idea, setIdea] = useState("");
 
-  const prompts = [
-    "What if a star player accidentally time-traveled?",
-    "A coach starts taking advice from a talking mascot",
-    "The league is secretly run by rivalries from high school",
-    "A rookie discovers the playbook is cursed",
-    "Two franchises switch cities for one chaotic week",
-  ];
+  const [player, setPlayer] = useState("");
+  const [verb, setVerb] = useState("");
+  const [noun, setNoun] = useState("");
+  const [event, setEvent] = useState("");
+  const [twist, setTwist] = useState("");
 
   const handleGenerate = () => {
     if (generationsLeft <= 0) return;
     setGenerationsLeft((n) => n - 1);
     setStep("result");
   };
+
+  const filled =
+    player.trim() && verb.trim() && noun.trim() && event.trim() && twist.trim();
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10">
@@ -29,9 +29,9 @@ export default function FanFictionPage() {
         <div className="inline-block bg-purple-500/20 text-purple-300 text-xs font-semibold px-2.5 py-1 rounded-md mb-3">
           Fan Fiction
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">Write Fan Fiction</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-2">Fan Fiction Mad Libs</h1>
         <p className="text-gray-400 text-sm">
-          Generate wild, funny, clearly untrue stories. Always labeled as Fan Fiction.
+          Fill in the blanks. Generate something ridiculous. Always clearly labeled untrue.
         </p>
       </div>
 
@@ -45,43 +45,80 @@ export default function FanFictionPage() {
         </div>
       </div>
 
-      {step === "prompts" && (
+      {step === "madlibs" && (
         <>
-          {/* Prompt ideas */}
-          <div className="mb-6">
-            <h2 className="text-sm font-medium text-gray-300 mb-3">Quick prompts</h2>
-            <div className="flex flex-wrap gap-2">
-              {prompts.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setIdea(p)}
-                  className="text-left text-sm px-3 py-2 rounded-xl bg-forge-900 border border-forge-800 hover:border-purple-500/50 hover:bg-forge-800 transition"
-                >
-                  {p}
-                </button>
-              ))}
+          {/* Mad Libs form */}
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 mb-6 space-y-4">
+            <p className="text-sm text-gray-300 leading-relaxed">
+              What if{" "}
+              <input
+                value={player}
+                onChange={(e) => setPlayer(e.target.value)}
+                placeholder="player / person"
+                className="inline-block w-36 mx-1 bg-forge-800 border border-forge-700 rounded-lg px-2 py-1 text-sm focus:border-purple-500 outline-none"
+              />{" "}
+              accidentally{" "}
+              <input
+                value={verb}
+                onChange={(e) => setVerb(e.target.value)}
+                placeholder="verb"
+                className="inline-block w-28 mx-1 bg-forge-800 border border-forge-700 rounded-lg px-2 py-1 text-sm focus:border-purple-500 outline-none"
+              />{" "}
+              a{" "}
+              <input
+                value={noun}
+                onChange={(e) => setNoun(e.target.value)}
+                placeholder="noun"
+                className="inline-block w-28 mx-1 bg-forge-800 border border-forge-700 rounded-lg px-2 py-1 text-sm focus:border-purple-500 outline-none"
+              />{" "}
+              during{" "}
+              <input
+                value={event}
+                onChange={(e) => setEvent(e.target.value)}
+                placeholder="event"
+                className="inline-block w-36 mx-1 bg-forge-800 border border-forge-700 rounded-lg px-2 py-1 text-sm focus:border-purple-500 outline-none"
+              />
+              ?
+            </p>
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5">
+                Bonus twist (optional but better)
+              </label>
+              <input
+                value={twist}
+                onChange={(e) => setTwist(e.target.value)}
+                placeholder="e.g. a talking mascot, cursed playbook, rival from high school..."
+                className="w-full bg-forge-800 border border-forge-700 rounded-xl px-3 py-2.5 text-sm focus:border-purple-500 outline-none"
+              />
             </div>
           </div>
 
-          {/* Custom idea */}
+          {/* Example helpers */}
           <div className="mb-6">
-            <label className="block text-sm text-gray-400 mb-1.5">
-              Your idea (optional)
-            </label>
-            <textarea
-              value={idea}
-              onChange={(e) => setIdea(e.target.value)}
-              placeholder="Describe the ridiculous premise..."
-              className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm min-h-[100px] focus:border-purple-500 outline-none transition"
-            />
+            <p className="text-xs text-gray-500 mb-2">Need ideas?</p>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <button
+                onClick={() => {
+                  setPlayer("Caleb Williams");
+                  setVerb("invented");
+                  setNoun("time machine");
+                  setEvent("a scramble");
+                  setTwist("Walter Payton learns the RPO");
+                }}
+                className="px-3 py-1.5 rounded-lg bg-forge-900 border border-forge-800 hover:border-purple-500/40 transition"
+              >
+                Fill example
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={handleGenerate}
-              disabled={generationsLeft <= 0}
+              disabled={generationsLeft <= 0 || !filled}
               className={`px-6 py-2.5 rounded-xl text-sm font-medium transition ${
-                generationsLeft > 0
+                generationsLeft > 0 && filled
                   ? "bg-purple-600 hover:bg-purple-500 text-white"
                   : "bg-forge-800 text-gray-600 cursor-not-allowed"
               }`}
@@ -97,7 +134,6 @@ export default function FanFictionPage() {
 
       {step === "result" && (
         <>
-          {/* Generated result */}
           <div className="bg-forge-900 border border-purple-500/30 rounded-2xl p-5 mb-6">
             <div className="flex items-center gap-2 mb-4">
               <span className="bg-purple-500/20 text-purple-300 text-xs font-semibold px-2 py-0.5 rounded">
@@ -107,21 +143,21 @@ export default function FanFictionPage() {
             </div>
 
             <h2 className="text-xl font-bold mb-3">
-              Caleb Williams Accidentally Invents Time Travel During a Scramble
+              {player} Accidentally {verb} a {noun} During {event}
             </h2>
 
             <div className="text-sm text-gray-300 leading-relaxed space-y-3">
               <p>
-                It started as a broken play. It ended with Walter Payton learning the RPO in 1985.
+                It started as a normal moment in {event}. It ended with {player} having {verb} a {noun} in front of thousands of confused fans.
               </p>
               <p>
-                According to sources that definitely do not exist, Williams scrambled left, stepped through what witnesses described as “a shimmering portal of pure chaos,” and landed on a practice field outside Chicago forty years earlier.
+                Witnesses (who absolutely do not exist) claim the whole thing only made sense once {twist} entered the picture.
               </p>
               <p>
-                Coaches at the time reportedly asked only one question: “Can he block?”
+                Coaches tried to diagram it. Broadcasters tried to explain it. Nobody succeeded. The only confirmed detail is that it was, somehow, both ridiculous and weirdly effective.
               </p>
               <p>
-                The rest of the story involves a talking mascot, a cursed playbook, and one very confused time-traveling quarterback who just wanted a first down.
+                And that is how {player} became the unlikely star of the most untrue story in sports this week.
               </p>
             </div>
           </div>
@@ -131,10 +167,10 @@ export default function FanFictionPage() {
               Publish Fan Fiction
             </button>
             <button
-              onClick={() => setStep("prompts")}
+              onClick={() => setStep("madlibs")}
               className="px-5 py-2.5 bg-forge-800 hover:bg-forge-700 text-sm rounded-xl transition"
             >
-              Try another idea
+              Try another
             </button>
             <Link href="/" className="text-sm text-gray-400 hover:text-white transition ml-auto">
               Cancel
