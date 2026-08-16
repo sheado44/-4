@@ -21,6 +21,7 @@ type Comment = {
   body: string;
   created_at: string;
   is_guest: boolean;
+  user_id: string | null;
 };
 
 export default function ArticlePage() {
@@ -58,7 +59,7 @@ export default function ArticlePage() {
 
     const { data: commentData } = await supabase
       .from("comments")
-      .select("id, author_name, body, created_at, is_guest")
+      .select("id, author_name, body, created_at, is_guest, user_id")
       .eq("article_id", id)
       .order("created_at", { ascending: false });
     setComments(commentData || []);
@@ -225,15 +226,20 @@ export default function ArticlePage() {
         {article.title}
       </h1>
 
-      <div className="flex items-center gap-3 mb-8 pb-6 border-b border-forge-800">
+      <Link
+        href={`/profile/${article.user_id}`}
+        className="flex items-center gap-3 mb-8 pb-6 border-b border-forge-800 group"
+      >
         <div className="w-11 h-11 rounded-full bg-blue-600 flex items-center justify-center font-bold">
           {initials}
         </div>
         <div>
-          <div className="font-semibold">{author}</div>
+          <div className="font-semibold group-hover:text-forge-accent transition">
+            {author}
+          </div>
           <div className="text-sm text-gray-400">Rank —</div>
         </div>
-      </div>
+      </Link>
 
       <article className="max-w-none mb-10">
         {article.body.split("\n").filter(Boolean).map((paragraph, i) => (
@@ -243,7 +249,6 @@ export default function ArticlePage() {
         ))}
       </article>
 
-      {/* Star rating */}
       <div className="mb-10 p-5 bg-forge-900 border border-forge-800 rounded-2xl">
         <div className="text-sm text-gray-400 mb-2">Rate this article</div>
         <div className="flex items-center gap-1 text-2xl">
@@ -268,20 +273,6 @@ export default function ArticlePage() {
         </p>
       </div>
 
-      {isSatire && (
-        <div className="mb-10 rounded-2xl border border-purple-500/30 bg-purple-500/10 p-5 text-center">
-          <p className="font-semibold text-purple-200 mb-1">Inspired?</p>
-          <p className="text-sm text-gray-400 mb-4">Make your own satire piece.</p>
-          <Link
-            href="/fan-fiction"
-            className="inline-block bg-purple-600 hover:bg-purple-500 text-white font-medium px-6 py-2.5 rounded-xl transition text-sm"
-          >
-            Write Satire
-          </Link>
-        </div>
-      )}
-
-      {/* Comments */}
       <section className="border-t border-forge-800 pt-8">
         <h3 className="text-xl font-bold mb-5">
           Comments ({comments.length})
@@ -322,7 +313,16 @@ export default function ArticlePage() {
             {comments.map((c) => (
               <div key={c.id} className="bg-forge-900 border border-forge-800 rounded-xl p-4">
                 <div className="flex items-center gap-2 text-sm mb-2">
-                  <span className="font-medium">{c.author_name}</span>
+                  {c.user_id ? (
+                    <Link
+                      href={`/profile/${c.user_id}`}
+                      className="font-medium hover:text-forge-accent transition"
+                    >
+                      {c.author_name}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{c.author_name}</span>
+                  )}
                   <span className="text-gray-500 text-xs">
                     {new Date(c.created_at).toLocaleString()}
                   </span>
