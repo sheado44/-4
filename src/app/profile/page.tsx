@@ -181,9 +181,10 @@ export default function ProfilePage() {
         ) : (
           <div className="space-y-4">
             {articles.map((article) => (
-              <div
+              <Link
                 key={article.id}
-                className="bg-forge-900 border border-forge-800 rounded-xl p-5"
+                href={`/article/${article.id}`}
+                className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
               >
                 <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
                   <span className="text-forge-accent font-medium">{article.section}</span>
@@ -192,7 +193,7 @@ export default function ProfilePage() {
                 </div>
                 <h2 className="text-lg font-bold mb-2">{article.title}</h2>
                 <p className="text-gray-400 text-sm line-clamp-3">{article.body}</p>
-              </div>
+              </Link>
             ))}
           </div>
         )
