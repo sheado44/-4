@@ -7,8 +7,7 @@ export default function CommentPage() {
   const [imagesUsedToday, setImagesUsedToday] = useState(0);
   const canGenerateImage = imagesUsedToday < 1;
 
-  // For the prototype we simulate a reply. 
-  // Later this will come from the URL or data.
+  // For the prototype we simulate a reply.
   const isReply = true;
   const replyingTo = {
     name: "Derek K.",
@@ -95,10 +94,9 @@ export default function CommentPage() {
         </div>
       </div>
 
-      {/* Tips */}
-      <div className="text-xs text-gray-500 mb-8 space-y-1">
-        <p>• Free speech zone — any legal speech is welcome</p>
-        <p>• AI images must be reasonably related to the discussion</p>
+      {/* Image rule */}
+      <div className="text-xs text-gray-500 mb-8">
+        All images (uploaded or AI-generated) must be reasonably related to the discussion.
       </div>
 
       {/* Actions */}
