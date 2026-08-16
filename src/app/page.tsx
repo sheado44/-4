@@ -72,9 +72,9 @@ const topPublishers = [
 ];
 
 const hottestCommenters = [
-  { rank: 1, name: "Derek K.", initials: "DK", color: "bg-green-700", heat: "On Fire", heatColor: "text-orange-400" },
-  { rank: 2, name: "Aisha L.", initials: "AL", color: "bg-purple-600", heat: "Hot", heatColor: "text-orange-300" },
-  { rank: 3, name: "Maya Chen", initials: "MC", color: "bg-pink-600", heat: "Hot", heatColor: "text-orange-300" },
+  { rank: 1, name: "Derek K.", initials: "DK", color: "bg-green-700", heat: "On Fire", heatColor: "text-red-400" },
+  { rank: 2, name: "Aisha L.", initials: "AL", color: "bg-purple-600", heat: "Hot", heatColor: "text-orange-400" },
+  { rank: 3, name: "Maya Chen", initials: "MC", color: "bg-pink-600", heat: "Lukewarm", heatColor: "text-yellow-400" },
 ];
 
 export default function Home() {
