@@ -10,12 +10,23 @@ export default function EditorPage() {
   const [body, setBody] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loggedInEmail, setLoggedInEmail] = useState<string | null>(null);
+  const [loggedInName, setLoggedInName] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
       const { data } = await supabase.auth.getSession();
-      setLoggedInEmail(data.session?.user?.email ?? null);
+      const user = data.session?.user;
+      if (!user) {
+        setLoggedInName(null);
+        return;
+      }
+
+      const name =
+        user.user_metadata?.display_name ||
+        user.email?.split("@")[0] ||
+        "User";
+
+      setLoggedInName(name);
     };
     checkAuth();
   }, []);
@@ -76,8 +87,8 @@ export default function EditorPage() {
           Publish a real article to your PressMe account.
         </p>
         <p className="text-sm mt-2">
-          {loggedInEmail ? (
-            <span className="text-green-400">Logged in as {loggedInEmail}</span>
+          {loggedInName ? (
+            <span className="text-green-400">Logged in as {loggedInName}</span>
           ) : (
             <span className="text-red-400">Not logged in</span>
           )}
