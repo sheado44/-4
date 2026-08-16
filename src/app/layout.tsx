@@ -41,12 +41,21 @@ export default function RootLayout({
               </Link>
             </div>
 
-            <Link
-              href="/profile"
-              className="w-8 h-8 rounded-full bg-forge-700 hover:bg-forge-600 flex items-center justify-center text-xs font-bold transition"
-            >
-              MS
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/login"
+                className="text-sm text-gray-300 hover:text-white transition"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/profile"
+                className="w-8 h-8 rounded-full bg-forge-700 hover:bg-forge-600 flex items-center justify-center text-xs font-bold transition"
+                title="Profile"
+              >
+                MS
+              </Link>
+            </div>
           </div>
         </nav>
 
