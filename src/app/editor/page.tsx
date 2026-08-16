@@ -45,21 +45,18 @@ export default function EditorPage() {
         user.email?.split("@")[0] ||
         "Anonymous";
 
-      const { data, error } = await supabase
-        .from("articles")
-        .insert({
-          user_id: user.id,
-          title: title.trim(),
-          section,
-          body: body.trim(),
-          author_name: authorName,
-        })
-        .select();
+      const { error } = await supabase.from("articles").insert({
+        user_id: user.id,
+        title: title.trim(),
+        section,
+        body: body.trim(),
+        author_name: authorName,
+      });
 
       if (error) {
         setMessage(`Publish failed: ${error.message}`);
       } else {
-        setMessage(`Published successfully.`);
+        setMessage("Published successfully.");
         setTitle("");
         setBody("");
         setSection("Sports");
