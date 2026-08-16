@@ -22,8 +22,8 @@ const sampleArticles = [
   {
     id: "5",
     rank: 1,
-    section: "Fan Fiction",
-    category: "Satire",
+    section: "Satire",
+    category: "Humor",
     title: "Caleb Williams Accidentally Invents Time Travel During a Scramble",
     excerpt: "In this clearly untrue tale, a broken play sends the Bears QB into 1985, where he teaches Walter Payton the RPO.",
     author: "Sam Rivera",
@@ -81,7 +81,7 @@ const hottestCommenters = [
 ];
 
 export default function Home() {
-  const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Fan Fiction">("All");
+  const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
 
   const filteredArticles =
     section === "All"
@@ -90,7 +90,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen">
-      {/* Logo Hero */}
       <section className="pt-14 pb-10 text-center">
         <h1 className="text-6xl md:text-7xl font-black tracking-tight select-none leading-none">
           <span className="text-white">Press</span>
@@ -101,10 +100,9 @@ export default function Home() {
         </p>
       </section>
 
-      {/* Filters */}
       <div className="max-w-6xl mx-auto px-4 mb-8">
         <div className="flex flex-wrap gap-2 mb-5 justify-center md:justify-start">
-          {(["All", "Sports", "Pop Culture", "Fan Fiction"] as const).map((item) => (
+          {(["All", "Sports", "Pop Culture", "Satire"] as const).map((item) => (
             <button
               key={item}
               onClick={() => setSection(item)}
@@ -127,7 +125,6 @@ export default function Home() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 pb-16 grid lg:grid-cols-3 gap-8">
-        {/* Main feed */}
         <div className="lg:col-span-2 space-y-4">
           {filteredArticles.length === 0 ? (
             <div className="bg-forge-900/60 border border-forge-800 rounded-2xl p-8 text-center text-gray-400 text-sm">
@@ -144,7 +141,7 @@ export default function Home() {
                     <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
                       <span
                         className={`px-2 py-0.5 rounded-md font-semibold ${
-                          article.section === "Fan Fiction"
+                          article.section === "Satire"
                             ? "bg-purple-500/20 text-purple-300"
                             : "bg-forge-accent/15 text-forge-accent"
                         }`}
@@ -183,31 +180,17 @@ export default function Home() {
               </article>
             ))
           )}
-
-          {filteredArticles.length > 0 && (
-            <div className="text-center pt-6">
-              <button className="px-8 py-3 bg-forge-800 hover:bg-forge-700 rounded-xl text-sm font-medium transition">
-                Load More Articles
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Sidebar */}
         <aside className="space-y-5">
           <div className="bg-forge-900/80 border border-forge-800 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold">Publisher Leaderboard</h3>
               <span className="text-[10px] text-gray-500 bg-forge-800 px-2 py-1 rounded-full">7 days</span>
             </div>
-
             <div className="space-y-2">
               {topPublishers.map((pub) => (
-                <Link
-                  href="/profile"
-                  key={pub.rank}
-                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-forge-800/80 transition"
-                >
+                <Link href="/profile" key={pub.rank} className="flex items-center gap-3 p-2 rounded-xl hover:bg-forge-800/80 transition">
                   <div className={`w-7 h-7 flex items-center justify-center rounded-full font-bold text-xs ${
                     pub.rank === 1 ? "bg-yellow-500 text-black" :
                     pub.rank === 2 ? "bg-gray-300 text-black" :
@@ -223,9 +206,7 @@ export default function Home() {
                     <div className="font-medium text-sm truncate">{pub.name}</div>
                     <div className="text-[11px] text-gray-500">{pub.articles} articles</div>
                   </div>
-                  <div className="text-sm font-semibold text-forge-accent">
-                    {pub.points}
-                  </div>
+                  <div className="text-sm font-semibold text-forge-accent">{pub.points}</div>
                 </Link>
               ))}
             </div>
@@ -236,14 +217,9 @@ export default function Home() {
               <h3 className="font-bold">Hottest Commenters</h3>
               <span className="text-[10px] text-gray-500 bg-forge-800 px-2 py-1 rounded-full">48 hrs</span>
             </div>
-
             <div className="space-y-2">
               {hottestCommenters.map((c) => (
-                <Link
-                  href="/profile"
-                  key={c.rank}
-                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-forge-800/80 transition"
-                >
+                <Link href="/profile" key={c.rank} className="flex items-center gap-3 p-2 rounded-xl hover:bg-forge-800/80 transition">
                   <div className="w-7 h-7 flex items-center justify-center rounded-full font-bold text-xs bg-forge-700 text-gray-300">
                     {c.rank}
                   </div>
@@ -273,7 +249,7 @@ export default function Home() {
                 href="/fan-fiction"
                 className="inline-block text-sm text-purple-300 hover:text-purple-200 transition"
               >
-                or Write Fan Fiction →
+                or Write Satire →
               </Link>
             </div>
           </div>
