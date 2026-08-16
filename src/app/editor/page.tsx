@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -10,17 +10,26 @@ export default function EditorPage() {
   const [body, setBody] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loggedInEmail, setLoggedInEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      setLoggedInEmail(data.session?.user?.email ?? null);
+    };
+    checkAuth();
+  }, []);
 
   const handlePublish = async () => {
     setMessage("");
     setLoading(true);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      const user = authData.user;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData.session?.user;
 
-      if (authError || !user) {
-        setMessage("You must be logged in to publish.");
+      if (!user) {
+        setMessage("You are not logged in. Go to Log in, then come back.");
         setLoading(false);
         return;
       }
@@ -31,17 +40,26 @@ export default function EditorPage() {
         return;
       }
 
-      const { error } = await supabase.from("articles").insert({
-        user_id: user.id,
-        title: title.trim(),
-        section,
-        body: body.trim(),
-      });
+      const authorName =
+        user.user_metadata?.display_name ||
+        user.email?.split("@")[0] ||
+        "Anonymous";
+
+      const { data, error } = await supabase
+        .from("articles")
+        .insert({
+          user_id: user.id,
+          title: title.trim(),
+          section,
+          body: body.trim(),
+          author_name: authorName,
+        })
+        .select();
 
       if (error) {
-        setMessage(error.message);
+        setMessage(`Publish failed: ${error.message}`);
       } else {
-        setMessage("Published successfully.");
+        setMessage(`Published successfully.`);
         setTitle("");
         setBody("");
         setSection("Sports");
@@ -59,6 +77,13 @@ export default function EditorPage() {
         <h1 className="text-2xl md:text-3xl font-bold mb-1">Write Article</h1>
         <p className="text-gray-400 text-sm">
           Publish a real article to your PressMe account.
+        </p>
+        <p className="text-sm mt-2">
+          {loggedInEmail ? (
+            <span className="text-green-400">Logged in as {loggedInEmail}</span>
+          ) : (
+            <span className="text-red-400">Not logged in</span>
+          )}
         </p>
       </div>
 
@@ -104,14 +129,12 @@ export default function EditorPage() {
         >
           {loading ? "Publishing..." : "Publish"}
         </button>
-        <Link href="/" className="text-sm text-gray-400 hover:text-white transition">
-          Cancel
+        <Link href="/login" className="text-sm text-gray-400 hover:text-white transition">
+          Go to Login
         </Link>
       </div>
 
-      {message && (
-        <p className="mt-4 text-sm text-gray-300">{message}</p>
-      )}
+      {message && <p className="mt-4 text-sm text-yellow-300">{message}</p>}
     </main>
   );
 }
