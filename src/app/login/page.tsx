@@ -4,11 +4,26 @@ import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
+function calcAge(birthday: string): number | null {
+  if (!birthday) return null;
+  const birth = new Date(birthday);
+  if (Number.isNaN(birth.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age -= 1;
+  }
+  return age;
+}
+
 export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [birthday, setBirthday] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -19,12 +34,31 @@ export default function LoginPage() {
 
     try {
       if (mode === "signup") {
+        if (!displayName.trim()) {
+          setMessage("Display name is required.");
+          setLoading(false);
+          return;
+        }
+        if (!birthday) {
+          setMessage("Birthday is required.");
+          setLoading(false);
+          return;
+        }
+
+        const age = calcAge(birthday);
+        if (age === null || age < 13 || age > 120) {
+          setMessage("Please enter a valid birthday. You must be at least 13.");
+          setLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              display_name: displayName || email.split("@")[0],
+              display_name: displayName.trim(),
+              birthday,
             },
           },
         });
@@ -32,7 +66,16 @@ export default function LoginPage() {
         if (error) {
           setMessage(error.message);
         } else if (data.user) {
-          setMessage("Account created. Check your email if confirmation is required, then log in.");
+          // create profile row
+          await supabase.from("profiles").upsert({
+            id: data.user.id,
+            display_name: displayName.trim(),
+            birthday,
+            age,
+            updated_at: new Date().toISOString(),
+          });
+
+          setMessage("Account created. You can log in now.");
           setMode("login");
         }
       } else {
@@ -107,23 +150,39 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "signup" && (
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">
-                  Display name
-                </label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="How you want to appear"
-                  className="w-full bg-forge-950 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5">
+                    Display name <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="How you want to appear"
+                    required
+                    className="w-full bg-forge-950 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5">
+                    Birthday <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={birthday}
+                    onChange={(e) => setBirthday(e.target.value)}
+                    required
+                    className="w-full bg-forge-950 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
+                  />
+                </div>
+              </>
             )}
 
             <div>
               <label className="block text-xs text-gray-400 mb-1.5">
-                Email
+                Email <span className="text-red-400">*</span>
               </label>
               <input
                 type="email"
@@ -137,7 +196,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-xs text-gray-400 mb-1.5">
-                Password
+                Password <span className="text-red-400">*</span>
               </label>
               <input
                 type="password"
