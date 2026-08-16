@@ -15,36 +15,155 @@ type Article = {
   author_name: string | null;
 };
 
+type Comment = {
+  id: string;
+  author_name: string;
+  body: string;
+  created_at: string;
+  is_guest: boolean;
+};
+
 export default function ArticlePage() {
   const params = useParams();
   const id = params?.id as string;
 
   const [article, setArticle] = useState<Article | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [avgRating, setAvgRating] = useState<number | null>(null);
+  const [ratingCount, setRatingCount] = useState(0);
+  const [myRating, setMyRating] = useState<number | null>(null);
+  const [commentText, setCommentText] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [posting, setPosting] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
+  const loadAll = async () => {
+    if (!id) return;
+
+    const { data: articleData, error: articleError } = await supabase
+      .from("articles")
+      .select("id, title, section, body, created_at, user_id, author_name")
+      .eq("id", id)
+      .single();
+
+    if (articleError || !articleData) {
+      setError("Article not found.");
+      setLoading(false);
+      return;
+    }
+    setArticle(articleData);
+
+    const { data: commentData } = await supabase
+      .from("comments")
+      .select("id, author_name, body, created_at, is_guest")
+      .eq("article_id", id)
+      .order("created_at", { ascending: false });
+    setComments(commentData || []);
+
+    const { data: ratingData } = await supabase
+      .from("ratings")
+      .select("stars, user_id")
+      .eq("article_id", id);
+
+    if (ratingData && ratingData.length > 0) {
+      const total = ratingData.reduce((sum, r) => sum + r.stars, 0);
+      setAvgRating(total / ratingData.length);
+      setRatingCount(ratingData.length);
+    } else {
+      setAvgRating(null);
+      setRatingCount(0);
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
+    if (user) {
+      setUserId(user.id);
+      setUserName(
+        user.user_metadata?.display_name ||
+          user.email?.split("@")[0] ||
+          "User"
+      );
+      const mine = ratingData?.find((r) => r.user_id === user.id);
+      setMyRating(mine ? mine.stars : null);
+    } else {
+      setUserId(null);
+      setUserName(null);
+      setMyRating(null);
+    }
+
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const load = async () => {
-      if (!id) return;
+    loadAll();
+  }, [id]);
 
-      const { data, error } = await supabase
-        .from("articles")
-        .select("id, title, section, body, created_at, user_id, author_name")
-        .eq("id", id)
-        .single();
+  const handleComment = async () => {
+    setMessage("");
+    if (!userId || !userName) {
+      setMessage("Log in to comment.");
+      return;
+    }
+    if (!commentText.trim()) {
+      setMessage("Write something first.");
+      return;
+    }
 
-      if (error || !data) {
-        setError("Article not found.");
-        setLoading(false);
+    setPosting(true);
+    const { error } = await supabase.from("comments").insert({
+      article_id: id,
+      user_id: userId,
+      author_name: userName,
+      body: commentText.trim(),
+      is_guest: false,
+    });
+
+    if (error) {
+      setMessage(`Comment failed: ${error.message}`);
+    } else {
+      setCommentText("");
+      setMessage("Comment posted.");
+      await loadAll();
+    }
+    setPosting(false);
+  };
+
+  const handleRating = async (stars: number) => {
+    setMessage("");
+    if (!userId) {
+      setMessage("Log in to rate articles.");
+      return;
+    }
+
+    if (myRating) {
+      const { error } = await supabase
+        .from("ratings")
+        .update({ stars })
+        .eq("article_id", id)
+        .eq("user_id", userId);
+      if (error) {
+        setMessage(`Rating failed: ${error.message}`);
         return;
       }
+    } else {
+      const { error } = await supabase.from("ratings").insert({
+        article_id: id,
+        user_id: userId,
+        stars,
+      });
+      if (error) {
+        setMessage(`Rating failed: ${error.message}`);
+        return;
+      }
+    }
 
-      setArticle(data);
-      setLoading(false);
-    };
-
-    load();
-  }, [id]);
+    setMyRating(stars);
+    setMessage(`You rated this ${stars} star${stars === 1 ? "" : "s"}.`);
+    await loadAll();
+  };
 
   if (loading) {
     return (
@@ -95,6 +214,11 @@ export default function ArticlePage() {
           {article.section}
         </span>
         <span>{new Date(article.created_at).toLocaleDateString()}</span>
+        {avgRating !== null && (
+          <span className="text-yellow-500">
+            ★ {avgRating.toFixed(1)} · {ratingCount} rating{ratingCount === 1 ? "" : "s"}
+          </span>
+        )}
       </div>
 
       <h1 className="text-3xl md:text-4xl font-extrabold leading-tight mb-6 tracking-tight">
@@ -111,13 +235,38 @@ export default function ArticlePage() {
         </div>
       </div>
 
-      <article className="max-w-none mb-12">
+      <article className="max-w-none mb-10">
         {article.body.split("\n").filter(Boolean).map((paragraph, i) => (
           <p key={i} className="text-gray-300 leading-relaxed mb-5">
             {paragraph}
           </p>
         ))}
       </article>
+
+      {/* Star rating */}
+      <div className="mb-10 p-5 bg-forge-900 border border-forge-800 rounded-2xl">
+        <div className="text-sm text-gray-400 mb-2">Rate this article</div>
+        <div className="flex items-center gap-1 text-2xl">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              onClick={() => handleRating(star)}
+              className={`transition hover:scale-110 ${
+                (myRating ?? 0) >= star ? "text-yellow-500" : "text-gray-600"
+              }`}
+            >
+              ★
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          {userId
+            ? myRating
+              ? `Your rating: ${myRating} star${myRating === 1 ? "" : "s"}`
+              : "Click a star to rate"
+            : "Log in to rate"}
+        </p>
+      </div>
 
       {isSatire && (
         <div className="mb-10 rounded-2xl border border-purple-500/30 bg-purple-500/10 p-5 text-center">
@@ -132,29 +281,57 @@ export default function ArticlePage() {
         </div>
       )}
 
+      {/* Comments */}
       <section className="border-t border-forge-800 pt-8">
-        <h3 className="text-xl font-bold mb-5">Comments</h3>
+        <h3 className="text-xl font-bold mb-5">
+          Comments ({comments.length})
+        </h3>
 
-        <Link
-          href={`/article/${article.id}/comment`}
-          className="block bg-forge-900 border border-forge-800 hover:border-forge-accent/40 rounded-2xl p-4 mb-6 transition group"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium group-hover:text-forge-accent transition">
-                Write a comment
-              </div>
-              <div className="text-sm text-gray-500 mt-0.5">
-                Images · GIFs · AI tools
-              </div>
-            </div>
-            <div className="text-forge-accent text-sm font-medium">Open →</div>
+        <div className="bg-forge-900 border border-forge-800 rounded-2xl p-4 mb-6">
+          <textarea
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder={userId ? "Write a comment..." : "Log in to comment"}
+            disabled={!userId}
+            className="w-full min-h-[100px] bg-forge-950 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition disabled:opacity-60"
+          />
+          <div className="mt-3 flex items-center gap-3">
+            <button
+              onClick={handleComment}
+              disabled={!userId || posting}
+              className="px-5 py-2 bg-forge-accent hover:bg-forge-accentHover text-white text-sm font-medium rounded-xl transition disabled:opacity-60"
+            >
+              {posting ? "Posting..." : "Post Comment"}
+            </button>
+            {!userId && (
+              <Link href="/login" className="text-sm text-gray-400 hover:text-white">
+                Log in
+              </Link>
+            )}
           </div>
-        </Link>
-
-        <div className="bg-forge-900/50 border border-forge-800 rounded-xl p-6 text-center text-sm text-gray-500">
-          No comments yet. Be the first.
         </div>
+
+        {message && <p className="text-sm text-yellow-300 mb-4">{message}</p>}
+
+        {comments.length === 0 ? (
+          <div className="bg-forge-900/50 border border-forge-800 rounded-xl p-6 text-center text-sm text-gray-500">
+            No comments yet. Be the first.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {comments.map((c) => (
+              <div key={c.id} className="bg-forge-900 border border-forge-800 rounded-xl p-4">
+                <div className="flex items-center gap-2 text-sm mb-2">
+                  <span className="font-medium">{c.author_name}</span>
+                  <span className="text-gray-500 text-xs">
+                    {new Date(c.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-gray-300 text-sm leading-relaxed">{c.body}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <div className="mt-10">
