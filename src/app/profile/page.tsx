@@ -19,9 +19,17 @@ type Article = {
   created_at: string;
 };
 
+type Comment = {
+  id: string;
+  article_id: string;
+  body: string;
+  created_at: string;
+};
+
 export default function ProfilePage() {
   const [user, setUser] = useState<ProfileUser | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"articles" | "comments" | "satire">("articles");
 
@@ -60,8 +68,15 @@ export default function ProfilePage() {
         .select("id, title, section, body, created_at")
         .eq("user_id", authUser.id)
         .order("created_at", { ascending: false });
-
       setArticles(articleData || []);
+
+      const { data: commentData } = await supabase
+        .from("comments")
+        .select("id, article_id, body, created_at")
+        .eq("user_id", authUser.id)
+        .order("created_at", { ascending: false });
+      setComments(commentData || []);
+
       setLoading(false);
     };
 
@@ -127,7 +142,7 @@ export default function ProfilePage() {
           <div className="text-xs text-gray-400 mt-1">Article Views</div>
         </div>
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
-          <div className="text-2xl font-bold text-white">0</div>
+          <div className="text-2xl font-bold text-white">{comments.length}</div>
           <div className="text-xs text-gray-400 mt-1">Comments</div>
         </div>
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
@@ -173,7 +188,6 @@ export default function ProfilePage() {
         articles.length === 0 ? (
           <div className="bg-forge-900 border border-forge-800 rounded-2xl p-10 text-center">
             <p className="text-gray-300 font-medium mb-1">No articles yet</p>
-            <p className="text-sm text-gray-500 mb-4">When you publish, your articles will show up here.</p>
             <Link href="/editor" className="text-sm text-forge-accent hover:text-orange-300 transition">
               Write an article →
             </Link>
@@ -200,16 +214,32 @@ export default function ProfilePage() {
       )}
 
       {activeTab === "comments" && (
-        <div className="bg-forge-900 border border-forge-800 rounded-2xl p-10 text-center">
-          <p className="text-gray-300 font-medium mb-1">No comments yet</p>
-          <p className="text-sm text-gray-500">Comments you leave will appear here.</p>
-        </div>
+        comments.length === 0 ? (
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-10 text-center">
+            <p className="text-gray-300 font-medium mb-1">No comments yet</p>
+            <p className="text-sm text-gray-500">Comments you leave will appear here.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {comments.map((comment) => (
+              <Link
+                key={comment.id}
+                href={`/article/${comment.article_id}`}
+                className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
+              >
+                <div className="text-xs text-gray-500 mb-2">
+                  {new Date(comment.created_at).toLocaleString()}
+                </div>
+                <p className="text-gray-300 text-sm leading-relaxed">{comment.body}</p>
+              </Link>
+            ))}
+          </div>
+        )
       )}
 
       {activeTab === "satire" && (
         <div className="bg-forge-900 border border-purple-500/20 rounded-2xl p-10 text-center">
           <p className="text-gray-300 font-medium mb-1">No satire yet</p>
-          <p className="text-sm text-gray-500 mb-4">Your satire pieces will show up here.</p>
           <Link href="/fan-fiction" className="text-sm text-purple-300 hover:text-purple-200 transition">
             Write Satire →
           </Link>
