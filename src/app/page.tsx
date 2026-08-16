@@ -242,16 +242,24 @@ export default function Home() {
             </div>
           </div>
 
-          {/* CTA */}
+          {/* Write CTAs */}
           <div className="bg-gradient-to-br from-orange-600/15 to-forge-900 border border-orange-500/20 rounded-2xl p-5 text-center">
             <p className="font-semibold mb-1">Got a take?</p>
             <p className="text-sm text-gray-400 mb-4">Write it. Rank it.</p>
             <Link
               href="/editor"
-              className="inline-block bg-forge-accent hover:bg-forge-accentHover text-white font-medium px-6 py-2.5 rounded-xl transition text-sm"
+              className="inline-block bg-forge-accent hover:bg-forge-accentHover text-white font-medium px-6 py-2.5 rounded-xl transition text-sm mb-3"
             >
               Write Article
             </Link>
+            <div>
+              <Link
+                href="/fan-fiction"
+                className="inline-block text-sm text-purple-300 hover:text-purple-200 transition"
+              >
+                or Write Fan Fiction →
+              </Link>
+            </div>
           </div>
         </aside>
       </div>
