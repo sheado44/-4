@@ -9,6 +9,7 @@ export default function EditorPage() {
   const [section, setSection] = useState("Sports");
   const [body, setBody] = useState("");
   const [message, setMessage] = useState("");
+  const [publishedId, setPublishedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loggedInName, setLoggedInName] = useState<string | null>(null);
 
@@ -33,6 +34,7 @@ export default function EditorPage() {
 
   const handlePublish = async () => {
     setMessage("");
+    setPublishedId(null);
     setLoading(true);
 
     try {
@@ -56,18 +58,23 @@ export default function EditorPage() {
         user.email?.split("@")[0] ||
         "Anonymous";
 
-      const { error } = await supabase.from("articles").insert({
-        user_id: user.id,
-        title: title.trim(),
-        section,
-        body: body.trim(),
-        author_name: authorName,
-      });
+      const { data, error } = await supabase
+        .from("articles")
+        .insert({
+          user_id: user.id,
+          title: title.trim(),
+          section,
+          body: body.trim(),
+          author_name: authorName,
+        })
+        .select("id")
+        .single();
 
       if (error) {
         setMessage(`Publish failed: ${error.message}`);
       } else {
         setMessage("Published successfully.");
+        setPublishedId(data.id);
         setTitle("");
         setBody("");
         setSection("Sports");
@@ -83,21 +90,21 @@ export default function EditorPage() {
     <main className="max-w-3xl mx-auto px-4 py-10">
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold mb-1">Write Article</h1>
-        <p className="text-gray-400 text-sm">
-          Publish a real article to your PressMe account.
+        <p className="text-gray-300 text-sm">
+          Publish a real article to your Ballpit account.
         </p>
         <p className="text-sm mt-2">
           {loggedInName ? (
-            <span className="text-green-400">Logged in as {loggedInName}</span>
+            <span className="text-green-300">Logged in as {loggedInName}</span>
           ) : (
-            <span className="text-red-400">Not logged in</span>
+            <span className="text-red-300">Not logged in</span>
           )}
         </p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4 mb-6">
         <div>
-          <label className="block text-sm text-gray-400 mb-1.5">Title</label>
+          <label className="block text-sm text-gray-300 mb-1.5">Title</label>
           <input
             type="text"
             value={title}
@@ -107,7 +114,7 @@ export default function EditorPage() {
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-400 mb-1.5">Section</label>
+          <label className="block text-sm text-gray-300 mb-1.5">Section</label>
           <select
             value={section}
             onChange={(e) => setSection(e.target.value)}
@@ -120,7 +127,7 @@ export default function EditorPage() {
       </div>
 
       <div className="mb-6">
-        <label className="block text-sm text-gray-400 mb-1.5">Article text</label>
+        <label className="block text-sm text-gray-300 mb-1.5">Article text</label>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -137,12 +144,24 @@ export default function EditorPage() {
         >
           {loading ? "Publishing..." : "Publish"}
         </button>
-        <Link href="/login" className="text-sm text-gray-400 hover:text-white transition">
+        <Link href="/login" className="text-sm text-gray-300 hover:text-white transition">
           Go to Login
         </Link>
       </div>
 
-      {message && <p className="mt-4 text-sm text-yellow-300">{message}</p>}
+      {message && (
+        <div className="mt-4 text-sm text-yellow-200">
+          <p>{message}</p>
+          {publishedId && (
+            <Link
+              href={`/article/${publishedId}`}
+              className="inline-block mt-2 text-forge-accent hover:text-orange-300 font-medium"
+            >
+              View article →
+            </Link>
+          )}
+        </div>
+      )}
     </main>
   );
 }
