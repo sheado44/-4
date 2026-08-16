@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { formatTime, formatTimeFull } from "@/lib/time";
 
 type Article = {
   id: string;
@@ -90,7 +91,7 @@ export default function PublicProfilePage() {
   if (loading) {
     return (
       <main className="max-w-4xl mx-auto px-4 py-10">
-        <p className="text-gray-400">Loading profile...</p>
+        <p className="text-gray-300">Loading profile...</p>
       </main>
     );
   }
@@ -105,10 +106,10 @@ export default function PublicProfilePage() {
         <h1 className="text-3xl md:text-4xl font-bold mb-2">{displayName}</h1>
 
         {details.length > 0 && (
-          <p className="text-sm text-gray-400 mb-3">{details.join(" · ")}</p>
+          <p className="text-sm text-gray-300 mb-3">{details.join(" · ")}</p>
         )}
 
-        {bio && <p className="text-gray-300 text-sm max-w-xl mb-3">{bio}</p>}
+        {bio && <p className="text-gray-100 text-sm max-w-xl mb-3">{bio}</p>}
 
         {link && (
           <a
@@ -125,7 +126,7 @@ export default function PublicProfilePage() {
       <h2 className="text-lg font-semibold mb-4">Articles</h2>
 
       {articles.length === 0 ? (
-        <div className="bg-forge-900 border border-forge-800 rounded-2xl p-8 text-center text-gray-400 text-sm">
+        <div className="bg-forge-900 border border-forge-800 rounded-2xl p-8 text-center text-gray-300 text-sm">
           No articles yet.
         </div>
       ) : (
@@ -136,15 +137,15 @@ export default function PublicProfilePage() {
               href={`/article/${article.id}`}
               className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
             >
-              <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
+              <div className="flex items-center gap-2 text-xs text-gray-300 mb-1">
                 <span className="text-forge-accent font-medium">{article.section}</span>
                 <span>•</span>
-                <span>{new Date(article.created_at).toLocaleDateString()}</span>
+                <span title={formatTimeFull(article.created_at)}>
+                  {formatTime(article.created_at)}
+                </span>
               </div>
-              <h3 className="text-lg font-bold mb-2 group-hover:text-forge-accent">
-                {article.title}
-              </h3>
-              <p className="text-gray-400 text-sm line-clamp-3">{article.body}</p>
+              <h3 className="text-lg font-bold mb-2">{article.title}</h3>
+              <p className="text-gray-300 text-sm line-clamp-3">{article.body}</p>
               <div className="text-xs text-forge-accent mt-3">Read article →</div>
             </Link>
           ))}
