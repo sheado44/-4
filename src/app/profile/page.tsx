@@ -6,6 +6,62 @@ import Link from "next/link";
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"articles" | "comments" | "fanfiction">("articles");
 
+  // Prototype sample data — set any of these to [] to see the empty state
+  const articles = [
+    {
+      id: "1",
+      rankLabel: "#1 Ranked",
+      category: "NFL",
+      stars: 4.8,
+      date: "Aug 12, 2026",
+      title: "Why the Bears' Offensive Line Is Quietly Elite in 2026",
+      meta: "12.4k views • 48 comments",
+    },
+    {
+      id: "2",
+      rankLabel: "#8",
+      category: "NFL",
+      stars: 4.5,
+      date: "Jul 28, 2026",
+      title: "The Evolution of Zone Blocking in the Modern NFL",
+      meta: "6.2k views • 22 comments",
+    },
+  ];
+
+  const comments = [
+    {
+      article: "Why the Bears' Offensive Line Is Quietly Elite in 2026",
+      time: "2h ago",
+      text: "Finally someone posting the actual film grades instead of the same old narrative. The right tackle improvement alone is massive.",
+      likes: 24,
+      dislikes: 3,
+    },
+    {
+      article: "The Quiet Revolution in NBA Load Management",
+      time: "1d ago",
+      text: "The biometric data angle is underrated. Most people still think load management is just resting stars.",
+      likes: 17,
+      dislikes: 2,
+    },
+  ];
+
+  const fanFiction = [
+    {
+      id: "5",
+      title: "Caleb Williams Accidentally Invents Time Travel During a Scramble",
+      stars: 4.9,
+      date: "Aug 10, 2026",
+      meta: "6.3k views • 91 comments",
+    },
+    {
+      id: "6",
+      title: "The Day the Mascot Took Over Play-Calling",
+      stars: 4.6,
+      date: "Jul 22, 2026",
+      meta: "3.1k views • 44 comments",
+    },
+  ];
+
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
       {/* Profile Header */}
@@ -20,7 +76,6 @@ export default function ProfilePage() {
             NFL & college football analyst • Chicago
           </p>
 
-          {/* Ranks + Heat */}
           <div className="flex flex-wrap gap-3 mb-5">
             <div className="bg-forge-900 border border-forge-700 rounded-xl px-4 py-2">
               <div className="text-xs text-gray-400">Publisher Rank</div>
@@ -37,12 +92,12 @@ export default function ProfilePage() {
           </div>
 
           <p className="text-gray-300 max-w-2xl text-sm leading-relaxed">
-            Former D-II offensive lineman turned film and data nerd. I write about the trenches, scheme evolution, and the numbers that actually matter. Also an active commenter who isn’t afraid to push back.
+            Former D-II offensive lineman turned film and data nerd. I write about the trenches, scheme evolution, and the numbers that actually matter.
           </p>
         </div>
       </div>
 
-      {/* Private Relationship Signal */}
+      {/* Relationship */}
       <Link
         href="/relationship"
         className="block mb-8 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 hover:bg-green-500/15 transition"
@@ -58,10 +113,10 @@ export default function ProfilePage() {
         </div>
       </Link>
 
-      {/* Stats Row */}
+      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
-          <div className="text-2xl font-bold text-white">28</div>
+          <div className="text-2xl font-bold text-white">{articles.length}</div>
           <div className="text-xs text-gray-400 mt-1">Articles</div>
         </div>
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
@@ -69,7 +124,7 @@ export default function ProfilePage() {
           <div className="text-xs text-gray-400 mt-1">Article Views</div>
         </div>
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
-          <div className="text-2xl font-bold text-white">156</div>
+          <div className="text-2xl font-bold text-white">{comments.length}</div>
           <div className="text-xs text-gray-400 mt-1">Comments</div>
         </div>
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
@@ -112,122 +167,99 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {/* Articles Tab */}
+      {/* Articles */}
       {activeTab === "articles" && (
-        <div className="space-y-4">
-          <Link
-            href="/article/1"
-            className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
-          >
-            <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-              <span className="text-forge-accent font-medium">#1 Ranked</span>
-              <span>•</span>
-              <span>NFL</span>
-              <span>•</span>
-              <span className="text-yellow-500">★ 4.8</span>
-              <span>•</span>
-              <span>Aug 12, 2026</span>
-            </div>
-            <h2 className="text-lg font-bold mb-1">
-              Why the Bears&apos; Offensive Line Is Quietly Elite in 2026
-            </h2>
-            <p className="text-gray-400 text-sm">12.4k views • 48 comments</p>
-          </Link>
-
-          <div className="bg-forge-900 border border-forge-800 rounded-xl p-5">
-            <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-              <span className="bg-forge-700 px-2 py-0.5 rounded">#8</span>
-              <span>•</span>
-              <span>NFL</span>
-              <span>•</span>
-              <span className="text-yellow-500">★ 4.5</span>
-              <span>•</span>
-              <span>Jul 28, 2026</span>
-            </div>
-            <h2 className="text-lg font-bold mb-1">
-              The Evolution of Zone Blocking in the Modern NFL
-            </h2>
-            <p className="text-gray-400 text-sm">6.2k views • 22 comments</p>
+        articles.length === 0 ? (
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-10 text-center">
+            <p className="text-gray-300 font-medium mb-1">No articles yet</p>
+            <p className="text-sm text-gray-500 mb-4">When this user publishes, their articles will show up here.</p>
+            <Link href="/editor" className="text-sm text-forge-accent hover:text-orange-300 transition">
+              Write an article →
+            </Link>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-4">
+            {articles.map((a) => (
+              <Link
+                key={a.id}
+                href={`/article/${a.id}`}
+                className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
+              >
+                <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
+                  <span className="text-forge-accent font-medium">{a.rankLabel}</span>
+                  <span>•</span>
+                  <span>{a.category}</span>
+                  <span>•</span>
+                  <span className="text-yellow-500">★ {a.stars}</span>
+                  <span>•</span>
+                  <span>{a.date}</span>
+                </div>
+                <h2 className="text-lg font-bold mb-1">{a.title}</h2>
+                <p className="text-gray-400 text-sm">{a.meta}</p>
+              </Link>
+            ))}
+          </div>
+        )
       )}
 
-      {/* Comments Tab */}
+      {/* Comments */}
       {activeTab === "comments" && (
-        <div className="space-y-5">
-          {[
-            {
-              article: "Why the Bears' Offensive Line Is Quietly Elite in 2026",
-              time: "2h ago",
-              text: "Finally someone posting the actual film grades instead of the same old narrative. The right tackle improvement alone is massive.",
-              likes: 24,
-              dislikes: 3,
-            },
-            {
-              article: "The Quiet Revolution in NBA Load Management",
-              time: "1d ago",
-              text: "The biometric data angle is underrated. Most people still think load management is just resting stars.",
-              likes: 17,
-              dislikes: 2,
-            },
-          ].map((c, i) => (
-            <div
-              key={i}
-              className="bg-forge-900 border border-forge-800 rounded-xl p-5"
-            >
-              <div className="text-xs text-gray-500 mb-2">
-                On <span className="text-gray-300">{c.article}</span> · {c.time}
+        comments.length === 0 ? (
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-10 text-center">
+            <p className="text-gray-300 font-medium mb-1">No comments yet</p>
+            <p className="text-sm text-gray-500">Comments this user leaves will appear here.</p>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {comments.map((c, i) => (
+              <div key={i} className="bg-forge-900 border border-forge-800 rounded-xl p-5">
+                <div className="text-xs text-gray-500 mb-2">
+                  On <span className="text-gray-300">{c.article}</span> · {c.time}
+                </div>
+                <p className="text-gray-300 text-sm leading-relaxed mb-3">{c.text}</p>
+                <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <span>👍 {c.likes}</span>
+                  <span>👎 {c.dislikes}</span>
+                </div>
               </div>
-              <p className="text-gray-300 text-sm leading-relaxed mb-3">
-                {c.text}
-              </p>
-              <div className="flex items-center gap-4 text-xs text-gray-500">
-                <span>👍 {c.likes}</span>
-                <span>👎 {c.dislikes}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
 
-      {/* Fan Fiction Tab */}
+      {/* Fan Fiction */}
       {activeTab === "fanfiction" && (
-        <div className="space-y-4">
-          <Link
-            href="/article/5"
-            className="block bg-forge-900 border border-purple-500/20 rounded-xl p-5 hover:border-purple-500/40 transition"
-          >
-            <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-              <span className="bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded font-medium">
-                Fan Fiction
-              </span>
-              <span>•</span>
-              <span className="text-yellow-500">★ 4.9</span>
-              <span>•</span>
-              <span>Aug 10, 2026</span>
-            </div>
-            <h2 className="text-lg font-bold mb-1">
-              Caleb Williams Accidentally Invents Time Travel During a Scramble
-            </h2>
-            <p className="text-gray-400 text-sm">6.3k views • 91 comments</p>
-          </Link>
-
-          <div className="bg-forge-900 border border-purple-500/20 rounded-xl p-5">
-            <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-              <span className="bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded font-medium">
-                Fan Fiction
-              </span>
-              <span>•</span>
-              <span className="text-yellow-500">★ 4.6</span>
-              <span>•</span>
-              <span>Jul 22, 2026</span>
-            </div>
-            <h2 className="text-lg font-bold mb-1">
-              The Day the Mascot Took Over Play-Calling
-            </h2>
-            <p className="text-gray-400 text-sm">3.1k views • 44 comments</p>
+        fanFiction.length === 0 ? (
+          <div className="bg-forge-900 border border-purple-500/20 rounded-2xl p-10 text-center">
+            <p className="text-gray-300 font-medium mb-1">No Fan Fiction yet</p>
+            <p className="text-sm text-gray-500 mb-4">Wild, clearly untrue stories will show up here.</p>
+            <Link href="/fan-fiction" className="text-sm text-purple-300 hover:text-purple-200 transition">
+              Write Fan Fiction →
+            </Link>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-4">
+            {fanFiction.map((f) => (
+              <Link
+                key={f.id}
+                href={`/article/${f.id}`}
+                className="block bg-forge-900 border border-purple-500/20 rounded-xl p-5 hover:border-purple-500/40 transition"
+              >
+                <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
+                  <span className="bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded font-medium">
+                    Fan Fiction
+                  </span>
+                  <span>•</span>
+                  <span className="text-yellow-500">★ {f.stars}</span>
+                  <span>•</span>
+                  <span>{f.date}</span>
+                </div>
+                <h2 className="text-lg font-bold mb-1">{f.title}</h2>
+                <p className="text-gray-400 text-sm">{f.meta}</p>
+              </Link>
+            ))}
+          </div>
+        )
       )}
     </main>
   );
