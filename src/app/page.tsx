@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 
 type Article = {
@@ -40,13 +39,10 @@ export default function Home() {
     <main className="min-h-screen">
       <section className="pt-10 pb-8 text-center px-4">
         <div className="flex justify-center mb-4">
-          <Image
+          <img
             src="/ballpit-logo.png"
             alt="The Ballpit"
-            width={420}
-            height={280}
             className="w-full max-w-sm md:max-w-md h-auto"
-            priority
           />
         </div>
         <p className="text-gray-500 text-xs tracking-[0.3em] uppercase">
