@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Link from "next/link";
 import AuthNav from "./AuthNav";
+import MobileNav from "./MobileNav";
 
 export const metadata: Metadata = {
   title: "PressMe – Sports & Pop Culture",
@@ -16,22 +17,28 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-forge-950 text-gray-100 min-h-screen">
-        <nav className="border-b border-forge-800/80 bg-forge-900/70 backdrop-blur sticky top-0 z-50">
+        <nav className="border-b border-forge-800/80 bg-forge-900/70 backdrop-blur sticky top-0 z-50 relative">
           <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-            <Link href="/" className="text-xl font-bold tracking-tight">
-              <span className="text-forge-accent">Press</span>
-              <span className="text-white">Me</span>
-            </Link>
+            <div className="flex items-center gap-3">
+              <MobileNav />
+              <Link href="/" className="text-xl font-bold tracking-tight">
+                <span className="text-forge-accent">Press</span>
+                <span className="text-white">Me</span>
+              </Link>
+            </div>
 
             <div className="hidden md:flex items-center gap-6 text-sm font-medium">
               <Link href="/" className="text-gray-300 hover:text-white transition">
                 Home
               </Link>
-              <Link href="/?section=sports" className="text-gray-300 hover:text-white transition">
+              <Link href="/" className="text-gray-300 hover:text-white transition">
                 Sports
               </Link>
-              <Link href="/?section=pop" className="text-gray-300 hover:text-white transition">
+              <Link href="/" className="text-gray-300 hover:text-white transition">
                 Pop Culture
+              </Link>
+              <Link href="/" className="text-gray-300 hover:text-white transition">
+                Satire
               </Link>
               <Link
                 href="/editor"
