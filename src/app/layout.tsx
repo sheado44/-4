@@ -5,9 +5,21 @@ import AuthNav from "./AuthNav";
 import MobileNav from "./MobileNav";
 
 export const metadata: Metadata = {
-  title: "PressMe – Sports & Pop Culture",
+  title: "The Ballpit – Sports & Pop Culture",
   description: "Public sports and pop culture writing. Rankings driven by real engagement.",
 };
+
+function BallpitLogo({ className = "" }: { className?: string }) {
+  return (
+    <span className={`font-bold tracking-tight ${className}`}>
+      <span className="text-white">B</span>
+      <span className="text-forge-accent">a</span>
+      <span className="text-white">llp</span>
+      <span className="text-forge-accent">i</span>
+      <span className="text-white">t</span>
+    </span>
+  );
+}
 
 export default function RootLayout({
   children,
@@ -21,9 +33,9 @@ export default function RootLayout({
           <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <MobileNav />
-              <Link href="/" className="text-xl font-bold tracking-tight">
-                <span className="text-forge-accent">Press</span>
-                <span className="text-white">Me</span>
+              <Link href="/" className="text-xl">
+                <span className="text-gray-300 font-medium mr-1">The</span>
+                <BallpitLogo />
               </Link>
             </div>
 
@@ -56,9 +68,15 @@ export default function RootLayout({
 
         <footer className="border-t border-forge-800/80 mt-16 py-8">
           <div className="max-w-6xl mx-auto px-4 text-center text-sm text-gray-500">
-            <p className="font-medium text-gray-400 mb-1">PressMe</p>
+            <p className="font-medium text-gray-300 mb-1">
+              <span className="text-gray-400">The </span>
+              <span className="text-white">B</span>
+              <span className="text-forge-accent">a</span>
+              <span className="text-white">llp</span>
+              <span className="text-forge-accent">i</span>
+              <span className="text-white">t</span>
+            </p>
             <p>Sports & Pop Culture</p>
-            <p className="mt-1 text-xs">pressme.ai</p>
           </div>
         </footer>
       </body>
