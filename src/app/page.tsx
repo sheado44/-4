@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { formatTime } from "@/lib/time";
 
 type Article = {
   id: string;
@@ -91,7 +92,7 @@ export default function Home() {
                   <span className="bg-forge-accent/15 text-forge-accent px-2 py-0.5 rounded-md font-semibold">
                     {article.section}
                   </span>
-                  <span>{new Date(article.created_at).toLocaleDateString()}</span>
+                  <span>{formatTime(article.created_at)}</span>
                 </div>
 
                 <Link href={`/article/${article.id}`}>
