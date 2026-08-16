@@ -1,50 +1,77 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabaseClient";
+
+type NavUser = {
+  initials: string;
+};
 
 export default function AuthNav() {
-  // Prototype only — later this comes from real auth
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [user, setUser] = useState<NavUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (isLoggedIn) {
-    return (
-      <div className="flex items-center gap-3">
-        <Link
-          href="/profile"
-          className="w-8 h-8 rounded-full bg-forge-700 hover:bg-forge-600 flex items-center justify-center text-xs font-bold transition"
-          title="Profile"
-        >
-          MS
-        </Link>
-        {/* Temporary toggle so you can test both states */}
-        <button
-          onClick={() => setIsLoggedIn(false)}
-          className="text-[10px] text-gray-500 hover:text-gray-300"
-          title="Prototype: switch to logged out"
-        >
-          (out)
-        </button>
-      </div>
-    );
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      const authUser = data.user;
+
+      if (!authUser) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      const displayName =
+        authUser.user_metadata?.display_name ||
+        authUser.email?.split("@")[0] ||
+        "U";
+
+      const initials = displayName
+        .split(" ")
+        .map((part: string) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+
+      setUser({ initials });
+      setLoading(false);
+    };
+
+    loadUser();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      loadUser();
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  if (loading) {
+    return <div className="w-8 h-8 rounded-full bg-forge-800 animate-pulse" />;
   }
 
-  return (
-    <div className="flex items-center gap-3">
+  if (!user) {
+    return (
       <Link
         href="/login"
         className="text-sm text-gray-300 hover:text-white transition"
       >
         Log in / Sign up
       </Link>
-      {/* Temporary toggle so you can test both states */}
-      <button
-        onClick={() => setIsLoggedIn(true)}
-        className="text-[10px] text-gray-500 hover:text-gray-300"
-        title="Prototype: switch to logged in"
-      >
-        (in)
-      </button>
-    </div>
+    );
+  }
+
+  return (
+    <Link
+      href="/profile"
+      className="w-8 h-8 rounded-full bg-forge-700 hover:bg-forge-600 flex items-center justify-center text-xs font-bold transition"
+      title="Profile"
+    >
+      {user.initials}
+    </Link>
   );
 }
