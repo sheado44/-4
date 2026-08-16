@@ -26,19 +26,14 @@ export default function Home() {
         .select("id, title, section, body, created_at, user_id, author_name")
         .order("created_at", { ascending: false });
 
-      if (!error && data) {
-        setArticles(data);
-      }
+      if (!error && data) setArticles(data);
       setLoading(false);
     };
-
     loadArticles();
   }, []);
 
   const filteredArticles =
-    section === "All"
-      ? articles
-      : articles.filter((a) => a.section === section);
+    section === "All" ? articles : articles.filter((a) => a.section === section);
 
   return (
     <main className="min-h-screen">
@@ -103,7 +98,7 @@ export default function Home() {
                 </Link>
 
                 <div className="flex items-center gap-3 text-sm text-gray-500">
-                  <span className="text-gray-300">
+                  <span className="text-gray-300 font-medium">
                     {article.author_name || "Unknown author"}
                   </span>
                   <span>•</span>
