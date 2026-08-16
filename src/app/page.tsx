@@ -11,6 +11,7 @@ type Article = {
   body: string;
   created_at: string;
   user_id: string;
+  author_name: string | null;
 };
 
 export default function Home() {
@@ -22,7 +23,7 @@ export default function Home() {
     const loadArticles = async () => {
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, section, body, created_at, user_id")
+        .select("id, title, section, body, created_at, user_id, author_name")
         .order("created_at", { ascending: false });
 
       if (!error && data) {
@@ -96,10 +97,18 @@ export default function Home() {
                   <h2 className="text-lg md:text-xl font-bold mb-2 group-hover:text-forge-accent transition leading-snug">
                     {article.title}
                   </h2>
-                  <p className="text-gray-400 text-sm line-clamp-3 mb-2 leading-relaxed">
+                  <p className="text-gray-400 text-sm line-clamp-3 mb-3 leading-relaxed">
                     {article.body}
                   </p>
                 </Link>
+
+                <div className="flex items-center gap-3 text-sm text-gray-500">
+                  <span className="text-gray-300">
+                    {article.author_name || "Unknown author"}
+                  </span>
+                  <span>•</span>
+                  <span>Rank —</span>
+                </div>
               </article>
             ))
           )}
