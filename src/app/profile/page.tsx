@@ -4,9 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 
 export default function ProfilePage() {
-  const [activeTab, setActiveTab] = useState<"articles" | "comments" | "fanfiction">("articles");
+  const [activeTab, setActiveTab] = useState<"articles" | "comments" | "satire">("articles");
 
-  // Prototype sample data — set any of these to [] to see the empty state
   const articles = [
     {
       id: "1",
@@ -45,7 +44,7 @@ export default function ProfilePage() {
     },
   ];
 
-  const fanFiction = [
+  const satire = [
     {
       id: "5",
       title: "Caleb Williams Accidentally Invents Time Travel During a Scramble",
@@ -64,7 +63,6 @@ export default function ProfilePage() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
-      {/* Profile Header */}
       <div className="flex flex-col sm:flex-row gap-6 items-start mb-6">
         <div className="w-24 h-24 rounded-full bg-blue-600 flex items-center justify-center text-3xl font-bold shrink-0">
           JR
@@ -97,7 +95,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Relationship */}
       <Link
         href="/relationship"
         className="block mb-8 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 hover:bg-green-500/15 transition"
@@ -113,7 +110,6 @@ export default function ProfilePage() {
         </div>
       </Link>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
           <div className="text-2xl font-bold text-white">{articles.length}</div>
@@ -133,7 +129,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-6 border-b border-forge-800 mb-6 text-sm font-medium overflow-x-auto">
         <button
           onClick={() => setActiveTab("articles")}
@@ -156,18 +151,17 @@ export default function ProfilePage() {
           Comments
         </button>
         <button
-          onClick={() => setActiveTab("fanfiction")}
+          onClick={() => setActiveTab("satire")}
           className={`pb-3 whitespace-nowrap transition ${
-            activeTab === "fanfiction"
+            activeTab === "satire"
               ? "border-b-2 border-purple-400 text-purple-300"
               : "text-gray-400 hover:text-white"
           }`}
         >
-          Fan Fiction
+          Satire
         </button>
       </div>
 
-      {/* Articles */}
       {activeTab === "articles" && (
         articles.length === 0 ? (
           <div className="bg-forge-900 border border-forge-800 rounded-2xl p-10 text-center">
@@ -202,7 +196,6 @@ export default function ProfilePage() {
         )
       )}
 
-      {/* Comments */}
       {activeTab === "comments" && (
         comments.length === 0 ? (
           <div className="bg-forge-900 border border-forge-800 rounded-2xl p-10 text-center">
@@ -227,35 +220,34 @@ export default function ProfilePage() {
         )
       )}
 
-      {/* Fan Fiction */}
-      {activeTab === "fanfiction" && (
-        fanFiction.length === 0 ? (
+      {activeTab === "satire" && (
+        satire.length === 0 ? (
           <div className="bg-forge-900 border border-purple-500/20 rounded-2xl p-10 text-center">
-            <p className="text-gray-300 font-medium mb-1">No Fan Fiction yet</p>
-            <p className="text-sm text-gray-500 mb-4">Wild, clearly untrue stories will show up here.</p>
+            <p className="text-gray-300 font-medium mb-1">No satire yet</p>
+            <p className="text-sm text-gray-500 mb-4">Clearly untrue, entertainment-only pieces will show up here.</p>
             <Link href="/fan-fiction" className="text-sm text-purple-300 hover:text-purple-200 transition">
-              Write Fan Fiction →
+              Write Satire →
             </Link>
           </div>
         ) : (
           <div className="space-y-4">
-            {fanFiction.map((f) => (
+            {satire.map((s) => (
               <Link
-                key={f.id}
-                href={`/article/${f.id}`}
+                key={s.id}
+                href={`/article/${s.id}`}
                 className="block bg-forge-900 border border-purple-500/20 rounded-xl p-5 hover:border-purple-500/40 transition"
               >
                 <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
                   <span className="bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded font-medium">
-                    Fan Fiction
+                    Satire
                   </span>
                   <span>•</span>
-                  <span className="text-yellow-500">★ {f.stars}</span>
+                  <span className="text-yellow-500">★ {s.stars}</span>
                   <span>•</span>
-                  <span>{f.date}</span>
+                  <span>{s.date}</span>
                 </div>
-                <h2 className="text-lg font-bold mb-1">{f.title}</h2>
-                <p className="text-gray-400 text-sm">{f.meta}</p>
+                <h2 className="text-lg font-bold mb-1">{s.title}</h2>
+                <p className="text-gray-400 text-sm">{s.meta}</p>
               </Link>
             ))}
           </div>
