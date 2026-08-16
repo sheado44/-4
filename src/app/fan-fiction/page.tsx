@@ -3,15 +3,62 @@
 import { useState } from "react";
 import Link from "next/link";
 
+const templates = [
+  {
+    id: 1,
+    label: "Time-travel chaos",
+    build: (v: Record<string, string>) =>
+      `What if ${v.player || "____"} accidentally ${v.verb || "____"} a ${v.noun || "____"} during ${v.event || "____"}?`,
+    fields: ["player", "verb", "noun", "event"],
+    placeholders: {
+      player: "player / person",
+      verb: "verb",
+      noun: "noun",
+      event: "event",
+    },
+  },
+  {
+    id: 2,
+    label: "Cursed object",
+    build: (v: Record<string, string>) =>
+      `The day ${v.player || "____"} found a cursed ${v.noun || "____"} and tried to ${v.verb || "____"} it at ${v.event || "____"}.`,
+    fields: ["player", "noun", "verb", "event"],
+    placeholders: {
+      player: "player / person",
+      noun: "object",
+      verb: "verb",
+      event: "event / place",
+    },
+  },
+  {
+    id: 3,
+    label: "Secret league",
+    build: (v: Record<string, string>) =>
+      `Nobody knew the league was controlled by ${v.noun || "____"} until ${v.player || "____"} decided to ${v.verb || "____"} during ${v.event || "____"}.`,
+    fields: ["noun", "player", "verb", "event"],
+    placeholders: {
+      noun: "secret group / thing",
+      player: "player / person",
+      verb: "verb",
+      event: "event",
+    },
+  },
+];
+
 export default function FanFictionPage() {
   const [step, setStep] = useState<"madlibs" | "result">("madlibs");
   const [generationsLeft, setGenerationsLeft] = useState(2);
-
-  const [player, setPlayer] = useState("");
-  const [verb, setVerb] = useState("");
-  const [noun, setNoun] = useState("");
-  const [event, setEvent] = useState("");
+  const [templateIndex, setTemplateIndex] = useState(0);
+  const [values, setValues] = useState<Record<string, string>>({});
   const [twist, setTwist] = useState("");
+
+  const template = templates[templateIndex];
+
+  const handleRefresh = () => {
+    setTemplateIndex((i) => (i + 1) % templates.length);
+    setValues({});
+    setTwist("");
+  };
 
   const handleGenerate = () => {
     if (generationsLeft <= 0) return;
@@ -19,8 +66,9 @@ export default function FanFictionPage() {
     setStep("result");
   };
 
-  const filled =
-    player.trim() && verb.trim() && noun.trim() && event.trim() && twist.trim();
+  const filled = template.fields.every((f) => (values[f] || "").trim().length > 0);
+
+  const title = `${values.player || "Someone"} and the ${values.noun || "Thing"}`;
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10">
@@ -47,69 +95,50 @@ export default function FanFictionPage() {
 
       {step === "madlibs" && (
         <>
-          {/* Mad Libs form */}
-          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 mb-6 space-y-4">
-            <p className="text-sm text-gray-300 leading-relaxed">
-              What if{" "}
-              <input
-                value={player}
-                onChange={(e) => setPlayer(e.target.value)}
-                placeholder="player / person"
-                className="inline-block w-36 mx-1 bg-forge-800 border border-forge-700 rounded-lg px-2 py-1 text-sm focus:border-purple-500 outline-none"
-              />{" "}
-              accidentally{" "}
-              <input
-                value={verb}
-                onChange={(e) => setVerb(e.target.value)}
-                placeholder="verb"
-                className="inline-block w-28 mx-1 bg-forge-800 border border-forge-700 rounded-lg px-2 py-1 text-sm focus:border-purple-500 outline-none"
-              />{" "}
-              a{" "}
-              <input
-                value={noun}
-                onChange={(e) => setNoun(e.target.value)}
-                placeholder="noun"
-                className="inline-block w-28 mx-1 bg-forge-800 border border-forge-700 rounded-lg px-2 py-1 text-sm focus:border-purple-500 outline-none"
-              />{" "}
-              during{" "}
-              <input
-                value={event}
-                onChange={(e) => setEvent(e.target.value)}
-                placeholder="event"
-                className="inline-block w-36 mx-1 bg-forge-800 border border-forge-700 rounded-lg px-2 py-1 text-sm focus:border-purple-500 outline-none"
-              />
-              ?
+          {/* Template card */}
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-xs text-gray-500">Setup: {template.label}</div>
+              <button
+                onClick={handleRefresh}
+                className="text-xs px-3 py-1.5 rounded-lg bg-forge-800 hover:bg-forge-700 transition"
+              >
+                ↻ Refresh setup
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-300 leading-relaxed mb-4">
+              {template.build(values)}
             </p>
 
-            <div>
-              <label className="block text-xs text-gray-500 mb-1.5">
-                Bonus twist (optional but better)
+            <div className="grid sm:grid-cols-2 gap-3">
+              {template.fields.map((field) => (
+                <div key={field}>
+                  <label className="block text-xs text-gray-500 mb-1 capitalize">
+                    {field}
+                  </label>
+                  <input
+                    value={values[field] || ""}
+                    onChange={(e) =>
+                      setValues((prev) => ({ ...prev, [field]: e.target.value }))
+                    }
+                    placeholder={template.placeholders[field as keyof typeof template.placeholders]}
+                    className="w-full bg-forge-800 border border-forge-700 rounded-xl px-3 py-2.5 text-sm focus:border-purple-500 outline-none"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-xs text-gray-500 mb-1">
+                Bonus twist
               </label>
               <input
                 value={twist}
                 onChange={(e) => setTwist(e.target.value)}
-                placeholder="e.g. a talking mascot, cursed playbook, rival from high school..."
+                placeholder="e.g. talking mascot, cursed playbook, rival from high school..."
                 className="w-full bg-forge-800 border border-forge-700 rounded-xl px-3 py-2.5 text-sm focus:border-purple-500 outline-none"
               />
-            </div>
-          </div>
-
-          {/* Example helpers */}
-          <div className="mb-6">
-            <p className="text-xs text-gray-500 mb-2">Need ideas?</p>
-            <div className="flex flex-wrap gap-2 text-xs">
-              <button
-                onClick={() => {
-                  setPlayer("Caleb Williams");
-                  setVerb("invented");
-                  setNoun("time machine");
-                  setEvent("a scramble");
-                  setTwist("Walter Payton learns the RPO");
-                }}
-                className="px-3 py-1.5 rounded-lg bg-forge-900 border border-forge-800 hover:border-purple-500/40 transition"
-              >
-                Fill example
-              </button>
             </div>
           </div>
 
@@ -142,22 +171,15 @@ export default function FanFictionPage() {
               <span className="text-xs text-gray-500">Clearly untrue · AI generated</span>
             </div>
 
-            <h2 className="text-xl font-bold mb-3">
-              {player} Accidentally {verb} a {noun} During {event}
-            </h2>
+            <h2 className="text-xl font-bold mb-3">{title}</h2>
 
             <div className="text-sm text-gray-300 leading-relaxed space-y-3">
+              <p>{template.build(values)}</p>
               <p>
-                It started as a normal moment in {event}. It ended with {player} having {verb} a {noun} in front of thousands of confused fans.
+                What happened next made almost no sense. According to extremely unreliable witnesses, everything only got stranger once {twist || "the bonus twist"} entered the picture.
               </p>
               <p>
-                Witnesses (who absolutely do not exist) claim the whole thing only made sense once {twist} entered the picture.
-              </p>
-              <p>
-                Coaches tried to diagram it. Broadcasters tried to explain it. Nobody succeeded. The only confirmed detail is that it was, somehow, both ridiculous and weirdly effective.
-              </p>
-              <p>
-                And that is how {player} became the unlikely star of the most untrue story in sports this week.
+                Coaches tried to explain it. Fans pretended they saw it coming. Nobody actually did. The only confirmed detail is that it was ridiculous, untrue, and somehow still entertaining.
               </p>
             </div>
           </div>
@@ -167,10 +189,13 @@ export default function FanFictionPage() {
               Publish Fan Fiction
             </button>
             <button
-              onClick={() => setStep("madlibs")}
+              onClick={() => {
+                setStep("madlibs");
+                handleRefresh();
+              }}
               className="px-5 py-2.5 bg-forge-800 hover:bg-forge-700 text-sm rounded-xl transition"
             >
-              Try another
+              New setup
             </button>
             <Link href="/" className="text-sm text-gray-400 hover:text-white transition ml-auto">
               Cancel
