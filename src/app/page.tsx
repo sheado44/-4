@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 
 const sampleArticles = [
@@ -78,6 +81,13 @@ const hottestCommenters = [
 ];
 
 export default function Home() {
+  const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Fan Fiction">("All");
+
+  const filteredArticles =
+    section === "All"
+      ? sampleArticles
+      : sampleArticles.filter((a) => a.section === section);
+
   return (
     <main className="min-h-screen">
       {/* Logo Hero */}
@@ -94,18 +104,19 @@ export default function Home() {
       {/* Filters */}
       <div className="max-w-6xl mx-auto px-4 mb-8">
         <div className="flex flex-wrap gap-2 mb-5 justify-center md:justify-start">
-          <button className="px-5 py-2 rounded-full bg-forge-accent text-white text-sm font-semibold shadow-md shadow-orange-500/20">
-            All
-          </button>
-          <button className="px-5 py-2 rounded-full bg-forge-800 hover:bg-forge-700 text-sm font-medium transition">
-            Sports
-          </button>
-          <button className="px-5 py-2 rounded-full bg-forge-800 hover:bg-forge-700 text-sm font-medium transition">
-            Pop Culture
-          </button>
-          <button className="px-5 py-2 rounded-full bg-forge-800 hover:bg-forge-700 text-sm font-medium transition">
-            Fan Fiction
-          </button>
+          {(["All", "Sports", "Pop Culture", "Fan Fiction"] as const).map((item) => (
+            <button
+              key={item}
+              onClick={() => setSection(item)}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                section === item
+                  ? "bg-forge-accent text-white font-semibold shadow-md shadow-orange-500/20"
+                  : "bg-forge-800 hover:bg-forge-700"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
         </div>
 
         <div className="flex gap-6 text-sm font-medium justify-center md:justify-start">
@@ -118,65 +129,72 @@ export default function Home() {
       <div className="max-w-6xl mx-auto px-4 pb-16 grid lg:grid-cols-3 gap-8">
         {/* Main feed */}
         <div className="lg:col-span-2 space-y-4">
-          {sampleArticles.map((article) => (
-            <article
-              key={article.id}
-              className="group bg-forge-900/60 border border-forge-800 hover:border-forge-accent/40 rounded-2xl p-5 transition-all duration-200 hover:bg-forge-900"
-            >
-              <div className="flex gap-5">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
-                    <span
-                      className={`px-2 py-0.5 rounded-md font-semibold ${
-                        article.section === "Fan Fiction"
-                          ? "bg-purple-500/20 text-purple-300"
-                          : "bg-forge-accent/15 text-forge-accent"
-                      }`}
-                    >
-                      #{article.rank} {article.section}
-                    </span>
-                    <span>{article.category}</span>
-                    <span className="text-yellow-500">★ {article.stars}</span>
-                  </div>
+          {filteredArticles.length === 0 ? (
+            <div className="bg-forge-900/60 border border-forge-800 rounded-2xl p-8 text-center text-gray-400 text-sm">
+              No articles in this section yet.
+            </div>
+          ) : (
+            filteredArticles.map((article) => (
+              <article
+                key={article.id}
+                className="group bg-forge-900/60 border border-forge-800 hover:border-forge-accent/40 rounded-2xl p-5 transition-all duration-200 hover:bg-forge-900"
+              >
+                <div className="flex gap-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
+                      <span
+                        className={`px-2 py-0.5 rounded-md font-semibold ${
+                          article.section === "Fan Fiction"
+                            ? "bg-purple-500/20 text-purple-300"
+                            : "bg-forge-accent/15 text-forge-accent"
+                        }`}
+                      >
+                        #{article.rank} {article.section}
+                      </span>
+                      <span>{article.category}</span>
+                      <span className="text-yellow-500">★ {article.stars}</span>
+                    </div>
 
-                  <Link href={`/article/${article.id}`}>
-                    <h2 className="text-lg md:text-xl font-bold mb-2 group-hover:text-forge-accent transition leading-snug">
-                      {article.title}
-                    </h2>
-                    <p className="text-gray-400 text-sm line-clamp-2 mb-4 leading-relaxed">
-                      {article.excerpt}
-                    </p>
-                  </Link>
-
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <Link href="/profile" className="flex items-center gap-2 hover:text-white transition">
-                      <div className={`w-7 h-7 rounded-full ${article.authorColor} flex items-center justify-center text-xs font-bold`}>
-                        {article.authorInitials}
-                      </div>
-                      <span>{article.author}</span>
+                    <Link href={`/article/${article.id}`}>
+                      <h2 className="text-lg md:text-xl font-bold mb-2 group-hover:text-forge-accent transition leading-snug">
+                        {article.title}
+                      </h2>
+                      <p className="text-gray-400 text-sm line-clamp-2 mb-4 leading-relaxed">
+                        {article.excerpt}
+                      </p>
                     </Link>
-                    <span>{article.views} views</span>
-                    <span>{article.comments} comments</span>
+
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <Link href="/profile" className="flex items-center gap-2 hover:text-white transition">
+                        <div className={`w-7 h-7 rounded-full ${article.authorColor} flex items-center justify-center text-xs font-bold`}>
+                          {article.authorInitials}
+                        </div>
+                        <span>{article.author}</span>
+                      </Link>
+                      <span>{article.views} views</span>
+                      <span>{article.comments} comments</span>
+                    </div>
+                  </div>
+
+                  <div className="hidden sm:flex w-24 h-24 md:w-28 md:h-28 rounded-xl bg-gradient-to-br from-forge-800 to-forge-900 items-center justify-center text-4xl shrink-0 border border-forge-700 group-hover:border-forge-600 transition">
+                    {article.emoji}
                   </div>
                 </div>
+              </article>
+            ))
+          )}
 
-                <div className="hidden sm:flex w-24 h-24 md:w-28 md:h-28 rounded-xl bg-gradient-to-br from-forge-800 to-forge-900 items-center justify-center text-4xl shrink-0 border border-forge-700 group-hover:border-forge-600 transition">
-                  {article.emoji}
-                </div>
-              </div>
-            </article>
-          ))}
-
-          <div className="text-center pt-6">
-            <button className="px-8 py-3 bg-forge-800 hover:bg-forge-700 rounded-xl text-sm font-medium transition">
-              Load More Articles
-            </button>
-          </div>
+          {filteredArticles.length > 0 && (
+            <div className="text-center pt-6">
+              <button className="px-8 py-3 bg-forge-800 hover:bg-forge-700 rounded-xl text-sm font-medium transition">
+                Load More Articles
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Sidebar */}
         <aside className="space-y-5">
-          {/* Publisher Leaderboard */}
           <div className="bg-forge-900/80 border border-forge-800 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold">Publisher Leaderboard</h3>
@@ -213,7 +231,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Hottest Commenters */}
           <div className="bg-forge-900/80 border border-forge-800 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold">Hottest Commenters</h3>
@@ -242,7 +259,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Write CTAs */}
           <div className="bg-gradient-to-br from-orange-600/15 to-forge-900 border border-orange-500/20 rounded-2xl p-5 text-center">
             <p className="font-semibold mb-1">Got a take?</p>
             <p className="text-sm text-gray-400 mb-4">Write it. Rank it.</p>
