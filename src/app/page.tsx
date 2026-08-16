@@ -75,24 +75,43 @@ export default function Home() {
   return (
     <main className="min-h-screen">
       {/* Big Logo Hero */}
-      <section className="pt-16 pb-10 text-center">
-        <h1 className="text-6xl md:text-8xl font-black tracking-tight select-none">
+      <section className="pt-16 pb-12 text-center">
+        <h1 className="text-6xl md:text-8xl font-black tracking-tight select-none leading-none">
           <span className="text-white">Press</span>
-          <span 
-            className="text-transparent bg-clip-text"
+          <span
+            className="relative inline-block ml-1"
             style={{
-              backgroundImage: "url('https://www.transparenttextures.com/patterns/newsprint.png'), linear-gradient(to bottom, #e5e5e5, #a3a3a3)",
-              backgroundBlendMode: "multiply",
+              color: "#d4d4d4",
+              textShadow: `
+                1px 1px 0 #888,
+                2px 2px 0 #666,
+                0 0 1px #999
+              `,
+              backgroundImage: `
+                repeating-linear-gradient(
+                  0deg,
+                  transparent,
+                  transparent 2px,
+                  rgba(0,0,0,0.03) 2px,
+                  rgba(0,0,0,0.03) 4px
+                ),
+                repeating-linear-gradient(
+                  90deg,
+                  transparent,
+                  transparent 2px,
+                  rgba(0,0,0,0.03) 2px,
+                  rgba(0,0,0,0.03) 4px
+                )
+              `,
               WebkitBackgroundClip: "text",
               backgroundClip: "text",
-              color: "transparent",
-              textShadow: "0 2px 0 rgba(0,0,0,0.3)"
+              filter: "contrast(1.1) brightness(0.95)",
             }}
           >
             ME
           </span>
         </h1>
-        <p className="text-gray-500 mt-3 text-sm tracking-widest uppercase">
+        <p className="text-gray-500 mt-4 text-xs tracking-[0.25em] uppercase">
           Sports & Pop Culture
         </p>
       </section>
