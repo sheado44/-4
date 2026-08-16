@@ -171,7 +171,7 @@ export default async function ArticlePage({
           </div>
         </div>
 
-        {/* Comments with hover rank */}
+        {/* Comments */}
         <div className="space-y-6">
           {[
             {
@@ -179,6 +179,8 @@ export default async function ArticlePage({
               color: "bg-green-700",
               name: "Derek K.",
               rank: 14,
+              heat: "On Fire",
+              heatColor: "text-orange-400",
               time: "2h ago",
               text: "Finally someone posting the actual film grades instead of the same old “Bears line is bad” narrative. The right tackle improvement alone is massive.",
               likes: 24,
@@ -191,6 +193,8 @@ export default async function ArticlePage({
               color: "bg-red-700",
               name: "Sam R.",
               rank: 47,
+              heat: "Warm",
+              heatColor: "text-yellow-500",
               time: "4h ago",
               text: "I’m still skeptical until we see them against the better edge rushers in December. But the data is hard to argue with right now.",
               likes: 11,
@@ -203,6 +207,8 @@ export default async function ArticlePage({
               color: "bg-purple-600",
               name: "Aisha L.",
               rank: 9,
+              heat: "Hot",
+              heatColor: "text-orange-300",
               time: "6h ago",
               text: "This is the kind of analysis that actually moves the conversation forward. Great work.",
               likes: 19,
@@ -219,7 +225,7 @@ export default async function ArticlePage({
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 text-sm mb-1">
-                  {/* Name with hover rank tooltip */}
+                  {/* Name with hover tooltip */}
                   <div className="relative group">
                     <Link
                       href="/profile"
@@ -229,8 +235,11 @@ export default async function ArticlePage({
                     </Link>
                     {/* Tooltip */}
                     <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
-                      <div className="bg-forge-800 border border-forge-600 text-xs text-white px-3 py-1.5 rounded-lg whitespace-nowrap shadow-lg">
-                        #{c.rank} All-Time Commenter
+                      <div className="bg-forge-800 border border-forge-600 text-xs text-white px-3 py-2 rounded-lg whitespace-nowrap shadow-lg">
+                        <div>#{c.rank} Commenter</div>
+                        <div className={`mt-0.5 ${c.heatColor}`}>
+                          Heat: {c.heat}
+                        </div>
                       </div>
                     </div>
                   </div>
