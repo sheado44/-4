@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "PressMe – Sports & Pop Culture",
-  description: "Public sports and pop culture writing platform. Rankings driven by real engagement.",
+  description: "Public sports and pop culture writing. Rankings driven by real engagement.",
 };
 
 export default function RootLayout({
@@ -15,41 +15,50 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-forge-950 text-gray-100 min-h-screen">
-        <nav className="border-b border-forge-800 bg-forge-900/80 backdrop-blur sticky top-0 z-50">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="text-2xl font-bold tracking-tight">
-                <span className="text-forge-accent">Press</span>Me
-              </span>
+        {/* Nav */}
+        <nav className="border-b border-forge-800/80 bg-forge-900/70 backdrop-blur sticky top-0 z-50">
+          <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+            <Link href="/" className="text-xl font-bold tracking-tight">
+              <span className="text-forge-accent">Press</span>
+              <span className="text-white">Me</span>
             </Link>
+
             <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-              <Link href="/" className="hover:text-forge-accent transition">
+              <Link href="/" className="text-gray-300 hover:text-white transition">
                 Home
               </Link>
-              <Link href="/?section=sports" className="hover:text-forge-accent transition">
+              <Link href="/?section=sports" className="text-gray-300 hover:text-white transition">
                 Sports
               </Link>
-              <Link href="/?section=pop" className="hover:text-forge-accent transition">
+              <Link href="/?section=pop" className="text-gray-300 hover:text-white transition">
                 Pop Culture
               </Link>
-              <Link href="/editor" className="bg-forge-accent hover:bg-forge-accentHover text-white px-4 py-2 rounded-lg transition">
-                Write Article
-              </Link>
-            </div>
-            <div className="flex items-center gap-3">
               <Link
-                href="/profile"
-                className="w-8 h-8 rounded-full bg-forge-700 flex items-center justify-center text-sm font-bold"
+                href="/editor"
+                className="bg-forge-accent hover:bg-forge-accentHover text-white px-3.5 py-1.5 rounded-lg transition text-sm"
               >
-                MS
+                Write
               </Link>
             </div>
+
+            <Link
+              href="/profile"
+              className="w-8 h-8 rounded-full bg-forge-700 hover:bg-forge-600 flex items-center justify-center text-xs font-bold transition"
+            >
+              MS
+            </Link>
           </div>
         </nav>
+
         {children}
-        <footer className="border-t border-forge-800 py-8 text-center text-sm text-gray-500 mt-12">
-          <p>PressMe – Sports & Pop Culture</p>
-          <p className="mt-1">pressme.ai</p>
+
+        {/* Footer */}
+        <footer className="border-t border-forge-800/80 mt-16 py-8">
+          <div className="max-w-6xl mx-auto px-4 text-center text-sm text-gray-500">
+            <p className="font-medium text-gray-400 mb-1">PressMe</p>
+            <p>Sports & Pop Culture</p>
+            <p className="mt-1 text-xs">pressme.ai</p>
+          </div>
         </footer>
       </body>
     </html>
