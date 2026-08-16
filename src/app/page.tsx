@@ -45,8 +45,11 @@ export default function Home() {
             className="w-full max-w-3xl md:max-w-4xl h-auto mix-blend-multiply brightness-110 contrast-125"
           />
         </div>
-        <p className="text-gray-500 text-xs tracking-[0.3em] uppercase">
+        <p className="text-gray-200 text-sm tracking-[0.25em] uppercase mb-1">
           Sports & Pop Culture
+        </p>
+        <p className="text-forge-accent text-lg md:text-xl font-semibold tracking-wide">
+          Jump in.
         </p>
       </section>
 
@@ -71,12 +74,12 @@ export default function Home() {
       <div className="max-w-6xl mx-auto px-4 pb-16 grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
           {loading ? (
-            <div className="bg-forge-900/60 border border-forge-800 rounded-2xl p-8 text-center text-gray-400 text-sm">
+            <div className="bg-forge-900/60 border border-forge-800 rounded-2xl p-8 text-center text-gray-300 text-sm">
               Loading articles...
             </div>
           ) : filteredArticles.length === 0 ? (
-            <div className="bg-forge-900/60 border border-forge-800 rounded-2xl p-8 text-center text-gray-400 text-sm">
-              No articles in this section yet.
+            <div className="bg-forge-900/60 border border-forge-800 rounded-2xl p-8 text-center text-gray-300 text-sm">
+              No articles in this section yet. Jump in and write one.
             </div>
           ) : (
             filteredArticles.map((article) => (
@@ -84,7 +87,7 @@ export default function Home() {
                 key={article.id}
                 className="group bg-forge-900/60 border border-forge-800 hover:border-forge-accent/40 rounded-2xl p-5 transition-all duration-200 hover:bg-forge-900"
               >
-                <div className="flex items-center gap-2 text-xs text-gray-400 mb-2">
+                <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
                   <span className="bg-forge-accent/15 text-forge-accent px-2 py-0.5 rounded-md font-semibold">
                     {article.section}
                   </span>
@@ -95,13 +98,13 @@ export default function Home() {
                   <h2 className="text-lg md:text-xl font-bold mb-2 group-hover:text-forge-accent transition leading-snug">
                     {article.title}
                   </h2>
-                  <p className="text-gray-400 text-sm line-clamp-3 mb-3 leading-relaxed">
+                  <p className="text-gray-300 text-sm line-clamp-3 mb-3 leading-relaxed">
                     {article.body}
                   </p>
                 </Link>
 
-                <div className="flex items-center gap-3 text-sm text-gray-500">
-                  <span className="text-gray-300 font-medium">
+                <div className="flex items-center gap-3 text-sm text-gray-300">
+                  <span className="text-white font-medium">
                     {article.author_name || "Unknown author"}
                   </span>
                   <span>•</span>
@@ -115,7 +118,7 @@ export default function Home() {
         <aside className="space-y-5">
           <div className="bg-gradient-to-br from-orange-600/15 to-forge-900 border border-orange-500/20 rounded-2xl p-5 text-center">
             <p className="font-semibold mb-1">Got a take?</p>
-            <p className="text-sm text-gray-400 mb-4">Write it. Rank it.</p>
+            <p className="text-sm text-gray-300 mb-4">Jump in. Write it. Rank it.</p>
             <Link
               href="/editor"
               className="inline-block bg-forge-accent hover:bg-forge-accentHover text-white font-medium px-6 py-2.5 rounded-xl transition text-sm mb-3"
@@ -125,7 +128,7 @@ export default function Home() {
             <div>
               <Link
                 href="/fan-fiction"
-                className="inline-block text-sm text-purple-300 hover:text-purple-200 transition"
+                className="inline-block text-sm text-purple-200 hover:text-purple-100 transition"
               >
                 or Write Satire →
               </Link>
