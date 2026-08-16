@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Link from "next/link";
+import AuthNav from "./AuthNav";
 
 export const metadata: Metadata = {
   title: "PressMe – Sports & Pop Culture",
@@ -15,7 +16,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-forge-950 text-gray-100 min-h-screen">
-        {/* Nav */}
         <nav className="border-b border-forge-800/80 bg-forge-900/70 backdrop-blur sticky top-0 z-50">
           <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
             <Link href="/" className="text-xl font-bold tracking-tight">
@@ -41,27 +41,12 @@ export default function RootLayout({
               </Link>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Link
-                href="/login"
-                className="text-sm text-gray-300 hover:text-white transition"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/profile"
-                className="w-8 h-8 rounded-full bg-forge-700 hover:bg-forge-600 flex items-center justify-center text-xs font-bold transition"
-                title="Profile"
-              >
-                MS
-              </Link>
-            </div>
+            <AuthNav />
           </div>
         </nav>
 
         {children}
 
-        {/* Footer */}
         <footer className="border-t border-forge-800/80 mt-16 py-8">
           <div className="max-w-6xl mx-auto px-4 text-center text-sm text-gray-500">
             <p className="font-medium text-gray-400 mb-1">PressMe</p>
