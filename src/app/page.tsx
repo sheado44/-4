@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 
 type Article = {
@@ -37,12 +38,18 @@ export default function Home() {
 
   return (
     <main className="min-h-screen">
-      <section className="pt-14 pb-10 text-center">
-        <h1 className="text-6xl md:text-7xl font-black tracking-tight select-none leading-none">
-          <span className="text-white">Press</span>
-          <span className="text-gray-400">ME</span>
-        </h1>
-        <p className="text-gray-500 mt-3 text-xs tracking-[0.3em] uppercase">
+      <section className="pt-10 pb-8 text-center px-4">
+        <div className="flex justify-center mb-4">
+          <Image
+            src="/ballpit-logo.png"
+            alt="The Ballpit"
+            width={420}
+            height={280}
+            className="w-full max-w-sm md:max-w-md h-auto"
+            priority
+          />
+        </div>
+        <p className="text-gray-500 text-xs tracking-[0.3em] uppercase">
           Sports & Pop Culture
         </p>
       </section>
