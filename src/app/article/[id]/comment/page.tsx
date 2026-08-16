@@ -7,6 +7,14 @@ export default function CommentPage() {
   const [imagesUsedToday, setImagesUsedToday] = useState(0);
   const canGenerateImage = imagesUsedToday < 1;
 
+  // For the prototype we simulate a reply. 
+  // Later this will come from the URL or data.
+  const isReply = true;
+  const replyingTo = {
+    name: "Derek K.",
+    text: "Finally someone posting the actual film grades instead of the same old “Bears line is bad” narrative. The right tackle improvement alone is massive.",
+  };
+
   return (
     <main className="max-w-2xl mx-auto px-4 py-10">
       {/* Header */}
@@ -17,11 +25,23 @@ export default function CommentPage() {
         >
           ← Back to article
         </Link>
-        <h1 className="text-2xl font-bold mb-1">Write a Comment</h1>
+        <h1 className="text-2xl font-bold mb-1">
+          {isReply ? "Write a Reply" : "Write a Comment"}
+        </h1>
         <p className="text-gray-400 text-sm">
-          Responding to: <span className="text-white">Why the Bears&apos; Offensive Line Is Quietly Elite in 2026</span>
+          On: <span className="text-white">Why the Bears&apos; Offensive Line Is Quietly Elite in 2026</span>
         </p>
       </div>
+
+      {/* Replying to preview */}
+      {isReply && (
+        <div className="mb-6 bg-forge-900/70 border border-forge-800 rounded-xl p-4">
+          <div className="text-xs text-gray-500 mb-1">Replying to {replyingTo.name}</div>
+          <p className="text-sm text-gray-300 line-clamp-3">
+            “{replyingTo.text}”
+          </p>
+        </div>
+      )}
 
       {/* Daily AI Image Limit */}
       <div className={`mb-6 rounded-xl px-4 py-3 text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
@@ -70,7 +90,7 @@ export default function CommentPage() {
           className="min-h-[280px] p-5 text-gray-200 leading-relaxed focus:outline-none"
         >
           <p className="text-gray-500">
-            Write your comment here...
+            {isReply ? "Write your reply here..." : "Write your comment here..."}
           </p>
         </div>
       </div>
@@ -84,7 +104,7 @@ export default function CommentPage() {
       {/* Actions */}
       <div className="flex flex-wrap items-center gap-4">
         <button className="px-8 py-3 bg-forge-accent hover:bg-forge-accentHover text-white font-semibold rounded-xl transition">
-          Post Comment
+          {isReply ? "Post Reply" : "Post Comment"}
         </button>
         <Link 
           href="/article/1" 
