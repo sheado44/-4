@@ -7,28 +7,14 @@ export default function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 glass-strip">
       <div className="max-w-6xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between gap-4">
-        {/* Brand */}
         <Link href="/" className="flex items-center gap-3 group shrink-0">
-          <div className="relative">
-            <div className="absolute -inset-2 rounded-full bg-[radial-gradient(circle,rgba(196,122,74,0.25),transparent_70%)] opacity-70 group-hover:opacity-100 transition" />
-            <img
-              src="/ballpit-logo.png"
-              alt="The Ballpit"
-              className="relative h-8 w-8 md:h-9 md:w-9 object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)]"
-            />
-          </div>
-          <div className="leading-tight">
-            <div className="text-sm md:text-base font-semibold tracking-wide">
-              <span className="metal-title">The </span>
-              <span className="copper-title font-bold">Ballpit</span>
-            </div>
-            <div className="hidden sm:block text-[10px] uppercase tracking-[0.22em] text-metal-steel">
-              Sports · Culture · Satire
-            </div>
-          </div>
+          <img
+            src="/ballpit-wordmark.png"
+            alt="The Ballpit"
+            className="h-8 md:h-10 w-auto object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)] group-hover:brightness-110 transition"
+          />
         </Link>
 
-        {/* Center nav */}
         <nav className="hidden md:flex items-center gap-1 text-sm">
           {[
             { href: "/", label: "Home" },
@@ -46,7 +32,6 @@ export default function SiteHeader() {
           ))}
         </nav>
 
-        {/* Actions */}
         <div className="flex items-center gap-2 md:gap-3">
           <Link
             href="/editor"
@@ -63,8 +48,6 @@ export default function SiteHeader() {
           <AuthNav />
         </div>
       </div>
-
-      {/* subtle steel edge line */}
       <div className="pit-divider" />
     </header>
   );
