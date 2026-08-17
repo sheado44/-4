@@ -23,13 +23,10 @@ type Comment = {
   created_at: string;
   is_guest: boolean;
   user_id: string | null;
+  parent_id: string | null;
 };
 
-type Voter = {
-  user_id: string;
-  name: string;
-};
-
+type Voter = { user_id: string; name: string };
 type VoteInfo = {
   up: number;
   down: number;
@@ -37,12 +34,10 @@ type VoteInfo = {
   upVoters: Voter[];
   downVoters: Voter[];
 };
-
 type VoteMap = Record<string, VoteInfo>;
 
 function makeGuestName() {
-  const rand = Math.random().toString(16).slice(2, 8);
-  return `anon_${rand}`;
+  return `anon_${Math.random().toString(16).slice(2, 8)}`;
 }
 
 export default function ArticlePage() {
@@ -56,6 +51,7 @@ export default function ArticlePage() {
   const [ratingCount, setRatingCount] = useState(0);
   const [myRating, setMyRating] = useState<number | null>(null);
   const [commentText, setCommentText] = useState("");
+  const [replyTo, setReplyTo] = useState<Comment | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
@@ -81,9 +77,9 @@ export default function ArticlePage() {
 
     const { data: commentData } = await supabase
       .from("comments")
-      .select("id, author_name, body, created_at, is_guest, user_id")
+      .select("id, author_name, body, created_at, is_guest, user_id, parent_id")
       .eq("article_id", id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: true });
     const loadedComments = commentData || [];
     setComments(loadedComments);
 
@@ -103,17 +99,13 @@ export default function ArticlePage() {
         .select("comment_id, user_id, vote")
         .in("comment_id", commentIds);
 
-      const voterIds = Array.from(
-        new Set((voteData || []).map((v) => v.user_id).filter(Boolean))
-      );
-
+      const voterIds = Array.from(new Set((voteData || []).map((v) => v.user_id)));
       const nameById: Record<string, string> = {};
       if (voterIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id, display_name")
           .in("id", voterIds);
-
         (profiles || []).forEach((p) => {
           nameById[p.id] = p.display_name || "User";
         });
@@ -129,12 +121,7 @@ export default function ArticlePage() {
             downVoters: [],
           };
         }
-
-        const voter = {
-          user_id: v.user_id,
-          name: nameById[v.user_id] || "User",
-        };
-
+        const voter = { user_id: v.user_id, name: nameById[v.user_id] || "User" };
         if (v.vote === 1) {
           voteMap[v.comment_id].up += 1;
           voteMap[v.comment_id].upVoters.push(voter);
@@ -203,17 +190,15 @@ export default function ArticlePage() {
       author_name: authorName,
       body: commentText.trim(),
       is_guest: !isLoggedIn,
+      parent_id: replyTo ? replyTo.id : null,
     });
 
     if (error) {
       setMessage(`Comment failed: ${error.message}`);
     } else {
       setCommentText("");
-      setMessage(
-        isLoggedIn
-          ? "Comment posted."
-          : `Guest comment posted as ${authorName}.`
-      );
+      setReplyTo(null);
+      setMessage(isLoggedIn ? "Comment posted." : `Guest comment posted as ${authorName}.`);
       await loadAll();
     }
     setPosting(false);
@@ -227,7 +212,6 @@ export default function ArticlePage() {
     }
 
     const current = votes[commentId]?.myVote ?? null;
-
     try {
       if (current === nextVote) {
         const { error } = await supabase
@@ -251,7 +235,6 @@ export default function ArticlePage() {
           .eq("user_id", userId);
         if (error) throw error;
       }
-
       await loadAll();
     } catch (err: any) {
       setMessage(`Vote failed: ${err?.message || "unknown error"}`);
@@ -264,7 +247,6 @@ export default function ArticlePage() {
       setMessage("Log in to rate articles.");
       return;
     }
-
     try {
       if (myRating) {
         const { error } = await supabase
@@ -281,9 +263,7 @@ export default function ArticlePage() {
         });
         if (error) throw error;
       }
-
       setMyRating(stars);
-      setMessage(`You rated this ${stars} star${stars === 1 ? "" : "s"}.`);
       await loadAll();
     } catch (err: any) {
       setMessage(`Rating failed: ${err?.message || "unknown error"}`);
@@ -302,7 +282,7 @@ export default function ArticlePage() {
     return (
       <main className="max-w-3xl mx-auto px-4 py-10">
         <p className="text-gray-200 mb-4">{error || "Article not found."}</p>
-        <Link href="/" className="text-forge-accent hover:text-orange-300 text-sm">
+        <Link href="/" className="text-forge-accent text-sm">
           ← Back home
         </Link>
       </main>
@@ -317,6 +297,95 @@ export default function ArticlePage() {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  const topLevel = comments.filter((c) => !c.parent_id);
+  const repliesByParent: Record<string, Comment[]> = {};
+  comments.forEach((c) => {
+    if (c.parent_id) {
+      if (!repliesByParent[c.parent_id]) repliesByParent[c.parent_id] = [];
+      repliesByParent[c.parent_id].push(c);
+    }
+  });
+
+  const renderComment = (c: Comment, isReply = false) => {
+    const v = votes[c.id] || {
+      up: 0,
+      down: 0,
+      myVote: null,
+      upVoters: [],
+      downVoters: [],
+    };
+    const upTitle =
+      v.upVoters.length > 0 ? v.upVoters.map((x) => x.name).join(", ") : "No upvotes yet";
+    const downTitle =
+      v.downVoters.length > 0
+        ? v.downVoters.map((x) => x.name).join(", ")
+        : "No downvotes yet";
+
+    return (
+      <div
+        key={c.id}
+        className={`bg-forge-900 border border-forge-800 rounded-xl p-4 ${
+          isReply ? "ml-6 md:ml-10" : ""
+        }`}
+      >
+        <div className="flex items-center gap-2 text-sm mb-2">
+          {c.user_id ? (
+            <Link
+              href={`/profile/${c.user_id}`}
+              className="font-medium hover:text-forge-accent transition"
+            >
+              {c.author_name}
+            </Link>
+          ) : (
+            <span className="font-medium text-gray-200">
+              {c.author_name}
+              <span className="ml-2 text-xs text-gray-400">guest</span>
+            </span>
+          )}
+          <span className="text-gray-300 text-xs" title={formatTimeFull(c.created_at)}>
+            {formatTime(c.created_at)}
+          </span>
+        </div>
+
+        <p className="text-gray-100 text-sm leading-relaxed mb-3">{c.body}</p>
+
+        <div className="flex items-center gap-3 text-sm">
+          <button
+            title={upTitle}
+            onClick={() => handleCommentVote(c.id, 1)}
+            className={`px-2 py-1 rounded-lg transition ${
+              v.myVote === 1
+                ? "bg-green-600/30 text-green-300"
+                : "bg-black/20 text-gray-300 hover:text-white"
+            }`}
+          >
+            👍 {v.up}
+          </button>
+          <button
+            title={downTitle}
+            onClick={() => handleCommentVote(c.id, -1)}
+            className={`px-2 py-1 rounded-lg transition ${
+              v.myVote === -1
+                ? "bg-red-600/30 text-red-300"
+                : "bg-black/20 text-gray-300 hover:text-white"
+            }`}
+          >
+            👎 {v.down}
+          </button>
+          <button
+            onClick={() => {
+              setReplyTo(c);
+              setMessage("");
+            }}
+            className="px-2 py-1 rounded-lg bg-black/20 text-gray-300 hover:text-white transition"
+          >
+            Reply
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
@@ -360,9 +429,7 @@ export default function ArticlePage() {
           {initials}
         </div>
         <div>
-          <div className="font-semibold group-hover:text-forge-accent transition">
-            {author}
-          </div>
+          <div className="font-semibold group-hover:text-forge-accent transition">{author}</div>
           <div className="text-sm text-gray-300">Rank —</div>
         </div>
       </Link>
@@ -393,18 +460,32 @@ export default function ArticlePage() {
       </div>
 
       <section className="border-t border-forge-800 pt-8">
-        <h3 className="text-xl font-bold mb-5">
-          Comments ({comments.length})
-        </h3>
+        <h3 className="text-xl font-bold mb-5">Comments ({comments.length})</h3>
 
         <div className="bg-forge-900 border border-forge-800 rounded-2xl p-4 mb-6">
+          {replyTo && (
+            <div className="mb-3 text-sm text-gray-300 flex items-center justify-between gap-3">
+              <span>
+                Replying to <span className="text-white font-medium">{replyTo.author_name}</span>
+              </span>
+              <button
+                onClick={() => setReplyTo(null)}
+                className="text-xs text-gray-400 hover:text-white"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
           <textarea
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             placeholder={
-              userId
+              replyTo
+                ? `Reply to ${replyTo.author_name}...`
+                : userId
                 ? "Write a comment..."
-                : "Write a guest comment (no account needed)..."
+                : "Write a guest comment..."
             }
             className="w-full min-h-[100px] bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
           />
@@ -414,90 +495,25 @@ export default function ArticlePage() {
               disabled={posting}
               className="px-5 py-2 bg-forge-accent hover:bg-forge-accentHover text-white text-sm font-medium rounded-xl transition disabled:opacity-60"
             >
-              {posting ? "Posting..." : userId ? "Post Comment" : "Post as Guest"}
+              {posting ? "Posting..." : replyTo ? "Post Reply" : userId ? "Post Comment" : "Post as Guest"}
             </button>
           </div>
         </div>
 
         {message && <p className="text-sm text-yellow-200 mb-4">{message}</p>}
 
-        {comments.length === 0 ? (
+        {topLevel.length === 0 ? (
           <div className="bg-forge-900/50 border border-forge-800 rounded-xl p-6 text-center text-sm text-gray-300">
             No comments yet. Jump in.
           </div>
         ) : (
           <div className="space-y-4">
-            {comments.map((c) => {
-              const v = votes[c.id] || {
-                up: 0,
-                down: 0,
-                myVote: null,
-                upVoters: [],
-                downVoters: [],
-              };
-
-              const upTitle =
-                v.upVoters.length > 0
-                  ? v.upVoters.map((x) => x.name).join(", ")
-                  : "No upvotes yet";
-              const downTitle =
-                v.downVoters.length > 0
-                  ? v.downVoters.map((x) => x.name).join(", ")
-                  : "No downvotes yet";
-
-              return (
-                <div key={c.id} className="bg-forge-900 border border-forge-800 rounded-xl p-4">
-                  <div className="flex items-center gap-2 text-sm mb-2">
-                    {c.user_id ? (
-                      <Link
-                        href={`/profile/${c.user_id}`}
-                        className="font-medium hover:text-forge-accent transition"
-                      >
-                        {c.author_name}
-                      </Link>
-                    ) : (
-                      <span className="font-medium text-gray-200">
-                        {c.author_name}
-                        <span className="ml-2 text-xs text-gray-400">guest</span>
-                      </span>
-                    )}
-                    <span
-                      className="text-gray-300 text-xs"
-                      title={formatTimeFull(c.created_at)}
-                    >
-                      {formatTime(c.created_at)}
-                    </span>
-                  </div>
-
-                  <p className="text-gray-100 text-sm leading-relaxed mb-3">{c.body}</p>
-
-                  <div className="flex items-center gap-3 text-sm">
-                    <button
-                      title={upTitle}
-                      onClick={() => handleCommentVote(c.id, 1)}
-                      className={`px-2 py-1 rounded-lg transition ${
-                        v.myVote === 1
-                          ? "bg-green-600/30 text-green-300"
-                          : "bg-black/20 text-gray-300 hover:text-white"
-                      }`}
-                    >
-                      👍 {v.up}
-                    </button>
-                    <button
-                      title={downTitle}
-                      onClick={() => handleCommentVote(c.id, -1)}
-                      className={`px-2 py-1 rounded-lg transition ${
-                        v.myVote === -1
-                          ? "bg-red-600/30 text-red-300"
-                          : "bg-black/20 text-gray-300 hover:text-white"
-                      }`}
-                    >
-                      👎 {v.down}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {topLevel.map((c) => (
+              <div key={c.id} className="space-y-3">
+                {renderComment(c)}
+                {(repliesByParent[c.id] || []).map((r) => renderComment(r, true))}
+              </div>
+            ))}
           </div>
         )}
       </section>
