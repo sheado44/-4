@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function EditorPage() {
+function EditorContent() {
   const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
   const [section, setSection] = useState("Sports");
@@ -468,5 +468,19 @@ export default function EditorPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function EditorPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="max-w-3xl mx-auto px-4 py-10">
+          <p className="text-gray-300">Loading editor...</p>
+        </main>
+      }
+    >
+      <EditorContent />
+    </Suspense>
   );
 }
