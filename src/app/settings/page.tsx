@@ -30,6 +30,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -85,10 +86,8 @@ export default function SettingsPage() {
     setSaving(false);
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadAvatarFile = async (file: File) => {
     if (!userId) return;
-    const file = e.target.files?.[0];
-    if (!file) return;
     if (!file.type.startsWith("image/")) {
       setMessage("Avatar must be an image.");
       return;
@@ -99,6 +98,7 @@ export default function SettingsPage() {
     }
 
     setUploading(true);
+    setMessage("");
     const ext = file.name.split(".").pop() || "jpg";
     const path = `avatars/${userId}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage
@@ -117,6 +117,18 @@ export default function SettingsPage() {
     setUploading(false);
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await uploadAvatarFile(file);
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) await uploadAvatarFile(file);
+  };
+
   const generateAiAvatar = async () => {
     if (!userId) return;
     if (aiCredits < 1) {
@@ -128,7 +140,6 @@ export default function SettingsPage() {
       return;
     }
 
-    // spend credit first, no refund policy
     const nextCredits = aiCredits - 1;
     const { error: creditError } = await supabase
       .from("profiles")
@@ -140,7 +151,6 @@ export default function SettingsPage() {
     }
     setAiCredits(nextCredits);
 
-    // placeholder until xAI connected
     const encoded = encodeURIComponent(aiPrompt.slice(0, 40));
     const url = `https://placehold.co/256x256/1f2937/f97316/png?text=${encoded}`;
     setAvatarUrl(url);
@@ -173,7 +183,11 @@ export default function SettingsPage() {
       <div className="flex items-center gap-4 mb-6">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarUrl} alt="Avatar" className="w-20 h-20 rounded-full object-cover border border-forge-800" />
+          <img
+            src={avatarUrl}
+            alt="Avatar"
+            className="w-20 h-20 rounded-full object-cover border border-forge-800"
+          />
         ) : (
           <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold">
             {(displayName || "U").slice(0, 2).toUpperCase()}
@@ -185,8 +199,23 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-4 mb-6">
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Upload profile picture</label>
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          className={`rounded-2xl border border-dashed p-5 text-center transition ${
+            dragOver
+              ? "border-forge-accent bg-forge-accent/10"
+              : "border-forge-800 bg-forge-900"
+          }`}
+        >
+          <p className="text-sm text-gray-200 mb-2">
+            {uploading ? "Uploading..." : "Drag & drop a profile picture here"}
+          </p>
+          <p className="text-xs text-gray-400 mb-3">or browse from your computer</p>
           <input type="file" accept="image/*" onChange={handleAvatarUpload} />
         </div>
 
