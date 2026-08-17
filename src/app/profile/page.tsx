@@ -15,6 +15,7 @@ type ProfileUser = {
   sex: string;
   age: number | null;
   location: string;
+  points: number;
 };
 
 type Article = {
@@ -37,8 +38,10 @@ export default function ProfilePage() {
   const [user, setUser] = useState<ProfileUser | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [upReceived, setUpReceived] = useState(0);
+  const [downReceived, setDownReceived] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"articles" | "comments" | "satire">("articles");
+  const [activeTab, setActiveTab] = useState<"articles" | "comments" | "satire" | "reactions">("articles");
 
   useEffect(() => {
     const load = async () => {
@@ -53,7 +56,7 @@ export default function ProfilePage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, bio, link, sex, age, location")
+        .select("display_name, bio, link, sex, age, location, points")
         .eq("id", authUser.id)
         .maybeSingle();
 
@@ -80,6 +83,7 @@ export default function ProfilePage() {
         sex: profile?.sex || "",
         age: profile?.age ?? null,
         location: profile?.location || "",
+        points: profile?.points ?? 0,
       });
 
       const { data: articleData } = await supabase
@@ -108,6 +112,24 @@ export default function ProfilePage() {
         });
       }
       setComments(commentsWithTitles);
+
+      // reactions received on this user's comments
+      const commentIds = (commentData || []).map((c) => c.id);
+      let up = 0;
+      let down = 0;
+      if (commentIds.length > 0) {
+        const { data: voteData } = await supabase
+          .from("comment_votes")
+          .select("vote")
+          .in("comment_id", commentIds);
+        (voteData || []).forEach((v) => {
+          if (v.vote === 1) up += 1;
+          if (v.vote === -1) down += 1;
+        });
+      }
+      setUpReceived(up);
+      setDownReceived(down);
+
       setLoading(false);
     };
 
@@ -176,16 +198,16 @@ export default function ProfilePage() {
           <div className="text-xs text-gray-300 mt-1">Articles</div>
         </div>
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
-          <div className="text-2xl font-bold text-white">0</div>
-          <div className="text-xs text-gray-300 mt-1">Article Views</div>
-        </div>
-        <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
           <div className="text-2xl font-bold text-white">{comments.length}</div>
           <div className="text-xs text-gray-300 mt-1">Comments</div>
         </div>
         <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
-          <div className="text-2xl font-bold text-white">0</div>
-          <div className="text-xs text-gray-300 mt-1">Likes Received</div>
+          <div className="text-2xl font-bold text-green-300">{upReceived}</div>
+          <div className="text-xs text-gray-300 mt-1">Upvotes Received</div>
+        </div>
+        <div className="bg-forge-900 border border-forge-800 rounded-xl p-4 text-center">
+          <div className="text-2xl font-bold text-red-300">{downReceived}</div>
+          <div className="text-xs text-gray-300 mt-1">Downvotes Received</div>
         </div>
       </div>
 
@@ -209,6 +231,16 @@ export default function ProfilePage() {
           }`}
         >
           Comments
+        </button>
+        <button
+          onClick={() => setActiveTab("reactions")}
+          className={`pb-3 whitespace-nowrap transition ${
+            activeTab === "reactions"
+              ? "border-b-2 border-forge-accent text-forge-accent"
+              : "text-gray-300 hover:text-white"
+          }`}
+        >
+          Reactions
         </button>
         <button
           onClick={() => setActiveTab("satire")}
@@ -278,6 +310,25 @@ export default function ProfilePage() {
             ))}
           </div>
         )
+      )}
+
+      {activeTab === "reactions" && (
+        <div className="bg-forge-900 border border-forge-800 rounded-2xl p-6">
+          <h3 className="text-lg font-semibold mb-4">Reaction log</h3>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="rounded-xl bg-black/20 p-4">
+              <div className="text-sm text-gray-300 mb-1">Upvotes received</div>
+              <div className="text-3xl font-bold text-green-300">{upReceived}</div>
+            </div>
+            <div className="rounded-xl bg-black/20 p-4">
+              <div className="text-sm text-gray-300 mb-1">Downvotes received</div>
+              <div className="text-3xl font-bold text-red-300">{downReceived}</div>
+            </div>
+          </div>
+          <p className="text-sm text-gray-300 mt-4">
+            These counts come from reactions on your comments. We can expand this into a full activity feed next.
+          </p>
+        </div>
       )}
 
       {activeTab === "satire" && (
