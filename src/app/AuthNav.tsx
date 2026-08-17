@@ -4,41 +4,51 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
-type NavUser = {
-  initials: string;
-};
-
 export default function AuthNav() {
-  const [user, setUser] = useState<NavUser | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [initials, setInitials] = useState("?");
+  const [points, setPoints] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      const authUser = data.user;
+  const loadUser = async () => {
+    const { data } = await supabase.auth.getUser();
+    const user = data.user;
 
-      if (!authUser) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
+    if (!user) {
+      setEmail(null);
+      setInitials("?");
+      setPoints(0);
+      setLoading(false);
+      return;
+    }
 
-      const displayName =
-        authUser.user_metadata?.display_name ||
-        authUser.email?.split("@")[0] ||
-        "U";
+    setEmail(user.email ?? null);
 
-      const initials = displayName
+    const displayName =
+      user.user_metadata?.display_name ||
+      user.email?.split("@")[0] ||
+      "U";
+
+    setInitials(
+      displayName
         .split(" ")
-        .map((part: string) => part[0])
+        .map((p: string) => p[0])
         .join("")
         .slice(0, 2)
-        .toUpperCase();
+        .toUpperCase()
+    );
 
-      setUser({ initials });
-      setLoading(false);
-    };
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("points")
+      .eq("id", user.id)
+      .maybeSingle();
 
+    setPoints(profile?.points ?? 0);
+    setLoading(false);
+  };
+
+  useEffect(() => {
     loadUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(() => {
@@ -54,11 +64,11 @@ export default function AuthNav() {
     return <div className="w-8 h-8 rounded-full bg-forge-800 animate-pulse" />;
   }
 
-  if (!user) {
+  if (!email) {
     return (
       <Link
         href="/login"
-        className="text-sm text-gray-300 hover:text-white transition"
+        className="text-sm font-medium text-gray-200 hover:text-white transition"
       >
         Log in / Sign up
       </Link>
@@ -66,12 +76,32 @@ export default function AuthNav() {
   }
 
   return (
-    <Link
-      href="/profile"
-      className="w-8 h-8 rounded-full bg-forge-700 hover:bg-forge-600 flex items-center justify-center text-xs font-bold transition"
-      title="Profile"
-    >
-      {user.initials}
-    </Link>
+    <div className="flex items-center gap-3">
+      <Link
+        href="/profile"
+        className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20 border border-forge-800 hover:border-forge-accent/50 transition"
+        title="Your private wallet"
+      >
+        <span className="text-xs text-gray-300">Wallet</span>
+        <span className="text-sm font-semibold text-forge-accent">{points} pts</span>
+      </Link>
+
+      {/* compact mobile wallet */}
+      <Link
+        href="/profile"
+        className="sm:hidden text-xs font-semibold text-forge-accent"
+        title="Your private wallet"
+      >
+        {points} pts
+      </Link>
+
+      <Link
+        href="/profile"
+        className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold hover:opacity-90 transition"
+        title={email}
+      >
+        {initials}
+      </Link>
+    </div>
   );
 }
