@@ -71,10 +71,14 @@ const STORE_ITEMS: StoreItem[] = [
 ];
 
 function parseOwned(owned: string | null | undefined) {
-  return (owned || "none")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return Array.from(
+    new Set(
+      (owned || "none")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    )
+  );
 }
 
 export default function WalletPage() {
@@ -84,6 +88,7 @@ export default function WalletPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const loadWallet = async () => {
     const { data } = await supabase.auth.getUser();
@@ -95,11 +100,15 @@ export default function WalletPage() {
     }
 
     setUserId(user.id);
-    const { data: profile } = await supabase
+    const { data: profile, error } = await supabase
       .from("profiles")
       .select("points, ai_credits, owned_skins")
       .eq("id", user.id)
       .maybeSingle();
+
+    if (error) {
+      setMessage(`Wallet load failed: ${error.message}`);
+    }
 
     setPoints(profile?.points ?? 0);
     setAiCredits(profile?.ai_credits ?? 0);
@@ -117,58 +126,78 @@ export default function WalletPage() {
       setMessage("Log in to use your wallet.");
       return;
     }
-    if (points < item.cost) {
-      setMessage("Not enough points for that item.");
-      return;
+
+    setBusyId(item.id);
+
+    try {
+      // fresh values from DB to avoid stale UI
+      const { data: profile, error: profileReadError } = await supabase
+        .from("profiles")
+        .select("points, ai_credits, owned_skins")
+        .eq("id", userId)
+        .single();
+
+      if (profileReadError || !profile) {
+        throw new Error(profileReadError?.message || "Could not read wallet.");
+      }
+
+      const currentPoints = profile.points ?? 0;
+      const currentCredits = profile.ai_credits ?? 0;
+      const currentOwned = parseOwned(profile.owned_skins);
+
+      if (item.kind === "skin" && item.skinId && currentOwned.includes(item.skinId)) {
+        setMessage("You already own that skin.");
+        setBusyId(null);
+        return;
+      }
+
+      if (currentPoints < item.cost) {
+        setMessage("Not enough points for that item.");
+        setBusyId(null);
+        return;
+      }
+
+      const newPoints = currentPoints - item.cost;
+      let newCredits = currentCredits;
+      let newOwned = [...currentOwned];
+
+      if (item.kind === "ai") {
+        if (item.id === "ai-credit-5") newCredits += 5;
+        if (item.id === "ai-credit-20") newCredits += 20;
+      }
+
+      if (item.kind === "skin" && item.skinId && !newOwned.includes(item.skinId)) {
+        newOwned.push(item.skinId);
+      }
+
+      const { error: ledgerError } = await supabase.from("points_ledger").insert({
+        user_id: userId,
+        points: -item.cost,
+        reason: `Redeemed: ${item.name}`,
+      });
+      if (ledgerError) throw new Error(`Ledger failed: ${ledgerError.message}`);
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          points: newPoints,
+          ai_credits: newCredits,
+          owned_skins: newOwned.join(","),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+
+      if (updateError) throw new Error(`Balance update failed: ${updateError.message}`);
+
+      setPoints(newPoints);
+      setAiCredits(newCredits);
+      setOwnedSkins(newOwned);
+      setMessage(`Purchase complete: ${item.name}. -${item.cost} pts`);
+    } catch (err: any) {
+      setMessage(err?.message || "Purchase failed.");
+    } finally {
+      setBusyId(null);
     }
-
-    if (item.kind === "skin" && item.skinId && ownedSkins.includes(item.skinId)) {
-      setMessage("You already own that skin.");
-      return;
-    }
-
-    const newPoints = points - item.cost;
-    let newAiCredits = aiCredits;
-    let newOwned = [...ownedSkins];
-
-    if (item.kind === "ai") {
-      if (item.id === "ai-credit-5") newAiCredits += 5;
-      if (item.id === "ai-credit-20") newAiCredits += 20;
-    }
-
-    if (item.kind === "skin" && item.skinId) {
-      if (!newOwned.includes(item.skinId)) newOwned.push(item.skinId);
-    }
-
-    const { error: ledgerError } = await supabase.from("points_ledger").insert({
-      user_id: userId,
-      points: -item.cost,
-      reason: `Redeemed: ${item.name}`,
-    });
-    if (ledgerError) {
-      setMessage(`Redeem failed: ${ledgerError.message}`);
-      return;
-    }
-
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        points: newPoints,
-        ai_credits: newAiCredits,
-        owned_skins: newOwned.join(","),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", userId);
-
-    if (profileError) {
-      setMessage(`Redeem failed: ${profileError.message}`);
-      return;
-    }
-
-    setPoints(newPoints);
-    setAiCredits(newAiCredits);
-    setOwnedSkins(newOwned);
-    setMessage(`Redeemed ${item.name}.`);
   };
 
   if (loading) {
@@ -213,7 +242,10 @@ export default function WalletPage() {
       <h2 className="text-xl font-semibold mb-4">Store</h2>
       <div className="space-y-4">
         {STORE_ITEMS.map((item) => {
-          const owned = item.kind === "skin" && item.skinId ? ownedSkins.includes(item.skinId) : false;
+          const owned =
+            item.kind === "skin" && item.skinId
+              ? ownedSkins.includes(item.skinId)
+              : false;
           const canBuy = !owned && points >= item.cost;
           return (
             <div
@@ -227,7 +259,7 @@ export default function WalletPage() {
               </div>
               <button
                 onClick={() => handleRedeem(item)}
-                disabled={!canBuy}
+                disabled={!canBuy || busyId === item.id}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
                   owned
                     ? "bg-black/20 text-gray-400 cursor-not-allowed"
@@ -236,7 +268,13 @@ export default function WalletPage() {
                     : "bg-black/20 text-gray-400 cursor-not-allowed"
                 }`}
               >
-                {owned ? "Owned" : canBuy ? "Redeem" : "Need more points"}
+                {owned
+                  ? "Owned"
+                  : busyId === item.id
+                  ? "Working..."
+                  : canBuy
+                  ? "Buy"
+                  : "Need more points"}
               </button>
             </div>
           );
