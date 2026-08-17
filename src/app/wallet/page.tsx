@@ -9,66 +9,65 @@ type StoreItem = {
   name: string;
   description: string;
   cost: number;
-  type: "ai" | "merch" | "badge";
 };
 
 const STORE_ITEMS: StoreItem[] = [
   {
-    id: "ai-credit-1",
-    name: "1 AI Image Credit",
-    description: "Generate one AI image for articles or comments.",
-    cost: 25,
-    type: "ai",
+    id: "ai-credit-5",
+    name: "5 AI Credits",
+    description: "Use for AI images, satire generation, and other AI tools.",
+    cost: 50,
   },
   {
-    id: "ai-credit-5",
-    name: "5 AI Image Credits",
-    description: "Small pack of AI image generations.",
-    cost: 100,
-    type: "ai",
+    id: "ai-credit-20",
+    name: "20 AI Credits",
+    description: "Bigger AI pack for articles and comments.",
+    cost: 150,
   },
   {
     id: "badge-correspondent",
     name: "Correspondent Badge",
-    description: "Profile badge for active real-article publishers.",
+    description: "Profile badge placeholder for active publishers.",
     cost: 150,
-    type: "badge",
   },
   {
     id: "merch-hat",
     name: "Ballpit Hat",
-    description: "Merchandise placeholder. Shipping details later.",
+    description: "Merch placeholder. Fulfillment later.",
     cost: 500,
-    type: "merch",
   },
 ];
 
 export default function WalletPage() {
   const [points, setPoints] = useState(0);
+  const [aiCredits, setAiCredits] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase.auth.getUser();
-      const user = data.user;
-      if (!user) {
-        setUserId(null);
-        setLoading(false);
-        return;
-      }
-
-      setUserId(user.id);
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("points")
-        .eq("id", user.id)
-        .maybeSingle();
-      setPoints(profile?.points ?? 0);
+  const loadWallet = async () => {
+    const { data } = await supabase.auth.getUser();
+    const user = data.user;
+    if (!user) {
+      setUserId(null);
       setLoading(false);
-    };
-    load();
+      return;
+    }
+
+    setUserId(user.id);
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("points, ai_credits")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    setPoints(profile?.points ?? 0);
+    setAiCredits(profile?.ai_credits ?? 0);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadWallet();
   }, []);
 
   const handleRedeem = async (item: StoreItem) => {
@@ -82,7 +81,11 @@ export default function WalletPage() {
       return;
     }
 
-    const newBalance = points - item.cost;
+    const newPoints = points - item.cost;
+    let newAiCredits = aiCredits;
+
+    if (item.id === "ai-credit-5") newAiCredits += 5;
+    if (item.id === "ai-credit-20") newAiCredits += 20;
 
     const { error: ledgerError } = await supabase.from("points_ledger").insert({
       user_id: userId,
@@ -96,7 +99,11 @@ export default function WalletPage() {
 
     const { error: profileError } = await supabase
       .from("profiles")
-      .update({ points: newBalance, updated_at: new Date().toISOString() })
+      .update({
+        points: newPoints,
+        ai_credits: newAiCredits,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", userId);
 
     if (profileError) {
@@ -104,8 +111,9 @@ export default function WalletPage() {
       return;
     }
 
-    setPoints(newBalance);
-    setMessage(`Redeemed ${item.name}. This is a placeholder fulfillment for now.`);
+    setPoints(newPoints);
+    setAiCredits(newAiCredits);
+    setMessage(`Redeemed ${item.name}.`);
   };
 
   if (loading) {
@@ -120,7 +128,7 @@ export default function WalletPage() {
     return (
       <main className="max-w-3xl mx-auto px-4 py-10 text-center">
         <h1 className="text-2xl font-bold mb-3">Wallet</h1>
-        <p className="text-gray-300 mb-4">Log in to view your points and store.</p>
+        <p className="text-gray-300 mb-4">Log in to view your wallet.</p>
         <Link href="/login" className="text-forge-accent">
           Log in / Sign up
         </Link>
@@ -133,17 +141,20 @@ export default function WalletPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Wallet</h1>
         <p className="text-gray-300 text-sm">
-          Private rewards balance. Earn points from contributions, redeem for AI credits and merch.
+          Points come from contributions. AI credits power generation tools.
         </p>
       </div>
 
-      <div className="bg-gradient-to-r from-orange-600/20 to-forge-900 border border-orange-500/30 rounded-2xl p-6 mb-8">
-        <div className="text-xs uppercase tracking-wide text-gray-300 mb-1">
-          Available points
+      <div className="grid sm:grid-cols-2 gap-4 mb-8">
+        <div className="bg-gradient-to-r from-orange-600/20 to-forge-900 border border-orange-500/30 rounded-2xl p-6">
+          <div className="text-xs uppercase tracking-wide text-gray-300 mb-1">Points</div>
+          <div className="text-4xl font-bold text-white mb-2">{points}</div>
+          <div className="text-sm text-gray-300">Real articles +50 · Satire +5</div>
         </div>
-        <div className="text-4xl font-bold text-white mb-2">{points} pts</div>
-        <div className="text-sm text-gray-300">
-          Real articles +50 · Satire +5
+        <div className="bg-gradient-to-r from-blue-600/20 to-forge-900 border border-blue-400/30 rounded-2xl p-6">
+          <div className="text-xs uppercase tracking-wide text-gray-300 mb-1">AI Credits</div>
+          <div className="text-4xl font-bold text-white mb-2">{aiCredits}</div>
+          <div className="text-sm text-gray-300">New users get 20 · spend on AI tools</div>
         </div>
       </div>
 
