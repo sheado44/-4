@@ -19,9 +19,13 @@ export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    const loadArticles = async () => {
+    const load = async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      setLoggedIn(Boolean(auth.user));
+
       const { data, error } = await supabase
         .from("articles")
         .select("id, title, section, body, created_at, user_id, author_name")
@@ -30,7 +34,7 @@ export default function Home() {
       if (!error && data) setArticles(data);
       setLoading(false);
     };
-    loadArticles();
+    load();
   }, []);
 
   const filteredArticles =
@@ -62,7 +66,7 @@ export default function Home() {
               onClick={() => setSection(item)}
               className={`px-5 py-2 rounded-full text-sm font-medium transition ${
                 section === item
-                  ? "bg-forge-accent text-white font-semibold shadow-md shadow-orange-500/20"
+                  ? "bg-forge-accent text-white font-semibold"
                   : "bg-forge-800 hover:bg-forge-700"
               }`}
             >
@@ -80,13 +84,13 @@ export default function Home() {
             </div>
           ) : filteredArticles.length === 0 ? (
             <div className="bg-forge-900/60 border border-forge-800 rounded-2xl p-8 text-center text-gray-300 text-sm">
-              No articles in this section yet. Jump in and write one.
+              No articles in this section yet.
             </div>
           ) : (
             filteredArticles.map((article) => (
               <article
                 key={article.id}
-                className="group bg-forge-900/60 border border-forge-800 hover:border-forge-accent/40 rounded-2xl p-5 transition-all duration-200 hover:bg-forge-900"
+                className="group bg-forge-900/60 border border-forge-800 hover:border-forge-accent/40 rounded-2xl p-5 transition-all duration-200"
               >
                 <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
                   <span className="bg-forge-accent/15 text-forge-accent px-2 py-0.5 rounded-md font-semibold">
@@ -108,8 +112,6 @@ export default function Home() {
                   <span className="text-white font-medium">
                     {article.author_name || "Unknown author"}
                   </span>
-                  <span>•</span>
-                  <span>Rank —</span>
                 </div>
               </article>
             ))
@@ -117,24 +119,36 @@ export default function Home() {
         </div>
 
         <aside className="space-y-5">
-          <div className="bg-gradient-to-br from-orange-600/15 to-forge-900 border border-orange-500/20 rounded-2xl p-5 text-center">
-            <p className="font-semibold mb-1">Got a take?</p>
-            <p className="text-sm text-gray-300 mb-4">Jump in. Write it. Rank it.</p>
-            <Link
-              href="/editor"
-              className="inline-block bg-forge-accent hover:bg-forge-accentHover text-white font-medium px-6 py-2.5 rounded-xl transition text-sm mb-3"
-            >
-              Write Article
-            </Link>
-            <div>
+          {loggedIn ? (
+            <div className="bg-gradient-to-br from-orange-600/15 to-forge-900 border border-orange-500/20 rounded-2xl p-5 text-center">
+              <p className="font-semibold mb-1">Got a take?</p>
+              <p className="text-sm text-gray-300 mb-4">Jump in. Write it. Rank it.</p>
               <Link
-                href="/fan-fiction"
-                className="inline-block text-sm text-purple-200 hover:text-purple-100 transition"
+                href="/editor"
+                className="inline-block bg-forge-accent text-white font-medium px-6 py-2.5 rounded-xl transition text-sm mb-3"
               >
-                or Write Satire →
+                Write Article
+              </Link>
+              <div>
+                <Link href="/fan-fiction" className="inline-block text-sm text-purple-200 hover:text-purple-100 transition">
+                  or Write Satire →
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 text-center">
+              <p className="font-semibold mb-1">Want to publish?</p>
+              <p className="text-sm text-gray-300 mb-4">
+                Create an account to write articles and use AI tools.
+              </p>
+              <Link
+                href="/login"
+                className="inline-block bg-forge-accent text-white font-medium px-6 py-2.5 rounded-xl transition text-sm"
+              >
+                Log in / Sign up
               </Link>
             </div>
-          </div>
+          )}
         </aside>
       </div>
     </main>
