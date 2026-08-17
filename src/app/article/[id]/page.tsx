@@ -36,6 +36,11 @@ type VoteInfo = {
 };
 type VoteMap = Record<string, VoteInfo>;
 
+type AvatarMeta = {
+  color: string;
+  skin: string;
+};
+
 function makeGuestName() {
   return `anon_${Math.random().toString(16).slice(2, 8)}`;
 }
@@ -58,12 +63,79 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
+function skinStyle(skin: string, color: string): React.CSSProperties {
+  switch (skin) {
+    case "leopard":
+      return {
+        backgroundColor: "#c2a36b",
+        backgroundImage:
+          "radial-gradient(circle at 20% 30%, #5b3a1a 0 8%, transparent 9%), radial-gradient(circle at 70% 40%, #5b3a1a 0 10%, transparent 11%), radial-gradient(circle at 40% 75%, #5b3a1a 0 7%, transparent 8%)",
+      };
+    case "zebra":
+      return {
+        backgroundImage:
+          "repeating-linear-gradient(45deg, #111 0 8px, #f5f5f5 8px 16px)",
+      };
+    case "camo":
+      return {
+        backgroundColor: "#4b5320",
+        backgroundImage:
+          "radial-gradient(circle at 30% 30%, #2f3b1c 0 20%, transparent 21%), radial-gradient(circle at 70% 60%, #6b8e23 0 18%, transparent 19%), radial-gradient(circle at 50% 80%, #3d4c1f 0 16%, transparent 17%)",
+      };
+    case "galaxy":
+      return {
+        backgroundImage:
+          "radial-gradient(circle at 20% 30%, #fff 0 1px, transparent 2px), radial-gradient(circle at 70% 40%, #fff 0 1px, transparent 2px), radial-gradient(circle at 40% 70%, #a78bfa 0 12%, transparent 13%), linear-gradient(135deg, #0f172a, #312e81)",
+      };
+    case "carbon":
+      return {
+        backgroundColor: "#1f2937",
+        backgroundImage:
+          "linear-gradient(45deg, #111 25%, transparent 25%), linear-gradient(-45deg, #111 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #111 75%), linear-gradient(-45deg, transparent 75%, #111 75%)",
+        backgroundSize: "8px 8px",
+      };
+    default:
+      return { background: color || "#2563eb" };
+  }
+}
+
+function Avatar({
+  name,
+  color,
+  skin,
+  size = 28,
+}: {
+  name: string;
+  color?: string;
+  skin?: string;
+  size?: number;
+}) {
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        fontSize: Math.max(10, size * 0.35),
+        ...skinStyle(skin || "none", color || "#2563eb"),
+      }}
+      className="rounded-full flex items-center justify-center font-bold shrink-0 border border-white/10"
+    >
+      {getInitials(name)}
+    </div>
+  );
+}
+
 export default function ArticlePage() {
   const params = useParams();
   const id = params?.id as string;
 
   const [article, setArticle] = useState<Article | null>(null);
+  const [authorMeta, setAuthorMeta] = useState<AvatarMeta>({
+    color: "#2563eb",
+    skin: "none",
+  });
   const [comments, setComments] = useState<Comment[]>([]);
+  const [avatarMetaByUser, setAvatarMetaByUser] = useState<Record<string, AvatarMeta>>({});
   const [votes, setVotes] = useState<VoteMap>({});
   const [avgRating, setAvgRating] = useState<number | null>(null);
   const [ratingCount, setRatingCount] = useState(0);
@@ -96,6 +168,16 @@ export default function ArticlePage() {
     }
     setArticle(articleData);
 
+    const { data: authorProfile } = await supabase
+      .from("profiles")
+      .select("comment_avatar_color, comment_avatar_skin")
+      .eq("id", articleData.user_id)
+      .maybeSingle();
+    setAuthorMeta({
+      color: authorProfile?.comment_avatar_color || "#2563eb",
+      skin: authorProfile?.comment_avatar_skin || "none",
+    });
+
     const { data: commentData } = await supabase
       .from("comments")
       .select("id, author_name, body, created_at, is_guest, user_id, parent_id")
@@ -103,6 +185,26 @@ export default function ArticlePage() {
       .order("created_at", { ascending: true });
     const loadedComments = commentData || [];
     setComments(loadedComments);
+
+    const commentUserIds = Array.from(
+      new Set(loadedComments.map((c) => c.user_id).filter(Boolean) as string[])
+    );
+    if (commentUserIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, comment_avatar_color, comment_avatar_skin")
+        .in("id", commentUserIds);
+      const map: Record<string, AvatarMeta> = {};
+      (profiles || []).forEach((p) => {
+        map[p.id] = {
+          color: p.comment_avatar_color || "#2563eb",
+          skin: p.comment_avatar_skin || "none",
+        };
+      });
+      setAvatarMetaByUser(map);
+    } else {
+      setAvatarMetaByUser({});
+    }
 
     const commentIds = loadedComments.map((c) => c.id);
     const voteMap: VoteMap = {};
@@ -207,7 +309,6 @@ export default function ArticlePage() {
       setMessage("Write something first.");
       return;
     }
-
     setPosting(true);
     const isLoggedIn = Boolean(userId && userName);
     const authorName = isLoggedIn ? userName! : makeGuestName();
@@ -241,7 +342,6 @@ export default function ArticlePage() {
       setMessage("You can’t vote on your own comment.");
       return;
     }
-
     const current = votes[comment.id]?.myVote ?? null;
     try {
       if (current === nextVote) {
@@ -278,7 +378,6 @@ export default function ArticlePage() {
       setMessage("You can’t rate your own article.");
       return;
     }
-
     try {
       if (userId) {
         if (myRating) {
@@ -314,14 +413,11 @@ export default function ArticlePage() {
         if (error) {
           if (String(error.message).toLowerCase().includes("duplicate")) {
             setMessage("You already rated this article on this device.");
-          } else {
-            throw error;
-          }
+          } else throw error;
           return;
         }
         localStorage.setItem(`guest_rating_${id}`, String(stars));
       }
-
       setMyRating(stars);
       setMessage(`Rated ${stars} star${stars === 1 ? "" : "s"}.`);
       await loadAll();
@@ -351,9 +447,7 @@ export default function ArticlePage() {
 
   const isSatire = article.section === "Satire";
   const author = article.author_name || "Unknown author";
-  const authorInitials = getInitials(author);
   const isOwnArticle = Boolean(userId && article.user_id === userId);
-
   const topLevel = comments.filter((c) => !c.parent_id);
   const repliesByParent: Record<string, Comment[]> = {};
   comments.forEach((c) => {
@@ -372,19 +466,15 @@ export default function ArticlePage() {
       downVoters: [],
     };
     const isOwnComment = Boolean(userId && c.user_id === userId);
-    const initials = getInitials(c.author_name);
+    const meta = c.user_id
+      ? avatarMetaByUser[c.user_id] || { color: "#2563eb", skin: "none" }
+      : { color: "#6b7280", skin: "none" };
     const upTitle =
       v.upVoters.length > 0 ? v.upVoters.map((x) => x.name).join(", ") : "No upvotes yet";
     const downTitle =
       v.downVoters.length > 0
         ? v.downVoters.map((x) => x.name).join(", ")
         : "No downvotes yet";
-
-    const avatar = (
-      <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-[11px] font-bold shrink-0">
-        {initials}
-      </div>
-    );
 
     return (
       <div
@@ -399,12 +489,12 @@ export default function ArticlePage() {
               href={`/profile/${c.user_id}`}
               className="flex items-center gap-2 font-medium hover:text-forge-accent transition"
             >
-              {avatar}
+              <Avatar name={c.author_name} color={meta.color} skin={meta.skin} />
               <span>{c.author_name}</span>
             </Link>
           ) : (
             <span className="flex items-center gap-2 font-medium text-gray-200">
-              {avatar}
+              <Avatar name={c.author_name} color={meta.color} skin={meta.skin} />
               <span>
                 {c.author_name}
                 <span className="ml-2 text-xs text-gray-400">guest</span>
@@ -497,9 +587,7 @@ export default function ArticlePage() {
         href={`/profile/${article.user_id}`}
         className="flex items-center gap-3 mb-8 pb-6 border-b border-forge-800 group"
       >
-        <div className="w-11 h-11 rounded-full bg-blue-600 flex items-center justify-center font-bold">
-          {authorInitials}
-        </div>
+        <Avatar name={author} color={authorMeta.color} skin={authorMeta.skin} size={44} />
         <div>
           <div className="font-semibold group-hover:text-forge-accent transition">{author}</div>
         </div>
@@ -533,15 +621,6 @@ export default function ArticlePage() {
             </button>
           ))}
         </div>
-        <p className="text-xs text-gray-300 mt-2">
-          {isOwnArticle
-            ? "You can’t rate your own article."
-            : myRating
-            ? `Your rating: ${myRating} star${myRating === 1 ? "" : "s"}`
-            : userId
-            ? "Click a star to rate"
-            : "Guest rating allowed once per device/browser"}
-        </p>
       </div>
 
       <section className="border-t border-forge-800 pt-8">
