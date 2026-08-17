@@ -40,6 +40,15 @@ function makeGuestName() {
   return `anon_${Math.random().toString(16).slice(2, 8)}`;
 }
 
+function getGuestKey() {
+  if (typeof window === "undefined") return "";
+  const existing = localStorage.getItem("ballpit_guest_key");
+  if (existing) return existing;
+  const key = `gk_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+  localStorage.setItem("ballpit_guest_key", key);
+  return key;
+}
+
 export default function ArticlePage() {
   const params = useParams();
   const id = params?.id as string;
@@ -57,10 +66,13 @@ export default function ArticlePage() {
   const [posting, setPosting] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [guestKey, setGuestKey] = useState("");
   const [error, setError] = useState("");
 
   const loadAll = async () => {
     if (!id) return;
+    const gk = getGuestKey();
+    setGuestKey(gk);
 
     const { data: articleData, error: articleError } = await supabase
       .from("articles")
@@ -80,7 +92,6 @@ export default function ArticlePage() {
       .select("id, author_name, body, created_at, is_guest, user_id, parent_id")
       .eq("article_id", id)
       .order("created_at", { ascending: true });
-
     const loadedComments = commentData || [];
     setComments(loadedComments);
 
@@ -95,14 +106,10 @@ export default function ArticlePage() {
     const currentUserId = currentUser?.id || null;
 
     if (commentIds.length > 0) {
-      const { data: voteData, error: voteError } = await supabase
+      const { data: voteData } = await supabase
         .from("comment_votes")
         .select("comment_id, user_id, vote")
         .in("comment_id", commentIds);
-
-      if (voteError) {
-        console.error("Vote load error:", voteError.message);
-      }
 
       const voterIds = Array.from(new Set((voteData || []).map((v) => v.user_id)));
       const nameById: Record<string, string> = {};
@@ -147,7 +154,7 @@ export default function ArticlePage() {
 
     const { data: ratingData } = await supabase
       .from("ratings")
-      .select("stars, user_id")
+      .select("stars, user_id, guest_key, is_guest")
       .eq("article_id", id);
 
     if (ratingData && ratingData.length > 0) {
@@ -171,7 +178,11 @@ export default function ArticlePage() {
     } else {
       setUserId(null);
       setUserName(null);
-      setMyRating(null);
+      const local = localStorage.getItem(`guest_rating_${id}`);
+      const mineGuest =
+        ratingData?.find((r) => r.is_guest && r.guest_key === gk) ||
+        (local ? { stars: Number(local) } : null);
+      setMyRating(mineGuest ? Number(mineGuest.stars) : null);
     }
 
     setLoading(false);
@@ -201,9 +212,8 @@ export default function ArticlePage() {
       parent_id: replyTo ? replyTo.id : null,
     });
 
-    if (error) {
-      setMessage(`Comment failed: ${error.message}`);
-    } else {
+    if (error) setMessage(`Comment failed: ${error.message}`);
+    else {
       setCommentText("");
       setReplyTo(null);
       setMessage(isLoggedIn ? "Comment posted." : `Guest comment posted as ${authorName}.`);
@@ -255,32 +265,56 @@ export default function ArticlePage() {
 
   const handleRating = async (stars: number) => {
     setMessage("");
-    if (!userId) {
-      setMessage("Log in to rate articles.");
-      return;
-    }
-    if (article && article.user_id === userId) {
+    if (article && userId && article.user_id === userId) {
       setMessage("You can’t rate your own article.");
       return;
     }
 
     try {
-      if (myRating) {
-        const { error } = await supabase
-          .from("ratings")
-          .update({ stars })
-          .eq("article_id", id)
-          .eq("user_id", userId);
-        if (error) throw error;
+      if (userId) {
+        if (myRating) {
+          const { error } = await supabase
+            .from("ratings")
+            .update({ stars })
+            .eq("article_id", id)
+            .eq("user_id", userId);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("ratings").insert({
+            article_id: id,
+            user_id: userId,
+            stars,
+            is_guest: false,
+            guest_key: null,
+          });
+          if (error) throw error;
+        }
       } else {
+        if (myRating) {
+          setMessage("You already rated this article on this device.");
+          return;
+        }
+        const gk = guestKey || getGuestKey();
         const { error } = await supabase.from("ratings").insert({
           article_id: id,
-          user_id: userId,
+          user_id: null,
           stars,
+          is_guest: true,
+          guest_key: gk,
         });
-        if (error) throw error;
+        if (error) {
+          if (String(error.message).toLowerCase().includes("duplicate")) {
+            setMessage("You already rated this article on this device.");
+          } else {
+            throw error;
+          }
+          return;
+        }
+        localStorage.setItem(`guest_rating_${id}`, String(stars));
       }
+
       setMyRating(stars);
+      setMessage(`Rated ${stars} star${stars === 1 ? "" : "s"}.`);
       await loadAll();
     } catch (err: any) {
       setMessage(`Rating failed: ${err?.message || "unknown error"}`);
@@ -314,8 +348,8 @@ export default function ArticlePage() {
     .join("")
     .slice(0, 2)
     .toUpperCase();
-
   const isOwnArticle = Boolean(userId && article.user_id === userId);
+
   const topLevel = comments.filter((c) => !c.parent_id);
   const repliesByParent: Record<string, Comment[]> = {};
   comments.forEach((c) => {
@@ -350,10 +384,7 @@ export default function ArticlePage() {
       >
         <div className="flex items-center gap-2 text-sm mb-2">
           {c.user_id ? (
-            <Link
-              href={`/profile/${c.user_id}`}
-              className="font-medium hover:text-forge-accent transition"
-            >
+            <Link href={`/profile/${c.user_id}`} className="font-medium hover:text-forge-accent transition">
               {c.author_name}
             </Link>
           ) : (
@@ -366,9 +397,7 @@ export default function ArticlePage() {
             {formatTime(c.created_at)}
           </span>
         </div>
-
         <p className="text-gray-100 text-sm leading-relaxed mb-3">{c.body}</p>
-
         <div className="flex items-center gap-3 text-sm">
           <button
             title={isOwnComment ? "You can’t vote on your own comment" : upTitle}
@@ -432,9 +461,7 @@ export default function ArticlePage() {
         >
           {article.section}
         </span>
-        <span title={formatTimeFull(article.created_at)}>
-          {formatTime(article.created_at)}
-        </span>
+        <span title={formatTimeFull(article.created_at)}>{formatTime(article.created_at)}</span>
         {avgRating !== null && (
           <span className="text-yellow-300">
             ★ {avgRating.toFixed(1)} · {ratingCount} rating{ratingCount === 1 ? "" : "s"}
@@ -455,7 +482,6 @@ export default function ArticlePage() {
         </div>
         <div>
           <div className="font-semibold group-hover:text-forge-accent transition">{author}</div>
-          <div className="text-sm text-gray-300">Rank —</div>
         </div>
       </Link>
 
@@ -474,9 +500,9 @@ export default function ArticlePage() {
             <button
               key={star}
               onClick={() => handleRating(star)}
-              disabled={isOwnArticle}
+              disabled={isOwnArticle || (!userId && myRating !== null)}
               className={`transition hover:scale-110 ${
-                isOwnArticle
+                isOwnArticle || (!userId && myRating !== null)
                   ? "text-gray-600 cursor-not-allowed"
                   : (myRating ?? 0) >= star
                   ? "text-yellow-300"
@@ -490,11 +516,11 @@ export default function ArticlePage() {
         <p className="text-xs text-gray-300 mt-2">
           {isOwnArticle
             ? "You can’t rate your own article."
+            : myRating
+            ? `Your rating: ${myRating} star${myRating === 1 ? "" : "s"}`
             : userId
-            ? myRating
-              ? `Your rating: ${myRating} star${myRating === 1 ? "" : "s"}`
-              : "Click a star to rate"
-            : "Log in to rate"}
+            ? "Click a star to rate"
+            : "Guest rating allowed once per device/browser"}
         </p>
       </div>
 
@@ -507,15 +533,11 @@ export default function ArticlePage() {
               <span>
                 Replying to <span className="text-white font-medium">{replyTo.author_name}</span>
               </span>
-              <button
-                onClick={() => setReplyTo(null)}
-                className="text-xs text-gray-400 hover:text-white"
-              >
+              <button onClick={() => setReplyTo(null)} className="text-xs text-gray-400 hover:text-white">
                 Cancel
               </button>
             </div>
           )}
-
           <textarea
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
@@ -526,21 +548,15 @@ export default function ArticlePage() {
                 ? "Write a comment..."
                 : "Write a guest comment..."
             }
-            className="w-full min-h-[100px] bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
+            className="w-full min-h-[100px] bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
           />
           <div className="mt-3">
             <button
               onClick={handleComment}
               disabled={posting}
-              className="px-5 py-2 bg-forge-accent hover:bg-forge-accentHover text-white text-sm font-medium rounded-xl transition disabled:opacity-60"
+              className="px-5 py-2 bg-forge-accent text-white text-sm font-medium rounded-xl disabled:opacity-60"
             >
-              {posting
-                ? "Posting..."
-                : replyTo
-                ? "Post Reply"
-                : userId
-                ? "Post Comment"
-                : "Post as Guest"}
+              {posting ? "Posting..." : replyTo ? "Post Reply" : userId ? "Post Comment" : "Post as Guest"}
             </button>
           </div>
         </div>
@@ -562,12 +578,6 @@ export default function ArticlePage() {
           </div>
         )}
       </section>
-
-      <div className="mt-10">
-        <Link href="/" className="text-sm text-gray-300 hover:text-white transition">
-          ← Back home
-        </Link>
-      </div>
     </main>
   );
 }
