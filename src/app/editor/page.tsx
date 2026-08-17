@@ -32,6 +32,35 @@ export default function EditorPage() {
     checkAuth();
   }, []);
 
+  const awardPoints = async (
+    userId: string,
+    points: number,
+    reason: string,
+    articleId: string
+  ) => {
+    // ledger row
+    await supabase.from("points_ledger").insert({
+      user_id: userId,
+      points,
+      reason,
+      article_id: articleId,
+    });
+
+    // update profile balance
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("points")
+      .eq("id", userId)
+      .maybeSingle();
+
+    const current = profile?.points ?? 0;
+    await supabase.from("profiles").upsert({
+      id: userId,
+      points: current + points,
+      updated_at: new Date().toISOString(),
+    });
+  };
+
   const handlePublish = async () => {
     setMessage("");
     setPublishedId(null);
@@ -73,7 +102,15 @@ export default function EditorPage() {
       if (error) {
         setMessage(`Publish failed: ${error.message}`);
       } else {
-        setMessage("Published successfully.");
+        const reward = section === "Satire" ? 5 : 50;
+        const reason =
+          section === "Satire"
+            ? "Published satire article"
+            : "Published real article";
+
+        await awardPoints(user.id, reward, reason, data.id);
+
+        setMessage(`Published successfully. +${reward} points`);
         setPublishedId(data.id);
         setTitle("");
         setBody("");
@@ -91,7 +128,7 @@ export default function EditorPage() {
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold mb-1">Write Article</h1>
         <p className="text-gray-300 text-sm">
-          Publish a real article to your Ballpit account.
+          Real articles earn +50 points. Satire earns +5.
         </p>
         <p className="text-sm mt-2">
           {loggedInName ? (
@@ -122,6 +159,7 @@ export default function EditorPage() {
           >
             <option>Sports</option>
             <option>Pop Culture</option>
+            <option>Satire</option>
           </select>
         </div>
       </div>
