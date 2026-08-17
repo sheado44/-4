@@ -34,16 +34,7 @@ type SearchUser = {
   display_name: string;
 };
 
-type Vibe = "default" | "football" | "basketball" | "baseball" | "hockey" | "golf";
-
-const VIBES: { id: Vibe; label: string }[] = [
-  { id: "default", label: "Steel" },
-  { id: "football", label: "Football" },
-  { id: "basketball", label: "Basketball" },
-  { id: "baseball", label: "Baseball" },
-  { id: "hockey", label: "Hockey" },
-  { id: "golf", label: "Golf" },
-];
+type TextMode = "white" | "black";
 
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
@@ -63,30 +54,44 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [searchMessage, setSearchMessage] = useState("");
   const [searching, setSearching] = useState(false);
-  const [vibe, setVibe] = useState<Vibe>("default");
 
-  // Apply vibe class to body + persist
+  // Theme controls
+  const [bgColor, setBgColor] = useState("#1E2022");
+  const [highlightColor, setHighlightColor] = useState("#F0A04B");
+  const [textMode, setTextMode] = useState<TextMode>("white");
+
+  // Load saved theme
   useEffect(() => {
-    const saved = (typeof window !== "undefined" && localStorage.getItem("ballpit-vibe")) as Vibe | null;
-    if (saved && VIBES.some((v) => v.id === saved)) {
-      setVibe(saved);
-    }
+    const bg = localStorage.getItem("ballpit-bg");
+    const hi = localStorage.getItem("ballpit-highlight");
+    const tx = localStorage.getItem("ballpit-text") as TextMode | null;
+    if (bg) setBgColor(bg);
+    if (hi) setHighlightColor(hi);
+    if (tx === "white" || tx === "black") setTextMode(tx);
   }, []);
 
+  // Apply theme to document
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    const classes = [
-      "vibe-default",
-      "vibe-football",
-      "vibe-basketball",
-      "vibe-baseball",
-      "vibe-hockey",
-      "vibe-golf",
-    ];
-    document.body.classList.remove(...classes);
-    document.body.classList.add(`vibe-${vibe}`);
-    localStorage.setItem("ballpit-vibe", vibe);
-  }, [vibe]);
+    const root = document.documentElement;
+    const text = textMode === "white" ? "#E8EAED" : "#121212";
+    const muted = textMode === "white" ? "#A7AEB4" : "#4B5563";
+    const panel = textMode === "white" ? "#252729" : "#F3F4F6";
+    const card = textMode === "white" ? "#2A2D30" : "#FFFFFF";
+
+    root.style.setProperty("--pit-bg", bgColor);
+    root.style.setProperty("--pit-highlight", highlightColor);
+    root.style.setProperty("--pit-text", text);
+    root.style.setProperty("--pit-muted", muted);
+    root.style.setProperty("--pit-panel", panel);
+    root.style.setProperty("--pit-card", card);
+
+    document.body.style.backgroundColor = bgColor;
+    document.body.style.color = text;
+
+    localStorage.setItem("ballpit-bg", bgColor);
+    localStorage.setItem("ballpit-highlight", highlightColor);
+    localStorage.setItem("ballpit-text", textMode);
+  }, [bgColor, highlightColor, textMode]);
 
   const loadFavoritesAndFeed = async (uid: string) => {
     const { data: favRows } = await supabase
@@ -298,6 +303,12 @@ export default function Home() {
       ? "Write Satire"
       : `Write in ${section}`;
 
+  const resetTheme = () => {
+    setBgColor("#1E2022");
+    setHighlightColor("#F0A04B");
+    setTextMode("white");
+  };
+
   return (
     <main className="min-h-screen">
       <section className="relative overflow-hidden">
@@ -309,7 +320,7 @@ export default function Home() {
               className="w-full h-auto object-cover max-h-[360px] md:max-h-[420px]"
             />
           </div>
-          <p className="text-center text-xs md:text-sm tracking-[0.22em] uppercase text-[#A7AEB4] mt-4 mb-4">
+          <p className="text-center text-xs md:text-sm tracking-[0.22em] uppercase text-muted-pit mt-4 mb-4">
             Sports · Pop Culture · Satire
           </p>
         </div>
@@ -330,57 +341,94 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Sport vibe selector */}
-        <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start">
-          <span className="text-[10px] uppercase tracking-[0.2em] text-[#8B9298] mr-1">
-            Vibe
+        {/* Studio color controls */}
+        <div className="pit-panel p-3 md:p-4 flex flex-wrap items-center gap-3 md:gap-5">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-muted-pit">
+            Studio
           </span>
-          {VIBES.map((v) => (
+
+          <label className="flex items-center gap-2 text-xs">
+            <span className="text-muted-pit">Background</span>
+            <input
+              type="color"
+              value={bgColor}
+              onChange={(e) => setBgColor(e.target.value)}
+              title="Background color"
+            />
+          </label>
+
+          <label className="flex items-center gap-2 text-xs">
+            <span className="text-muted-pit">Highlight</span>
+            <input
+              type="color"
+              value={highlightColor}
+              onChange={(e) => setHighlightColor(e.target.value)}
+              title="Highlight color"
+            />
+          </label>
+
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-pit">Text</span>
             <button
-              key={v.id}
-              onClick={() => setVibe(v.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition btn-metal ${
-                vibe === v.id ? "active-vibe" : ""
+              type="button"
+              onClick={() => setTextMode("white")}
+              className={`px-2.5 py-1 rounded-md btn-metal ${
+                textMode === "white" ? "ring-1 ring-[var(--pit-highlight)]" : ""
               }`}
             >
-              {v.label}
+              White
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setTextMode("black")}
+              className={`px-2.5 py-1 rounded-md btn-metal ${
+                textMode === "black" ? "ring-1 ring-[var(--pit-highlight)]" : ""
+              }`}
+            >
+              Black
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={resetTheme}
+            className="ml-auto text-xs px-3 py-1.5 rounded-lg btn-metal"
+          >
+            Reset
+          </button>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 pb-16 grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
           {loading ? (
-            <div className="pit-panel p-8 text-center text-[#A7AEB4] text-sm">
+            <div className="pit-panel p-8 text-center text-muted-pit text-sm">
               Loading articles...
             </div>
           ) : filteredArticles.length === 0 ? (
-            <div className="pit-panel p-8 text-center text-[#A7AEB4] text-sm">
+            <div className="pit-panel p-8 text-center text-muted-pit text-sm">
               No articles in this section yet.
             </div>
           ) : (
             filteredArticles.map((article) => (
               <article key={article.id} className="metal-card p-5 transition-all duration-200">
-                <div className="flex items-center gap-2 text-xs text-[#8B9298] mb-2">
-                  <span className="bg-[#F0A04B]/15 text-[#F0A04B] px-2 py-0.5 rounded-md font-semibold">
+                <div className="flex items-center gap-2 text-xs text-muted-pit mb-2">
+                  <span className="bg-highlight-soft px-2 py-0.5 rounded-md font-semibold">
                     {article.section}
                   </span>
                   <span>{formatTime(article.created_at)}</span>
                 </div>
 
                 <Link href={`/article/${article.id}`}>
-                  <h2 className="text-lg md:text-xl font-bold mb-2 hover:text-[#F0A04B] transition leading-snug text-white">
+                  <h2 className="text-lg md:text-xl font-bold mb-2 hover:opacity-90 transition leading-snug">
                     {article.title}
                   </h2>
-                  <p className="text-[#A7AEB4] text-sm line-clamp-3 mb-3 leading-relaxed">
+                  <p className="text-muted-pit text-sm line-clamp-3 mb-3 leading-relaxed">
                     {article.body}
                   </p>
                 </Link>
 
-                <div className="text-sm text-[#C8CDD2] font-medium">
-                  {article.author_name || "Unknown author"}
-                </div>
+                <div className="text-sm font-medium">{article.author_name || "Unknown author"}</div>
               </article>
             ))
           )}
@@ -410,47 +458,50 @@ export default function Home() {
                       className="w-14 h-14 rounded-full object-cover border border-white/10"
                     />
                   ) : (
-                    <div className="w-14 h-14 rounded-full bg-[#C47A4A]/80 flex items-center justify-center text-lg font-bold">
+                    <div
+                      className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold"
+                      style={{ background: "color-mix(in srgb, var(--pit-highlight) 75%, black 25%)" }}
+                    >
                       {initials}
                     </div>
                   )}
                   <div>
-                    <div className="text-xs uppercase tracking-wide text-[#8B9298]">Your desk</div>
-                    <div className="text-xl font-bold text-white">{displayName}</div>
+                    <div className="text-xs uppercase tracking-wide text-muted-pit">Your desk</div>
+                    <div className="text-xl font-bold">{displayName}</div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-xl bg-black/25 border border-white/5 p-3">
-                    <div className="text-[#8B9298] text-xs">Points</div>
-                    <div className="text-lg font-semibold text-[#F0A04B]">{points}</div>
+                  <div className="rounded-xl border border-white/5 p-3" style={{ background: "rgba(0,0,0,0.15)" }}>
+                    <div className="text-muted-pit text-xs">Points</div>
+                    <div className="text-lg font-semibold text-highlight-pit">{points}</div>
                   </div>
-                  <div className="rounded-xl bg-black/25 border border-white/5 p-3">
-                    <div className="text-[#8B9298] text-xs">AI Credits</div>
-                    <div className="text-lg font-semibold text-white">{aiCredits}</div>
+                  <div className="rounded-xl border border-white/5 p-3" style={{ background: "rgba(0,0,0,0.15)" }}>
+                    <div className="text-muted-pit text-xs">AI Credits</div>
+                    <div className="text-lg font-semibold">{aiCredits}</div>
                   </div>
-                  <div className="rounded-xl bg-black/25 border border-white/5 p-3">
-                    <div className="text-[#8B9298] text-xs">Upvotes</div>
-                    <div className="text-lg font-semibold text-green-300">{upReceived}</div>
+                  <div className="rounded-xl border border-white/5 p-3" style={{ background: "rgba(0,0,0,0.15)" }}>
+                    <div className="text-muted-pit text-xs">Upvotes</div>
+                    <div className="text-lg font-semibold text-green-400">{upReceived}</div>
                   </div>
-                  <div className="rounded-xl bg-black/25 border border-white/5 p-3">
-                    <div className="text-[#8B9298] text-xs">Downvotes</div>
-                    <div className="text-lg font-semibold text-red-300">{downReceived}</div>
+                  <div className="rounded-xl border border-white/5 p-3" style={{ background: "rgba(0,0,0,0.15)" }}>
+                    <div className="text-muted-pit text-xs">Downvotes</div>
+                    <div className="text-lg font-semibold text-red-400">{downReceived}</div>
                   </div>
                 </div>
 
                 <div className="mt-4 flex gap-3 text-sm">
-                  <Link href="/profile" className="text-[#F0A04B] hover:text-orange-300">
+                  <Link href="/profile" className="text-highlight-pit hover:opacity-80">
                     Profile
                   </Link>
-                  <Link href="/wallet" className="text-[#A7AEB4] hover:text-white">
+                  <Link href="/wallet" className="text-muted-pit hover:opacity-100">
                     Wallet
                   </Link>
                 </div>
               </div>
 
               <div className="pit-panel p-5">
-                <h3 className="font-semibold mb-3 text-white">Search users</h3>
+                <h3 className="font-semibold mb-3">Search users</h3>
                 <div className="flex gap-2 mb-3">
                   <input
                     value={searchQuery}
@@ -467,17 +518,16 @@ export default function Home() {
                   </button>
                 </div>
 
-                {searchMessage && (
-                  <p className="text-xs text-yellow-200 mb-2">{searchMessage}</p>
-                )}
+                {searchMessage && <p className="text-xs text-yellow-500 mb-2">{searchMessage}</p>}
 
                 <div className="space-y-2">
                   {searchResults.map((u) => (
                     <div
                       key={u.id}
-                      className="flex items-center justify-between gap-2 rounded-lg bg-black/25 border border-white/5 px-3 py-2"
+                      className="flex items-center justify-between gap-2 rounded-lg border border-white/5 px-3 py-2"
+                      style={{ background: "rgba(0,0,0,0.12)" }}
                     >
-                      <Link href={`/profile/${u.id}`} className="text-sm hover:text-[#F0A04B]">
+                      <Link href={`/profile/${u.id}`} className="text-sm hover:opacity-80">
                         {u.display_name}
                       </Link>
                       <button
@@ -492,9 +542,9 @@ export default function Home() {
               </div>
 
               <div className="pit-panel p-5">
-                <h3 className="font-semibold mb-3 text-white">Watchlist activity</h3>
+                <h3 className="font-semibold mb-3">Watchlist activity</h3>
                 {watchFeed.length === 0 ? (
-                  <p className="text-sm text-[#A7AEB4]">
+                  <p className="text-sm text-muted-pit">
                     No watchlist activity yet. Search and favorite people to track them.
                   </p>
                 ) : (
@@ -503,9 +553,10 @@ export default function Home() {
                       <Link
                         key={item.id}
                         href={item.href}
-                        className="block rounded-xl bg-black/25 border border-white/5 px-3 py-2 hover:border-[#F0A04B]/30 transition"
+                        className="block rounded-xl border border-white/5 px-3 py-2 transition"
+                        style={{ background: "rgba(0,0,0,0.12)" }}
                       >
-                        <div className="text-xs text-[#8B9298] mb-1">
+                        <div className="text-xs text-muted-pit mb-1">
                           {item.kind === "article"
                             ? "Article"
                             : item.kind === "reply"
@@ -514,8 +565,8 @@ export default function Home() {
                           · {formatTime(item.created_at)}
                         </div>
                         <div className="text-sm">
-                          <span className="font-medium text-white">{item.actor_name}</span>{" "}
-                          <span className="text-[#A7AEB4]">{item.summary}</span>
+                          <span className="font-medium">{item.actor_name}</span>{" "}
+                          <span className="text-muted-pit">{item.summary}</span>
                         </div>
                       </Link>
                     ))}
@@ -524,16 +575,17 @@ export default function Home() {
               </div>
 
               <div className="pit-panel p-5">
-                <h3 className="font-semibold mb-3 text-white">Favorites</h3>
+                <h3 className="font-semibold mb-3">Favorites</h3>
                 {favorites.length === 0 ? (
-                  <p className="text-sm text-[#A7AEB4]">No favorites yet.</p>
+                  <p className="text-sm text-muted-pit">No favorites yet.</p>
                 ) : (
                   <div className="space-y-2">
                     {favorites.map((f) => (
                       <Link
                         key={f.favorite_user_id}
                         href={`/profile/${f.favorite_user_id}`}
-                        className="block rounded-lg bg-black/25 border border-white/5 px-3 py-2 text-sm hover:border-[#F0A04B]/30 transition"
+                        className="block rounded-lg border border-white/5 px-3 py-2 text-sm"
+                        style={{ background: "rgba(0,0,0,0.12)" }}
                       >
                         {f.display_name}
                       </Link>
@@ -556,7 +608,7 @@ export default function Home() {
               >
                 Want to jump in?
               </p>
-              <p className="text-sm text-[#A7AEB4] mb-4">
+              <p className="text-sm text-muted-pit mb-4">
                 Create an account to write articles and use AI tools.
               </p>
               <Link href="/login" className="btn-write inline-block px-6 py-2.5 rounded-xl text-sm">
