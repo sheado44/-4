@@ -26,19 +26,18 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
   const [displayName, setDisplayName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [points, setPoints] = useState(0);
   const [aiCredits, setAiCredits] = useState(0);
   const [upReceived, setUpReceived] = useState(0);
   const [downReceived, setDownReceived] = useState(0);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       const { data: auth } = await supabase.auth.getUser();
       const user = auth.user;
       setLoggedIn(Boolean(user));
-      setUserId(user?.id || null);
 
       const { data, error } = await supabase
         .from("articles")
@@ -49,16 +48,18 @@ export default function Home() {
       if (user) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("display_name, points, ai_credits")
+          .select("display_name, points, ai_credits, avatar_url")
           .eq("id", user.id)
           .maybeSingle();
 
-        setDisplayName(
+        const name =
           profile?.display_name ||
-            user.user_metadata?.display_name ||
-            user.email?.split("@")[0] ||
-            "User"
-        );
+          user.user_metadata?.display_name ||
+          user.email?.split("@")[0] ||
+          "User";
+
+        setDisplayName(name);
+        setAvatarUrl(profile?.avatar_url || "");
         setPoints(profile?.points ?? 0);
         setAiCredits(profile?.ai_credits ?? 0);
 
@@ -110,6 +111,13 @@ export default function Home() {
 
   const filteredArticles =
     section === "All" ? articles : articles.filter((a) => a.section === section);
+
+  const initials = displayName
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <main className="min-h-screen">
@@ -193,8 +201,25 @@ export default function Home() {
           {loggedIn ? (
             <>
               <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5">
-                <div className="text-xs uppercase tracking-wide text-gray-400 mb-1">Your desk</div>
-                <div className="text-xl font-bold mb-3">{displayName}</div>
+                <div className="flex items-center gap-3 mb-4">
+                  {avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={avatarUrl}
+                      alt={displayName}
+                      className="w-14 h-14 rounded-full object-cover border border-forge-700"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-lg font-bold">
+                      {initials}
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-gray-400">Your desk</div>
+                    <div className="text-xl font-bold">{displayName}</div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="rounded-xl bg-black/20 p-3">
                     <div className="text-gray-300 text-xs">Points</div>
@@ -213,6 +238,7 @@ export default function Home() {
                     <div className="text-lg font-semibold text-red-300">{downReceived}</div>
                   </div>
                 </div>
+
                 <div className="mt-4 flex gap-3 text-sm">
                   <Link href="/profile" className="text-forge-accent hover:text-orange-300">
                     Profile
@@ -227,9 +253,7 @@ export default function Home() {
               </div>
 
               <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold">Favorites</h3>
-                </div>
+                <h3 className="font-semibold mb-3">Favorites</h3>
                 {favorites.length === 0 ? (
                   <p className="text-sm text-gray-300">
                     No favorites yet. Open a profile and add people you want to track.
@@ -259,7 +283,10 @@ export default function Home() {
                   Write Article
                 </Link>
                 <div>
-                  <Link href="/fan-fiction" className="inline-block text-sm text-purple-200 hover:text-purple-100 transition">
+                  <Link
+                    href="/fan-fiction"
+                    className="inline-block text-sm text-purple-200 hover:text-purple-100 transition"
+                  >
                     or Write Satire →
                   </Link>
                 </div>
