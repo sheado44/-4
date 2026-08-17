@@ -15,23 +15,94 @@ type Article = {
   author_name: string | null;
 };
 
+type Favorite = {
+  favorite_user_id: string;
+  display_name: string;
+};
+
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [points, setPoints] = useState(0);
+  const [aiCredits, setAiCredits] = useState(0);
+  const [upReceived, setUpReceived] = useState(0);
+  const [downReceived, setDownReceived] = useState(0);
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       const { data: auth } = await supabase.auth.getUser();
-      setLoggedIn(Boolean(auth.user));
+      const user = auth.user;
+      setLoggedIn(Boolean(user));
+      setUserId(user?.id || null);
 
       const { data, error } = await supabase
         .from("articles")
         .select("id, title, section, body, created_at, user_id, author_name")
         .order("created_at", { ascending: false });
-
       if (!error && data) setArticles(data);
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name, points, ai_credits")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        setDisplayName(
+          profile?.display_name ||
+            user.user_metadata?.display_name ||
+            user.email?.split("@")[0] ||
+            "User"
+        );
+        setPoints(profile?.points ?? 0);
+        setAiCredits(profile?.ai_credits ?? 0);
+
+        const { data: myComments } = await supabase
+          .from("comments")
+          .select("id")
+          .eq("user_id", user.id);
+        const commentIds = (myComments || []).map((c) => c.id);
+        if (commentIds.length > 0) {
+          const { data: votes } = await supabase
+            .from("comment_votes")
+            .select("vote")
+            .in("comment_id", commentIds);
+          let up = 0;
+          let down = 0;
+          (votes || []).forEach((v) => {
+            if (v.vote === 1) up += 1;
+            if (v.vote === -1) down += 1;
+          });
+          setUpReceived(up);
+          setDownReceived(down);
+        }
+
+        const { data: favRows } = await supabase
+          .from("favorites")
+          .select("favorite_user_id")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        const favList: Favorite[] = [];
+        for (const row of favRows || []) {
+          const { data: favProfile } = await supabase
+            .from("profiles")
+            .select("display_name")
+            .eq("id", row.favorite_user_id)
+            .maybeSingle();
+          favList.push({
+            favorite_user_id: row.favorite_user_id,
+            display_name: favProfile?.display_name || "User",
+          });
+        }
+        setFavorites(favList);
+      }
+
       setLoading(false);
     };
     load();
@@ -120,21 +191,80 @@ export default function Home() {
 
         <aside className="space-y-5">
           {loggedIn ? (
-            <div className="bg-gradient-to-br from-orange-600/15 to-forge-900 border border-orange-500/20 rounded-2xl p-5 text-center">
-              <p className="font-semibold mb-1">Got a take?</p>
-              <p className="text-sm text-gray-300 mb-4">Jump in. Write it. Rank it.</p>
-              <Link
-                href="/editor"
-                className="inline-block bg-forge-accent text-white font-medium px-6 py-2.5 rounded-xl transition text-sm mb-3"
-              >
-                Write Article
-              </Link>
-              <div>
-                <Link href="/fan-fiction" className="inline-block text-sm text-purple-200 hover:text-purple-100 transition">
-                  or Write Satire →
-                </Link>
+            <>
+              <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5">
+                <div className="text-xs uppercase tracking-wide text-gray-400 mb-1">Your desk</div>
+                <div className="text-xl font-bold mb-3">{displayName}</div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-xl bg-black/20 p-3">
+                    <div className="text-gray-300 text-xs">Points</div>
+                    <div className="text-lg font-semibold text-forge-accent">{points}</div>
+                  </div>
+                  <div className="rounded-xl bg-black/20 p-3">
+                    <div className="text-gray-300 text-xs">AI Credits</div>
+                    <div className="text-lg font-semibold">{aiCredits}</div>
+                  </div>
+                  <div className="rounded-xl bg-black/20 p-3">
+                    <div className="text-gray-300 text-xs">Upvotes</div>
+                    <div className="text-lg font-semibold text-green-300">{upReceived}</div>
+                  </div>
+                  <div className="rounded-xl bg-black/20 p-3">
+                    <div className="text-gray-300 text-xs">Downvotes</div>
+                    <div className="text-lg font-semibold text-red-300">{downReceived}</div>
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-3 text-sm">
+                  <Link href="/profile" className="text-forge-accent hover:text-orange-300">
+                    Profile
+                  </Link>
+                  <Link href="/wallet" className="text-gray-300 hover:text-white">
+                    Wallet
+                  </Link>
+                  <Link href="/editor" className="text-gray-300 hover:text-white">
+                    Write
+                  </Link>
+                </div>
               </div>
-            </div>
+
+              <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold">Favorites</h3>
+                </div>
+                {favorites.length === 0 ? (
+                  <p className="text-sm text-gray-300">
+                    No favorites yet. Open a profile and add people you want to track.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {favorites.map((f) => (
+                      <Link
+                        key={f.favorite_user_id}
+                        href={`/profile/${f.favorite_user_id}`}
+                        className="block rounded-lg bg-black/20 px-3 py-2 text-sm hover:bg-black/30 transition"
+                      >
+                        {f.display_name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-gradient-to-br from-orange-600/15 to-forge-900 border border-orange-500/20 rounded-2xl p-5 text-center">
+                <p className="font-semibold mb-1">Got a take?</p>
+                <p className="text-sm text-gray-300 mb-4">Jump in. Write it. Rank it.</p>
+                <Link
+                  href="/editor"
+                  className="inline-block bg-forge-accent text-white font-medium px-6 py-2.5 rounded-xl transition text-sm mb-3"
+                >
+                  Write Article
+                </Link>
+                <div>
+                  <Link href="/fan-fiction" className="inline-block text-sm text-purple-200 hover:text-purple-100 transition">
+                    or Write Satire →
+                  </Link>
+                </div>
+              </div>
+            </>
           ) : (
             <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 text-center">
               <p className="font-semibold mb-1">Want to publish?</p>
