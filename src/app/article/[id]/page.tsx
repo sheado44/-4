@@ -25,6 +25,11 @@ type Comment = {
   user_id: string | null;
 };
 
+function makeGuestName() {
+  const rand = Math.random().toString(16).slice(2, 8);
+  return `anon_${rand}`;
+}
+
 export default function ArticlePage() {
   const params = useParams();
   const id = params?.id as string;
@@ -105,29 +110,33 @@ export default function ArticlePage() {
 
   const handleComment = async () => {
     setMessage("");
-    if (!userId || !userName) {
-      setMessage("Log in to comment.");
-      return;
-    }
     if (!commentText.trim()) {
       setMessage("Write something first.");
       return;
     }
 
     setPosting(true);
+
+    const isLoggedIn = Boolean(userId && userName);
+    const authorName = isLoggedIn ? userName! : makeGuestName();
+
     const { error } = await supabase.from("comments").insert({
       article_id: id,
-      user_id: userId,
-      author_name: userName,
+      user_id: isLoggedIn ? userId : null,
+      author_name: authorName,
       body: commentText.trim(),
-      is_guest: false,
+      is_guest: !isLoggedIn,
     });
 
     if (error) {
       setMessage(`Comment failed: ${error.message}`);
     } else {
       setCommentText("");
-      setMessage("Comment posted.");
+      setMessage(
+        isLoggedIn
+          ? "Comment posted."
+          : `Guest comment posted as ${authorName}.`
+      );
       await loadAll();
     }
     setPosting(false);
@@ -285,31 +294,39 @@ export default function ArticlePage() {
           <textarea
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            placeholder={userId ? "Write a comment..." : "Log in to comment"}
-            disabled={!userId}
-            className="w-full min-h-[100px] bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition disabled:opacity-60"
+            placeholder={
+              userId
+                ? "Write a comment..."
+                : "Write a guest comment (no account needed)..."
+            }
+            className="w-full min-h-[100px] bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
           />
-          <div className="mt-3 flex items-center gap-3">
+          <div className="mt-3 flex flex-wrap items-center gap-3">
             <button
               onClick={handleComment}
-              disabled={!userId || posting}
+              disabled={posting}
               className="px-5 py-2 bg-forge-accent hover:bg-forge-accentHover text-white text-sm font-medium rounded-xl transition disabled:opacity-60"
             >
-              {posting ? "Posting..." : "Post Comment"}
+              {posting ? "Posting..." : userId ? "Post Comment" : "Post as Guest"}
             </button>
             {!userId && (
               <Link href="/login" className="text-sm text-gray-300 hover:text-white">
-                Log in
+                or log in
               </Link>
             )}
           </div>
+          {!userId && (
+            <p className="text-xs text-gray-300 mt-2">
+              Guest comments use a one-time random name and build no reputation.
+            </p>
+          )}
         </div>
 
         {message && <p className="text-sm text-yellow-200 mb-4">{message}</p>}
 
         {comments.length === 0 ? (
           <div className="bg-forge-900/50 border border-forge-800 rounded-xl p-6 text-center text-sm text-gray-300">
-            No comments yet. Be the first.
+            No comments yet. Jump in.
           </div>
         ) : (
           <div className="space-y-4">
@@ -324,7 +341,10 @@ export default function ArticlePage() {
                       {c.author_name}
                     </Link>
                   ) : (
-                    <span className="font-medium">{c.author_name}</span>
+                    <span className="font-medium text-gray-200">
+                      {c.author_name}
+                      <span className="ml-2 text-xs text-gray-400">guest</span>
+                    </span>
                   )}
                   <span
                     className="text-gray-300 text-xs"
