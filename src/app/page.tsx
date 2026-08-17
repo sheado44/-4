@@ -34,6 +34,17 @@ type SearchUser = {
   display_name: string;
 };
 
+type Vibe = "default" | "football" | "basketball" | "baseball" | "hockey" | "golf";
+
+const VIBES: { id: Vibe; label: string }[] = [
+  { id: "default", label: "Steel" },
+  { id: "football", label: "Football" },
+  { id: "basketball", label: "Basketball" },
+  { id: "baseball", label: "Baseball" },
+  { id: "hockey", label: "Hockey" },
+  { id: "golf", label: "Golf" },
+];
+
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
   const [articles, setArticles] = useState<Article[]>([]);
@@ -52,6 +63,30 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [searchMessage, setSearchMessage] = useState("");
   const [searching, setSearching] = useState(false);
+  const [vibe, setVibe] = useState<Vibe>("default");
+
+  // Apply vibe class to body + persist
+  useEffect(() => {
+    const saved = (typeof window !== "undefined" && localStorage.getItem("ballpit-vibe")) as Vibe | null;
+    if (saved && VIBES.some((v) => v.id === saved)) {
+      setVibe(saved);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const classes = [
+      "vibe-default",
+      "vibe-football",
+      "vibe-basketball",
+      "vibe-baseball",
+      "vibe-hockey",
+      "vibe-golf",
+    ];
+    document.body.classList.remove(...classes);
+    document.body.classList.add(`vibe-${vibe}`);
+    localStorage.setItem("ballpit-vibe", vibe);
+  }, [vibe]);
 
   const loadFavoritesAndFeed = async (uid: string) => {
     const { data: favRows } = await supabase
@@ -280,8 +315,8 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="max-w-6xl mx-auto px-4 mb-8">
-        <div className="flex flex-wrap gap-2 mb-5 justify-center md:justify-start">
+      <div className="max-w-6xl mx-auto px-4 mb-6">
+        <div className="flex flex-wrap gap-2 mb-4 justify-center md:justify-start">
           {(["All", "Sports", "Pop Culture", "Satire"] as const).map((item) => (
             <button
               key={item}
@@ -291,6 +326,24 @@ export default function Home() {
               }`}
             >
               {item}
+            </button>
+          ))}
+        </div>
+
+        {/* Sport vibe selector */}
+        <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-[#8B9298] mr-1">
+            Vibe
+          </span>
+          {VIBES.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => setVibe(v.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition btn-metal ${
+                vibe === v.id ? "active-vibe" : ""
+              }`}
+            >
+              {v.label}
             </button>
           ))}
         </div>
