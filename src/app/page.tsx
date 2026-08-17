@@ -251,6 +251,8 @@ export default function Home() {
     .slice(0, 2)
     .toUpperCase();
 
+  const writeSection = section === "All" ? "Sports" : section;
+
   return (
     <main className="min-h-screen">
       <section className="pt-8 pb-6 text-center px-4">
@@ -326,6 +328,17 @@ export default function Home() {
                 </div>
               </article>
             ))
+          )}
+
+          {loggedIn && (
+            <div className="pt-4">
+              <Link
+                href={`/editor?section=${encodeURIComponent(writeSection)}`}
+                className="inline-flex items-center justify-center w-full sm:w-auto px-5 py-3 rounded-xl bg-forge-accent text-white text-sm font-medium"
+              >
+                {section === "All" ? "Write an article" : `Write in ${section}`}
+              </Link>
+            </div>
           )}
         </div>
 
