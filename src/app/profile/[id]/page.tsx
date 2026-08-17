@@ -14,6 +14,14 @@ type Article = {
   created_at: string;
 };
 
+type Comment = {
+  id: string;
+  article_id: string;
+  body: string;
+  created_at: string;
+  article_title?: string;
+};
+
 export default function PublicProfilePage() {
   const params = useParams();
   const id = params?.id as string;
@@ -26,6 +34,8 @@ export default function PublicProfilePage() {
   const [location, setLocation] = useState("");
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [activeTab, setActiveTab] = useState<"articles" | "comments" | "satire">("articles");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,28 +54,49 @@ export default function PublicProfilePage() {
         .eq("user_id", id)
         .order("created_at", { ascending: false });
 
-      setArticles(
-        (articleData || []).map((a) => ({
-          id: a.id,
-          title: a.title,
-          section: a.section,
-          body: a.body,
-          created_at: a.created_at,
-        }))
-      );
+      const mappedArticles = (articleData || []).map((a) => ({
+        id: a.id,
+        title: a.title,
+        section: a.section,
+        body: a.body,
+        created_at: a.created_at,
+      }));
+      setArticles(mappedArticles);
+
+      const { data: commentData } = await supabase
+        .from("comments")
+        .select("id, article_id, body, created_at")
+        .eq("user_id", id)
+        .order("created_at", { ascending: false });
+
+      const commentsWithTitles: Comment[] = [];
+      for (const comment of commentData || []) {
+        const { data: art } = await supabase
+          .from("articles")
+          .select("title")
+          .eq("id", comment.article_id)
+          .single();
+        commentsWithTitles.push({
+          ...comment,
+          article_title: art?.title || "Article",
+        });
+      }
+      setComments(commentsWithTitles);
 
       if (profile?.display_name) {
         setDisplayName(profile.display_name);
       } else if (articleData && articleData[0]?.author_name) {
         setDisplayName(articleData[0].author_name);
+      } else if (commentsWithTitles.length > 0) {
+        // fallback already handled by comment author fetch below if needed
       } else {
-        const { data: commentData } = await supabase
+        const { data: commentName } = await supabase
           .from("comments")
           .select("author_name")
           .eq("user_id", id)
           .limit(1);
-        if (commentData?.[0]?.author_name) {
-          setDisplayName(commentData[0].author_name);
+        if (commentName?.[0]?.author_name) {
+          setDisplayName(commentName[0].author_name);
         }
       }
 
@@ -125,32 +156,98 @@ export default function PublicProfilePage() {
         )}
       </div>
 
-      <h2 className="text-lg font-semibold mb-4">Articles</h2>
+      <div className="flex gap-6 border-b border-forge-800 mb-6 text-sm font-medium overflow-x-auto justify-center md:justify-start">
+        <button
+          onClick={() => setActiveTab("articles")}
+          className={`pb-3 whitespace-nowrap transition ${
+            activeTab === "articles"
+              ? "border-b-2 border-forge-accent text-forge-accent"
+              : "text-gray-300 hover:text-white"
+          }`}
+        >
+          Articles
+        </button>
+        <button
+          onClick={() => setActiveTab("comments")}
+          className={`pb-3 whitespace-nowrap transition ${
+            activeTab === "comments"
+              ? "border-b-2 border-forge-accent text-forge-accent"
+              : "text-gray-300 hover:text-white"
+          }`}
+        >
+          Comments
+        </button>
+        <button
+          onClick={() => setActiveTab("satire")}
+          className={`pb-3 whitespace-nowrap transition ${
+            activeTab === "satire"
+              ? "border-b-2 border-purple-300 text-purple-200"
+              : "text-gray-300 hover:text-white"
+          }`}
+        >
+          Satire
+        </button>
+      </div>
 
-      {articles.length === 0 ? (
-        <div className="bg-forge-900 border border-forge-800 rounded-2xl p-8 text-center text-gray-300 text-sm">
-          No articles yet.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {articles.map((article) => (
-            <Link
-              key={article.id}
-              href={`/article/${article.id}`}
-              className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
-            >
-              <div className="flex items-center gap-2 text-xs text-gray-300 mb-1">
-                <span className="text-forge-accent font-medium">{article.section}</span>
-                <span>•</span>
-                <span title={formatTimeFull(article.created_at)}>
-                  {formatTime(article.created_at)}
-                </span>
-              </div>
-              <h3 className="text-lg font-bold mb-2">{article.title}</h3>
-              <p className="text-gray-300 text-sm line-clamp-3">{article.body}</p>
-              <div className="text-xs text-forge-accent mt-3">Read article →</div>
-            </Link>
-          ))}
+      {activeTab === "articles" && (
+        articles.length === 0 ? (
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-8 text-center text-gray-300 text-sm">
+            No articles yet.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {articles.map((article) => (
+              <Link
+                key={article.id}
+                href={`/article/${article.id}`}
+                className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
+              >
+                <div className="flex items-center gap-2 text-xs text-gray-300 mb-1">
+                  <span className="text-forge-accent font-medium">{article.section}</span>
+                  <span>•</span>
+                  <span title={formatTimeFull(article.created_at)}>
+                    {formatTime(article.created_at)}
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold mb-2">{article.title}</h3>
+                <p className="text-gray-300 text-sm line-clamp-3">{article.body}</p>
+                <div className="text-xs text-forge-accent mt-3">Read article →</div>
+              </Link>
+            ))}
+          </div>
+        )
+      )}
+
+      {activeTab === "comments" && (
+        comments.length === 0 ? (
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-8 text-center text-gray-300 text-sm">
+            No comments yet.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {comments.map((comment) => (
+              <Link
+                key={comment.id}
+                href={`/article/${comment.article_id}`}
+                className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
+              >
+                <div className="text-xs text-gray-300 mb-2">
+                  On <span className="text-white">{comment.article_title}</span>
+                  {" · "}
+                  <span title={formatTimeFull(comment.created_at)}>
+                    {formatTime(comment.created_at)}
+                  </span>
+                </div>
+                <p className="text-gray-100 text-sm leading-relaxed">{comment.body}</p>
+              </Link>
+            ))}
+          </div>
+        )
+      )}
+
+      {activeTab === "satire" && (
+        <div className="bg-forge-900 border border-purple-500/20 rounded-2xl p-8 text-center text-gray-300 text-sm">
+          No satire yet.
         </div>
       )}
 
