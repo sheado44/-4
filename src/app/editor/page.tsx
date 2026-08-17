@@ -9,9 +9,11 @@ export default function EditorPage() {
   const [section, setSection] = useState("Sports");
   const [body, setBody] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [uploadStatus, setUploadStatus] = useState("");
   const [message, setMessage] = useState("");
   const [publishedId, setPublishedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [loggedInName, setLoggedInName] = useState<string | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -38,16 +40,8 @@ export default function EditorPage() {
     const start = el.selectionStart;
     const end = el.selectionEnd;
     const selected = body.slice(start, end) || "text";
-    const next =
-      body.slice(0, start) + before + selected + after + body.slice(end);
+    const next = body.slice(0, start) + before + selected + after + body.slice(end);
     setBody(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(
-        start + before.length,
-        start + before.length + selected.length
-      );
-    });
   };
 
   const insertAtCursor = (text: string) => {
@@ -60,11 +54,6 @@ export default function EditorPage() {
     const end = el.selectionEnd;
     const next = body.slice(0, start) + text + body.slice(end);
     setBody(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      const pos = start + text.length;
-      el.setSelectionRange(pos, pos);
-    });
   };
 
   const addLink = () => {
@@ -78,10 +67,73 @@ export default function EditorPage() {
     wrapSelection(`[${selected}](`, `${url})`);
   };
 
-  const addImage = () => {
-    const url = window.prompt("Enter image URL");
-    if (!url) return;
-    insertAtCursor(`\n![image](${url})\n`);
+  // Placeholder AI review until provider is connected
+  const mockAiReview = async (file: File) => {
+    // Basic local checks for now
+    if (!file.type.startsWith("image/")) {
+      return { ok: false, reason: "File must be an image." };
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return { ok: false, reason: "Image must be under 5MB." };
+    }
+    // Future: send to AI for relevance + decency
+    return { ok: true, reason: "Passed basic checks. AI relevance/decency review pending provider." };
+  };
+
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    target: "thumbnail" | "inline"
+  ) => {
+    setUploadStatus("");
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
+    if (!user) {
+      setUploadStatus("Log in to upload images.");
+      return;
+    }
+
+    setUploading(true);
+    const review = await mockAiReview(file);
+    if (!review.ok) {
+      setUploadStatus(review.reason);
+      setUploading(false);
+      return;
+    }
+
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${user.id}/${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("article-images")
+      .upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      setUploadStatus(`Upload failed: ${uploadError.message}`);
+      setUploading(false);
+      return;
+    }
+
+    const { data: publicData } = supabase.storage
+      .from("article-images")
+      .getPublicUrl(path);
+
+    const url = publicData.publicUrl;
+
+    if (target === "thumbnail") {
+      setThumbnailUrl(url);
+      setUploadStatus("Thumbnail uploaded. AI relevance/decency review will be enforced when provider is connected.");
+    } else {
+      insertAtCursor(`\n![image](${url})\n`);
+      setUploadStatus("Inline image uploaded. AI relevance/decency review will be enforced when provider is connected.");
+    }
+
+    setUploading(false);
   };
 
   const awardPoints = async (
@@ -137,7 +189,6 @@ export default function EditorPage() {
         user.email?.split("@")[0] ||
         "Anonymous";
 
-      // Keep thumbnail as markdown prefix for now if provided
       const finalBody = thumbnailUrl.trim()
         ? `![thumbnail](${thumbnailUrl.trim()})\n\n${body.trim()}`
         : body.trim();
@@ -158,12 +209,12 @@ export default function EditorPage() {
         setMessage(`Publish failed: ${error.message}`);
       } else {
         const reward = section === "Satire" ? 5 : 50;
-        const reason =
-          section === "Satire"
-            ? "Published satire article"
-            : "Published real article";
-        await awardPoints(user.id, reward, reason, data.id);
-
+        await awardPoints(
+          user.id,
+          reward,
+          section === "Satire" ? "Published satire article" : "Published real article",
+          data.id
+        );
         setMessage(`Published successfully. +${reward} points`);
         setPublishedId(data.id);
         setTitle("");
@@ -184,9 +235,14 @@ export default function EditorPage() {
     .replace(/^# (.*$)/gim, "<h1>$1</h1>")
     .replace(/\*\*(.*?)\*\*/gim, "<strong>$1</strong>")
     .replace(/\*(.*?)\*/gim, "<em>$1</em>")
-    .replace(/!\[(.*?)\]\((.*?)\)/gim, '<img alt="$1" src="$2" class="max-w-full rounded-xl my-3" />')
-    .replace(/\[(.*?)\]\((.*?)\)/gim, '<a href="$2" target="_blank" rel="noreferrer" class="text-orange-300 underline">$1</a>')
-    .replace(/^• (.*$)/gim, "<li>$1</li>")
+    .replace(
+      /!\[(.*?)\]\((.*?)\)/gim,
+      '<img alt="$1" src="$2" class="max-w-full rounded-xl my-3" />'
+    )
+    .replace(
+      /\[(.*?)\]\((.*?)\)/gim,
+      '<a href="$2" target="_blank" rel="noreferrer" class="text-orange-300 underline">$1</a>'
+    )
     .replace(/\n/g, "<br />");
 
   return (
@@ -194,7 +250,7 @@ export default function EditorPage() {
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold mb-1">Write Article</h1>
         <p className="text-gray-300 text-sm">
-          Rich editor tools for publishers. Real articles +50 pts · Satire +5 pts.
+          Upload images from your computer. AI relevance + decency review will gate them when the provider is connected.
         </p>
         <p className="text-sm mt-2">
           {loggedInName ? (
@@ -214,8 +270,7 @@ export default function EditorPage() {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Strong, clear title..."
-                className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
+                className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
               />
             </div>
             <div>
@@ -223,7 +278,7 @@ export default function EditorPage() {
               <select
                 value={section}
                 onChange={(e) => setSection(e.target.value)}
-                className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none"
+                className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
               >
                 <option>Sports</option>
                 <option>Pop Culture</option>
@@ -232,68 +287,54 @@ export default function EditorPage() {
             </div>
           </div>
 
-          <div className="mb-4">
-            <label className="block text-sm text-gray-300 mb-1.5">
-              Thumbnail image URL
-            </label>
-            <input
-              type="url"
-              value={thumbnailUrl}
-              onChange={(e) => setThumbnailUrl(e.target.value)}
-              placeholder="https://..."
-              className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
-            />
+          <div className="mb-4 grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm text-gray-300 mb-1.5">
+                Upload thumbnail
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFileUpload(e, "thumbnail")}
+                className="block w-full text-sm text-gray-300"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-1.5">
+                Upload inline image
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFileUpload(e, "inline")}
+                className="block w-full text-sm text-gray-300"
+              />
+            </div>
           </div>
 
+          {uploading && <p className="text-sm text-yellow-200 mb-2">Uploading...</p>}
+          {uploadStatus && <p className="text-sm text-yellow-200 mb-2">{uploadStatus}</p>}
+          {thumbnailUrl && (
+            <p className="text-xs text-gray-300 mb-3 break-all">
+              Thumbnail set: {thumbnailUrl}
+            </p>
+          )}
+
           <div className="mb-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => wrapSelection("**")}
-              className="px-3 py-1.5 rounded-lg bg-black/20 text-sm hover:bg-black/30"
-            >
+            <button type="button" onClick={() => wrapSelection("**")} className="px-3 py-1.5 rounded-lg bg-black/20 text-sm">
               Bold
             </button>
-            <button
-              type="button"
-              onClick={() => wrapSelection("*")}
-              className="px-3 py-1.5 rounded-lg bg-black/20 text-sm hover:bg-black/30"
-            >
+            <button type="button" onClick={() => wrapSelection("*")} className="px-3 py-1.5 rounded-lg bg-black/20 text-sm">
               Italic
             </button>
-            <button
-              type="button"
-              onClick={() => insertAtCursor("\n# ")}
-              className="px-3 py-1.5 rounded-lg bg-black/20 text-sm hover:bg-black/30"
-            >
+            <button type="button" onClick={() => insertAtCursor("\n# ")} className="px-3 py-1.5 rounded-lg bg-black/20 text-sm">
               H1
             </button>
-            <button
-              type="button"
-              onClick={() => insertAtCursor("\n## ")}
-              className="px-3 py-1.5 rounded-lg bg-black/20 text-sm hover:bg-black/30"
-            >
+            <button type="button" onClick={() => insertAtCursor("\n## ")} className="px-3 py-1.5 rounded-lg bg-black/20 text-sm">
               H2
             </button>
-            <button
-              type="button"
-              onClick={() => insertAtCursor("\n• ")}
-              className="px-3 py-1.5 rounded-lg bg-black/20 text-sm hover:bg-black/30"
-            >
-              List
-            </button>
-            <button
-              type="button"
-              onClick={addLink}
-              className="px-3 py-1.5 rounded-lg bg-black/20 text-sm hover:bg-black/30"
-            >
+            <button type="button" onClick={addLink} className="px-3 py-1.5 rounded-lg bg-black/20 text-sm">
               Link
-            </button>
-            <button
-              type="button"
-              onClick={addImage}
-              className="px-3 py-1.5 rounded-lg bg-black/20 text-sm hover:bg-black/30"
-            >
-              Image URL
             </button>
           </div>
 
@@ -301,31 +342,25 @@ export default function EditorPage() {
             ref={bodyRef}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Write your article here..."
-            className="w-full min-h-[360px] bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
+            className="w-full min-h-[320px] bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
+            placeholder="Write your article..."
           />
 
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="mt-4">
             <button
               onClick={handlePublish}
               disabled={loading}
-              className="px-6 py-2.5 bg-forge-accent hover:bg-forge-accentHover text-white font-medium rounded-xl transition text-sm disabled:opacity-60"
+              className="px-6 py-2.5 bg-forge-accent text-white font-medium rounded-xl text-sm disabled:opacity-60"
             >
               {loading ? "Publishing..." : "Publish"}
             </button>
-            <Link href="/login" className="text-sm text-gray-300 hover:text-white transition">
-              Go to Login
-            </Link>
           </div>
 
           {message && (
             <div className="mt-4 text-sm text-yellow-200">
               <p>{message}</p>
               {publishedId && (
-                <Link
-                  href={`/article/${publishedId}`}
-                  className="inline-block mt-2 text-forge-accent hover:text-orange-300 font-medium"
-                >
+                <Link href={`/article/${publishedId}`} className="inline-block mt-2 text-forge-accent">
                   View article →
                 </Link>
               )}
@@ -339,22 +374,17 @@ export default function EditorPage() {
             <h2 className="text-2xl font-bold mb-4">{title || "Untitled article"}</h2>
             {thumbnailUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={thumbnailUrl}
-                alt="Thumbnail preview"
-                className="w-full max-h-56 object-cover rounded-xl mb-4"
-              />
+              <img src={thumbnailUrl} alt="Thumbnail" className="w-full max-h-56 object-cover rounded-xl mb-4" />
             )}
             <div
               className="text-gray-100 text-sm leading-relaxed"
               dangerouslySetInnerHTML={{
-                __html: previewHtml || "<span class='text-gray-400'>Start writing to preview...</span>",
+                __html:
+                  previewHtml ||
+                  "<span class='text-gray-400'>Start writing to preview...</span>",
               }}
             />
           </div>
-          <p className="text-xs text-gray-400 mt-3">
-            Next stage: direct computer uploads + AI image generation with credits.
-          </p>
         </div>
       </div>
     </main>
