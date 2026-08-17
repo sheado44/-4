@@ -5,6 +5,7 @@ import AuthNav from "./AuthNav";
 import MobileNav from "./MobileNav";
 import { ThemeProvider } from "./ThemeProvider";
 import VibeSwitcher from "./VibeSwitcher";
+import WriteNavLink from "./WriteNavLink";
 
 export const metadata: Metadata = {
   title: "The Ballpit – Sports & Pop Culture",
@@ -54,13 +55,7 @@ export default function RootLayout({
                 <Link href="/" className="text-gray-200 hover:text-white transition">
                   Satire
                 </Link>
-                <Link
-                  href="/editor"
-                  className="text-white px-3.5 py-1.5 rounded-lg transition text-sm"
-                  style={{ background: "var(--ballpit-accent, #f97316)" }}
-                >
-                  Write
-                </Link>
+                <WriteNavLink />
               </div>
 
               <div className="flex items-center gap-3">
