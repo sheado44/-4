@@ -24,6 +24,7 @@ export default function PublicProfilePage() {
   const [sex, setSex] = useState("");
   const [age, setAge] = useState<number | null>(null);
   const [location, setLocation] = useState("");
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +34,7 @@ export default function PublicProfilePage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, bio, link, sex, age, location")
+        .select("display_name, bio, link, sex, age, location, updated_at")
         .eq("id", id)
         .maybeSingle();
 
@@ -73,6 +74,7 @@ export default function PublicProfilePage() {
       setSex(profile?.sex || "");
       setAge(profile?.age ?? null);
       setLocation(profile?.location || "");
+      setUpdatedAt(profile?.updated_at || null);
       setLoading(false);
     };
 
@@ -149,6 +151,14 @@ export default function PublicProfilePage() {
               <div className="text-xs text-forge-accent mt-3">Read article →</div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {updatedAt && (
+        <div className="mt-10 pt-6 border-t border-forge-800 text-center text-xs text-gray-300">
+          <span title={formatTimeFull(updatedAt)}>
+            Profile updated {formatTime(updatedAt)}
+          </span>
         </div>
       )}
     </main>
