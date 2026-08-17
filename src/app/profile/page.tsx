@@ -10,6 +10,7 @@ type ProfileUser = {
   email?: string;
   displayName: string;
   initials: string;
+  avatarUrl: string;
   bio: string;
   link: string;
   sex: string;
@@ -67,7 +68,7 @@ export default function ProfilePage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, bio, link, sex, age, location, points")
+        .select("display_name, bio, link, sex, age, location, points, avatar_url")
         .eq("id", authUser.id)
         .maybeSingle();
 
@@ -89,6 +90,7 @@ export default function ProfilePage() {
         email: authUser.email,
         displayName,
         initials,
+        avatarUrl: profile?.avatar_url || "",
         bio: profile?.bio || "",
         link: profile?.link || "",
         sex: profile?.sex || "",
@@ -124,7 +126,6 @@ export default function ProfilePage() {
       }
       setComments(commentsWithTitles);
 
-      // votes received on my comments
       const myCommentIds = (commentData || []).map((c) => c.id);
       let up = 0;
       let down = 0;
@@ -141,7 +142,6 @@ export default function ProfilePage() {
       setUpReceived(up);
       setDownReceived(down);
 
-      // reactions I made on other comments
       const { data: myVotes } = await supabase
         .from("comment_votes")
         .select("vote, comment_id, created_at")
@@ -155,15 +155,12 @@ export default function ProfilePage() {
           .select("id, body, author_name, article_id")
           .eq("id", vote.comment_id)
           .maybeSingle();
-
         if (!targetComment) continue;
-
         const { data: art } = await supabase
           .from("articles")
           .select("title")
           .eq("id", targetComment.article_id)
           .maybeSingle();
-
         reactionItems.push({
           vote: vote.vote,
           comment_id: targetComment.id,
@@ -175,7 +172,6 @@ export default function ProfilePage() {
         });
       }
       setReactions(reactionItems);
-
       setLoading(false);
     };
 
@@ -206,9 +202,18 @@ export default function ProfilePage() {
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
       <div className="flex flex-col items-center text-center mb-10">
-        <div className="w-40 h-40 md:w-48 md:h-48 rounded-full bg-blue-600 flex items-center justify-center text-5xl md:text-6xl font-bold mb-5 border-4 border-forge-800 shadow-lg">
-          {user.initials}
-        </div>
+        {user.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={user.avatarUrl}
+            alt={user.displayName}
+            className="w-40 h-40 md:w-48 md:h-48 rounded-full object-cover mb-5 border-4 border-forge-800 shadow-lg"
+          />
+        ) : (
+          <div className="w-40 h-40 md:w-48 md:h-48 rounded-full bg-blue-600 flex items-center justify-center text-5xl md:text-6xl font-bold mb-5 border-4 border-forge-800 shadow-lg">
+            {user.initials}
+          </div>
+        )}
 
         <h1 className="text-3xl md:text-4xl font-bold mb-1">{user.displayName}</h1>
         <p className="text-gray-300 mb-2">{user.email}</p>
@@ -362,24 +367,17 @@ export default function ProfilePage() {
         reactions.length === 0 ? (
           <div className="bg-forge-900 border border-forge-800 rounded-2xl p-10 text-center">
             <p className="text-gray-100 font-medium mb-1">No reactions yet</p>
-            <p className="text-sm text-gray-300">
-              When you thumbs-up or thumbs-down comments, they’ll show up here.
-            </p>
           </div>
         ) : (
           <div className="space-y-4">
             {reactions.map((r) => (
               <Link
-                key={`${r.comment_id}-${r.vote}-${r.created_at}`}
+                key={`${r.comment_id}-${r.created_at}`}
                 href={`/article/${r.article_id}`}
                 className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
               >
                 <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
-                  <span
-                    className={
-                      r.vote === 1 ? "text-green-300 font-semibold" : "text-red-300 font-semibold"
-                    }
-                  >
+                  <span className={r.vote === 1 ? "text-green-300 font-semibold" : "text-red-300 font-semibold"}>
                     {r.vote === 1 ? "👍 Upvoted" : "👎 Downvoted"}
                   </span>
                   <span>•</span>
@@ -390,10 +388,7 @@ export default function ProfilePage() {
                   {" on "}
                   <span className="text-white">{r.article_title}</span>
                 </div>
-                <p className="text-gray-100 text-sm leading-relaxed line-clamp-3">
-                  {r.comment_body}
-                </p>
-                <div className="text-xs text-forge-accent mt-3">Open thread →</div>
+                <p className="text-gray-100 text-sm leading-relaxed line-clamp-3">{r.comment_body}</p>
               </Link>
             ))}
           </div>
