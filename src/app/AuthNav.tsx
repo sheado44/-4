@@ -78,7 +78,7 @@ export default function AuthNav() {
   return (
     <div className="flex items-center gap-3">
       <Link
-        href="/profile"
+        href="/wallet"
         className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20 border border-forge-800 hover:border-forge-accent/50 transition"
         title="Your private wallet"
       >
@@ -86,9 +86,8 @@ export default function AuthNav() {
         <span className="text-sm font-semibold text-forge-accent">{points} pts</span>
       </Link>
 
-      {/* compact mobile wallet */}
       <Link
-        href="/profile"
+        href="/wallet"
         className="sm:hidden text-xs font-semibold text-forge-accent"
         title="Your private wallet"
       >
