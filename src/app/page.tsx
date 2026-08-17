@@ -267,7 +267,7 @@ export default function Home() {
     <main className="min-h-screen">
       {/* Cinematic hero */}
       <section className="relative overflow-hidden">
-        <div className="max-w-6xl mx-auto px-4 pt-8 pb-6">
+        <div className="max-w-6xl mx-auto px-4 pt-8 pb-2">
           <div className="metal-card overflow-hidden">
             <img
               src="/ballpit-hero.png"
@@ -275,10 +275,10 @@ export default function Home() {
               className="w-full h-auto object-cover max-h-[360px] md:max-h-[420px]"
             />
           </div>
-          <p className="text-center text-xs md:text-sm tracking-[0.25em] uppercase text-metal-steel mt-4">
-            Sports & Pop Culture
+          <p className="text-center text-xs md:text-sm tracking-[0.22em] uppercase text-[#A7AEB4] mt-4">
+            Sports · Pop Culture · Satire
           </p>
-          <p className="text-center text-neon-amber text-base md:text-lg font-semibold tracking-wide mt-1">
+          <p className="text-center text-[#F0A04B] text-base md:text-lg font-semibold tracking-wide mt-1 mb-4">
             Jump in.
           </p>
         </div>
@@ -291,9 +291,7 @@ export default function Home() {
               key={item}
               onClick={() => setSection(item)}
               className={`px-5 py-2 rounded-full text-sm font-medium transition border ${
-                section === item
-                  ? "btn-write border-transparent"
-                  : "btn-metal"
+                section === item ? "btn-write border-transparent" : "btn-metal"
               }`}
             >
               {item}
@@ -305,36 +303,33 @@ export default function Home() {
       <div className="max-w-6xl mx-auto px-4 pb-16 grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
           {loading ? (
-            <div className="pit-panel p-8 text-center text-metal-aluminum text-sm">
+            <div className="pit-panel p-8 text-center text-[#A7AEB4] text-sm">
               Loading articles...
             </div>
           ) : filteredArticles.length === 0 ? (
-            <div className="pit-panel p-8 text-center text-metal-aluminum text-sm">
+            <div className="pit-panel p-8 text-center text-[#A7AEB4] text-sm">
               No articles in this section yet.
             </div>
           ) : (
             filteredArticles.map((article) => (
-              <article
-                key={article.id}
-                className="metal-card p-5 transition-all duration-200"
-              >
-                <div className="flex items-center gap-2 text-xs text-metal-steel mb-2">
-                  <span className="bg-neon-amber/15 text-neon-amber px-2 py-0.5 rounded-md font-semibold">
+              <article key={article.id} className="metal-card p-5 transition-all duration-200">
+                <div className="flex items-center gap-2 text-xs text-[#8B9298] mb-2">
+                  <span className="bg-[#F0A04B]/15 text-[#F0A04B] px-2 py-0.5 rounded-md font-semibold">
                     {article.section}
                   </span>
                   <span>{formatTime(article.created_at)}</span>
                 </div>
 
                 <Link href={`/article/${article.id}`}>
-                  <h2 className="text-lg md:text-xl font-bold mb-2 hover:text-neon-amber transition leading-snug text-white">
+                  <h2 className="text-lg md:text-xl font-bold mb-2 hover:text-[#F0A04B] transition leading-snug text-white">
                     {article.title}
                   </h2>
-                  <p className="text-metal-aluminum text-sm line-clamp-3 mb-3 leading-relaxed">
+                  <p className="text-[#A7AEB4] text-sm line-clamp-3 mb-3 leading-relaxed">
                     {article.body}
                   </p>
                 </Link>
 
-                <div className="text-sm text-metal-silver font-medium">
+                <div className="text-sm text-[#C8CDD2] font-medium">
                   {article.author_name || "Unknown author"}
                 </div>
               </article>
@@ -366,40 +361,40 @@ export default function Home() {
                       className="w-14 h-14 rounded-full object-cover border border-white/10"
                     />
                   ) : (
-                    <div className="w-14 h-14 rounded-full bg-metal-copper/80 flex items-center justify-center text-lg font-bold">
+                    <div className="w-14 h-14 rounded-full bg-[#C47A4A]/80 flex items-center justify-center text-lg font-bold">
                       {initials}
                     </div>
                   )}
                   <div>
-                    <div className="text-xs uppercase tracking-wide text-metal-steel">Your desk</div>
+                    <div className="text-xs uppercase tracking-wide text-[#8B9298]">Your desk</div>
                     <div className="text-xl font-bold text-white">{displayName}</div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="rounded-xl bg-black/25 border border-white/5 p-3">
-                    <div className="text-metal-steel text-xs">Points</div>
-                    <div className="text-lg font-semibold text-neon-amber">{points}</div>
+                    <div className="text-[#8B9298] text-xs">Points</div>
+                    <div className="text-lg font-semibold text-[#F0A04B]">{points}</div>
                   </div>
                   <div className="rounded-xl bg-black/25 border border-white/5 p-3">
-                    <div className="text-metal-steel text-xs">AI Credits</div>
+                    <div className="text-[#8B9298] text-xs">AI Credits</div>
                     <div className="text-lg font-semibold text-white">{aiCredits}</div>
                   </div>
                   <div className="rounded-xl bg-black/25 border border-white/5 p-3">
-                    <div className="text-metal-steel text-xs">Upvotes</div>
+                    <div className="text-[#8B9298] text-xs">Upvotes</div>
                     <div className="text-lg font-semibold text-green-300">{upReceived}</div>
                   </div>
                   <div className="rounded-xl bg-black/25 border border-white/5 p-3">
-                    <div className="text-metal-steel text-xs">Downvotes</div>
+                    <div className="text-[#8B9298] text-xs">Downvotes</div>
                     <div className="text-lg font-semibold text-red-300">{downReceived}</div>
                   </div>
                 </div>
 
                 <div className="mt-4 flex gap-3 text-sm">
-                  <Link href="/profile" className="text-neon-amber hover:text-orange-300">
+                  <Link href="/profile" className="text-[#F0A04B] hover:text-orange-300">
                     Profile
                   </Link>
-                  <Link href="/wallet" className="text-metal-aluminum hover:text-white">
+                  <Link href="/wallet" className="text-[#A7AEB4] hover:text-white">
                     Wallet
                   </Link>
                 </div>
@@ -433,7 +428,7 @@ export default function Home() {
                       key={u.id}
                       className="flex items-center justify-between gap-2 rounded-lg bg-black/25 border border-white/5 px-3 py-2"
                     >
-                      <Link href={`/profile/${u.id}`} className="text-sm hover:text-neon-amber">
+                      <Link href={`/profile/${u.id}`} className="text-sm hover:text-[#F0A04B]">
                         {u.display_name}
                       </Link>
                       <button
@@ -450,7 +445,7 @@ export default function Home() {
               <div className="pit-panel p-5">
                 <h3 className="font-semibold mb-3 text-white">Watchlist activity</h3>
                 {watchFeed.length === 0 ? (
-                  <p className="text-sm text-metal-aluminum">
+                  <p className="text-sm text-[#A7AEB4]">
                     No watchlist activity yet. Search and favorite people to track them.
                   </p>
                 ) : (
@@ -459,9 +454,9 @@ export default function Home() {
                       <Link
                         key={item.id}
                         href={item.href}
-                        className="block rounded-xl bg-black/25 border border-white/5 px-3 py-2 hover:border-neon-amber/30 transition"
+                        className="block rounded-xl bg-black/25 border border-white/5 px-3 py-2 hover:border-[#F0A04B]/30 transition"
                       >
-                        <div className="text-xs text-metal-steel mb-1">
+                        <div className="text-xs text-[#8B9298] mb-1">
                           {item.kind === "article"
                             ? "Article"
                             : item.kind === "reply"
@@ -471,7 +466,7 @@ export default function Home() {
                         </div>
                         <div className="text-sm">
                           <span className="font-medium text-white">{item.actor_name}</span>{" "}
-                          <span className="text-metal-aluminum">{item.summary}</span>
+                          <span className="text-[#A7AEB4]">{item.summary}</span>
                         </div>
                       </Link>
                     ))}
@@ -482,14 +477,14 @@ export default function Home() {
               <div className="pit-panel p-5">
                 <h3 className="font-semibold mb-3 text-white">Favorites</h3>
                 {favorites.length === 0 ? (
-                  <p className="text-sm text-metal-aluminum">No favorites yet.</p>
+                  <p className="text-sm text-[#A7AEB4]">No favorites yet.</p>
                 ) : (
                   <div className="space-y-2">
                     {favorites.map((f) => (
                       <Link
                         key={f.favorite_user_id}
                         href={`/profile/${f.favorite_user_id}`}
-                        className="block rounded-lg bg-black/25 border border-white/5 px-3 py-2 text-sm hover:border-neon-amber/30 transition"
+                        className="block rounded-lg bg-black/25 border border-white/5 px-3 py-2 text-sm hover:border-[#F0A04B]/30 transition"
                       >
                         {f.display_name}
                       </Link>
@@ -501,13 +496,10 @@ export default function Home() {
           ) : (
             <div className="pit-panel p-5 text-center">
               <p className="font-semibold mb-1 text-white">Want to publish?</p>
-              <p className="text-sm text-metal-aluminum mb-4">
+              <p className="text-sm text-[#A7AEB4] mb-4">
                 Create an account to write articles and use AI tools.
               </p>
-              <Link
-                href="/login"
-                className="btn-write inline-block px-6 py-2.5 rounded-xl text-sm"
-              >
+              <Link href="/login" className="btn-write inline-block px-6 py-2.5 rounded-xl text-sm">
                 Log in / Sign up
               </Link>
             </div>
