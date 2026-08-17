@@ -112,8 +112,20 @@ export default function SettingsPage() {
     }
 
     const { data } = supabase.storage.from("article-images").getPublicUrl(path);
-    setAvatarUrl(data.publicUrl);
-    setMessage("Avatar uploaded. Click Save Profile to keep it.");
+    const url = data.publicUrl;
+    setAvatarUrl(url);
+
+    const { error: saveError } = await supabase.from("profiles").upsert({
+      id: userId,
+      avatar_url: url,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (saveError) {
+      setMessage(`Uploaded, but save failed: ${saveError.message}`);
+    } else {
+      setMessage("Profile picture saved.");
+    }
     setUploading(false);
   };
 
@@ -154,7 +166,18 @@ export default function SettingsPage() {
     const encoded = encodeURIComponent(aiPrompt.slice(0, 40));
     const url = `https://placehold.co/256x256/1f2937/f97316/png?text=${encoded}`;
     setAvatarUrl(url);
-    setMessage("AI avatar set (placeholder provider). 1 credit used. Save profile to keep it.");
+
+    const { error: saveError } = await supabase.from("profiles").upsert({
+      id: userId,
+      avatar_url: url,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (saveError) {
+      setMessage(`AI avatar set, but save failed: ${saveError.message}`);
+    } else {
+      setMessage("AI avatar saved (placeholder provider). 1 credit used.");
+    }
   };
 
   if (loading) {
