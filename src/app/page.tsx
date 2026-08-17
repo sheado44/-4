@@ -265,7 +265,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen">
-      {/* Cinematic hero */}
       <section className="relative overflow-hidden">
         <div className="max-w-6xl mx-auto px-4 pt-8 pb-2">
           <div className="metal-card overflow-hidden">
@@ -495,7 +494,7 @@ export default function Home() {
               <p className="text-[#F0A04B] text-lg font-semibold tracking-wide mb-2">
                 Jump in.
               </p>
-              <p className="font-semibold mb-1 text-white">Want to publish?</p>
+              <p className="font-semibold mb-1 text-white">Want to jump in?</p>
               <p className="text-sm text-[#A7AEB4] mb-4">
                 Create an account to write articles and use AI tools.
               </p>
