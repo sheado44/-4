@@ -15,7 +15,16 @@ function calcAge(birthday: string): number | null {
   return age;
 }
 
-const PRESET_COLORS = ["#2563eb", "#f97316", "#16a34a", "#db2777", "#7c3aed", "#0891b2", "#ca8a04", "#dc2626"];
+const PRESET_COLORS = [
+  "#2563eb",
+  "#f97316",
+  "#16a34a",
+  "#db2777",
+  "#7c3aed",
+  "#0891b2",
+  "#ca8a04",
+  "#dc2626",
+];
 
 const SKINS = [
   { id: "none", label: "Solid color" },
@@ -47,7 +56,8 @@ function skinStyle(skin: string, color: string): React.CSSProperties {
       };
     case "zebra":
       return {
-        backgroundImage: "repeating-linear-gradient(45deg, #111 0 8px, #f5f5f5 8px 16px)",
+        backgroundImage:
+          "repeating-linear-gradient(45deg, #111 0 8px, #f5f5f5 8px 16px)",
       };
     case "camo":
       return {
@@ -94,40 +104,39 @@ export default function SettingsPage() {
   const [buyingSkin, setBuyingSkin] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
-  const load = async () => {
-    const { data } = await supabase.auth.getUser();
-    const user = data.user;
-    if (!user) {
-      setUserId(null);
-      setLoading(false);
-      return;
-    }
-    setUserId(user.id);
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select(
-        "display_name, bio, link, sex, birthday, location, avatar_url, comment_avatar_color, comment_avatar_skin, owned_skins, ai_credits, points"
-      )
-      .eq("id", user.id)
-      .maybeSingle();
-
-    setDisplayName(profile?.display_name || user.user_metadata?.display_name || "");
-    setBio(profile?.bio || "");
-    setLink(profile?.link || "");
-    setSex(profile?.sex || "");
-    setBirthday(profile?.birthday || "");
-    setLocation(profile?.location || "");
-    setAvatarUrl(profile?.avatar_url || "");
-    setCommentAvatarColor(profile?.comment_avatar_color || "#2563eb");
-    setCommentAvatarSkin(profile?.comment_avatar_skin || "none");
-    setOwnedSkins(parseOwned(profile?.owned_skins));
-    setAiCredits(profile?.ai_credits ?? 0);
-    setPoints(profile?.points ?? 0);
-    setLoading(false);
-  };
-
   useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data.user;
+      if (!user) {
+        setUserId(null);
+        setLoading(false);
+        return;
+      }
+      setUserId(user.id);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select(
+          "display_name, bio, link, sex, birthday, location, avatar_url, comment_avatar_color, comment_avatar_skin, owned_skins, ai_credits, points"
+        )
+        .eq("id", user.id)
+        .maybeSingle();
+
+      setDisplayName(profile?.display_name || user.user_metadata?.display_name || "");
+      setBio(profile?.bio || "");
+      setLink(profile?.link || "");
+      setSex(profile?.sex || "");
+      setBirthday(profile?.birthday || "");
+      setLocation(profile?.location || "");
+      setAvatarUrl(profile?.avatar_url || "");
+      setCommentAvatarColor(profile?.comment_avatar_color || "#2563eb");
+      setCommentAvatarSkin(profile?.comment_avatar_skin || "none");
+      setOwnedSkins(parseOwned(profile?.owned_skins));
+      setAiCredits(profile?.ai_credits ?? 0);
+      setPoints(profile?.points ?? 0);
+      setLoading(false);
+    };
     load();
   }, []);
 
@@ -152,7 +161,10 @@ export default function SettingsPage() {
       updated_at: new Date().toISOString(),
     });
     if (error) setMessage(error.message);
-    else setMessage("Profile saved.");
+    else {
+      setMessage("Profile saved.");
+      window.dispatchEvent(new Event("ballpit-wallet-updated"));
+    }
     setSaving(false);
   };
 
@@ -163,6 +175,9 @@ export default function SettingsPage() {
       setMessage("Need 100 points to buy this skin.");
       return;
     }
+
+    const ok = window.confirm(`Spend 100 points to buy ${label}?`);
+    if (!ok) return;
 
     setBuyingSkin(skinId);
     setMessage("");
@@ -193,6 +208,7 @@ export default function SettingsPage() {
       setOwnedSkins(newOwned);
       setCommentAvatarSkin(skinId);
       setMessage(`Bought ${label} for 100 pts and equipped it.`);
+      window.dispatchEvent(new Event("ballpit-wallet-updated"));
     } catch (err: any) {
       setMessage(err?.message || "Purchase failed.");
     } finally {
@@ -210,15 +226,21 @@ export default function SettingsPage() {
       setMessage("Avatar must be under 5MB.");
       return;
     }
+
     setUploading(true);
+    setMessage("");
     const ext = file.name.split(".").pop() || "jpg";
     const path = `avatars/${userId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("article-images").upload(path, file, { upsert: true });
+    const { error } = await supabase.storage
+      .from("article-images")
+      .upload(path, file, { upsert: true });
+
     if (error) {
       setMessage(`Upload failed: ${error.message}`);
       setUploading(false);
       return;
     }
+
     const { data } = supabase.storage.from("article-images").getPublicUrl(path);
     setAvatarUrl(data.publicUrl);
     await supabase.from("profiles").upsert({
@@ -228,6 +250,40 @@ export default function SettingsPage() {
     });
     setMessage("Profile picture saved.");
     setUploading(false);
+  };
+
+  const generateAiAvatar = async () => {
+    if (!userId) return;
+    if (aiCredits < 1) {
+      setMessage("No AI credits left.");
+      return;
+    }
+    if (!aiPrompt.trim() || aiPrompt.trim().length < 8) {
+      setMessage("Write a clearer avatar prompt.");
+      return;
+    }
+
+    const nextCredits = aiCredits - 1;
+    const { error: creditError } = await supabase
+      .from("profiles")
+      .update({ ai_credits: nextCredits, updated_at: new Date().toISOString() })
+      .eq("id", userId);
+    if (creditError) {
+      setMessage(creditError.message);
+      return;
+    }
+    setAiCredits(nextCredits);
+
+    const encoded = encodeURIComponent(aiPrompt.slice(0, 40));
+    const url = `https://placehold.co/256x256/1f2937/f97316/png?text=${encoded}`;
+    setAvatarUrl(url);
+    await supabase.from("profiles").upsert({
+      id: userId,
+      avatar_url: url,
+      updated_at: new Date().toISOString(),
+    });
+    setMessage("AI avatar saved (placeholder provider). 1 credit used.");
+    window.dispatchEvent(new Event("ballpit-wallet-updated"));
   };
 
   if (loading) {
@@ -264,7 +320,11 @@ export default function SettingsPage() {
       <div className="flex items-center gap-4 mb-6">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarUrl} alt="Avatar" className="w-20 h-20 rounded-full object-cover border border-forge-800" />
+          <img
+            src={avatarUrl}
+            alt="Avatar"
+            className="w-20 h-20 rounded-full object-cover border border-forge-800"
+          />
         ) : (
           <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold">
             {initials}
@@ -295,7 +355,9 @@ export default function SettingsPage() {
             dragOver ? "border-forge-accent bg-forge-accent/10" : "border-forge-800 bg-forge-900"
           }`}
         >
-          <p className="text-sm text-gray-200 mb-2">{uploading ? "Uploading..." : "Drag & drop profile photo"}</p>
+          <p className="text-sm text-gray-200 mb-2">
+            {uploading ? "Uploading..." : "Drag & drop profile photo"}
+          </p>
           <input
             type="file"
             accept="image/*"
@@ -329,7 +391,9 @@ export default function SettingsPage() {
 
         <div className="p-4 rounded-xl border border-forge-800 bg-forge-900">
           <div className="text-sm font-medium mb-2">Equip / buy avatar skins</div>
-          <p className="text-xs text-gray-400 mb-3">Owned skins can be equipped. Locked skins can be bought for 100 pts.</p>
+          <p className="text-xs text-gray-400 mb-3">
+            Owned skins can be equipped. Locked skins can be bought for 100 pts.
+          </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {SKINS.map((skin) => {
               const owned = ownedSkins.includes(skin.id) || skin.id === "none";
@@ -361,13 +425,34 @@ export default function SettingsPage() {
                       onClick={() => buySkin(skin.id, skin.label)}
                       className="text-xs px-2 py-1 rounded-lg bg-forge-accent text-white disabled:opacity-50"
                     >
-                      {buyingSkin === skin.id ? "Buying..." : points < 100 ? "Need 100 pts" : "Buy 100 pts"}
+                      {buyingSkin === skin.id
+                        ? "Buying..."
+                        : points < 100
+                        ? "Need 100 pts"
+                        : "Buy 100 pts"}
                     </button>
                   )}
                 </div>
               );
             })}
           </div>
+        </div>
+
+        <div className="p-4 rounded-xl border border-forge-800 bg-forge-900">
+          <label className="block text-sm text-gray-300 mb-1">Generate AI profile photo</label>
+          <input
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            placeholder="Describe your profile photo..."
+            className="w-full bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm mb-2 outline-none"
+          />
+          <button
+            type="button"
+            onClick={generateAiAvatar}
+            className="px-3 py-2 rounded-lg bg-forge-accent text-white text-sm"
+          >
+            Generate profile photo (1 credit)
+          </button>
         </div>
 
         <div>
@@ -432,6 +517,15 @@ export default function SettingsPage() {
       </button>
 
       {message && <p className="mt-4 text-sm text-yellow-200">{message}</p>}
+
+      <div className="mt-8 flex gap-4">
+        <Link href="/wallet" className="text-sm text-gray-300 hover:text-white">
+          Wallet
+        </Link>
+        <Link href="/profile" className="text-sm text-gray-300 hover:text-white">
+          Profile
+        </Link>
+      </div>
     </main>
   );
 }
