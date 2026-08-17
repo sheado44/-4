@@ -275,11 +275,8 @@ export default function Home() {
               className="w-full h-auto object-cover max-h-[360px] md:max-h-[420px]"
             />
           </div>
-          <p className="text-center text-xs md:text-sm tracking-[0.22em] uppercase text-[#A7AEB4] mt-4">
+          <p className="text-center text-xs md:text-sm tracking-[0.22em] uppercase text-[#A7AEB4] mt-4 mb-4">
             Sports · Pop Culture · Satire
-          </p>
-          <p className="text-center text-[#F0A04B] text-base md:text-lg font-semibold tracking-wide mt-1 mb-4">
-            Jump in.
           </p>
         </div>
       </section>
@@ -495,6 +492,9 @@ export default function Home() {
             </>
           ) : (
             <div className="pit-panel p-5 text-center">
+              <p className="text-[#F0A04B] text-lg font-semibold tracking-wide mb-2">
+                Jump in.
+              </p>
               <p className="font-semibold mb-1 text-white">Want to publish?</p>
               <p className="text-sm text-[#A7AEB4] mb-4">
                 Create an account to write articles and use AI tools.
