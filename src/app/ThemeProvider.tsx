@@ -45,6 +45,8 @@ const VIBE_PRESETS: Record<
 };
 
 function applyTheme(vibe: VibeId, accent: string) {
+  if (typeof document === "undefined") return;
+
   const root = document.documentElement;
   const preset = vibe === "custom" ? null : VIBE_PRESETS[vibe];
 
@@ -69,9 +71,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [vibe, setVibeState] = useState<VibeId>("standard");
   const [accent, setAccentState] = useState("#f97316");
   const [userId, setUserId] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
 
-  // Load local first, then profile if logged in
   useEffect(() => {
     const boot = async () => {
       const savedVibe = localStorage.getItem("ballpit-vibe") as VibeId | null;
@@ -90,12 +90,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           .eq("id", user.id)
           .maybeSingle();
 
-        if (profile?.preferred_vibe) {
-          nextVibe = profile.preferred_vibe as VibeId;
-        }
-        if (profile?.accent_color) {
-          nextAccent = profile.accent_color;
-        }
+        if (profile?.preferred_vibe) nextVibe = profile.preferred_vibe as VibeId;
+        if (profile?.accent_color) nextAccent = profile.accent_color;
       } else {
         setUserId(null);
       }
@@ -103,7 +99,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setVibeState(nextVibe);
       setAccentState(nextAccent);
       applyTheme(nextVibe, nextAccent);
-      setReady(true);
     };
 
     boot();
@@ -142,10 +137,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     persistToProfile("custom", next);
   };
 
-  if (!ready) {
-    return <>{children}</>;
-  }
-
   return (
     <ThemeContext.Provider value={{ vibe, accent, setVibe, setAccent }}>
       {children}
@@ -155,6 +146,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 export function useTheme() {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error("useTheme must be used within ThemeProvider");
+  // Safe fallback so build/prerender never crashes
+  if (!ctx) {
+    return {
+      vibe: "standard" as VibeId,
+      accent: "#f97316",
+      setVibe: () => {},
+      setAccent: () => {},
+    };
+  }
   return ctx;
 }
