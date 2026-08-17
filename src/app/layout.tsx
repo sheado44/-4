@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
+import ThemeApplier from "@/components/ThemeApplier";
 
 const body = Inter({
   subsets: ["latin"],
@@ -26,16 +27,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${body.variable} ${display.variable} antialiased`}>
+        <ThemeApplier />
         <SiteHeader />
         <div className="min-h-[calc(100vh-4rem)]">{children}</div>
-        <footer className="border-t border-white/[0.06] mt-10">
+        <footer
+          className="mt-10 border-t"
+          style={{ borderColor: "rgba(127,127,127,0.18)" }}
+        >
           <div className="max-w-6xl mx-auto px-4 py-8 text-center">
-            <div className="text-sm font-semibold">
-              <span className="metal-title">The </span>
-              <span className="copper-title">Ballpit</span>
+            <div className="text-sm font-semibold" style={{ color: "var(--pit-text)" }}>
+              The Ballpit
             </div>
-            <p className="text-xs text-metal-steel mt-1 tracking-wide">
-              Sports & Pop Culture
+            <p className="text-xs mt-1 tracking-wide" style={{ color: "var(--pit-muted)" }}>
+              Sports · Pop Culture · Satire
             </p>
           </div>
         </footer>
