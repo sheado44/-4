@@ -3,49 +3,40 @@
 @tailwind utilities;
 
 :root {
-  --background: #6b7280;
-  --foreground: #f3f4f6;
+  --ballpit-accent: #f97316;
+  --ballpit-bg: #6b7280;
+  --ballpit-card: #525c6a;
+  --ballpit-text: #f3f4f6;
 }
 
 body {
-  color: var(--foreground);
-  background: #6b7280;
+  background: var(--ballpit-bg);
+  color: var(--ballpit-text);
   min-height: 100vh;
 }
 
-/* Keep cards readable on medium grey */
-.bg-forge-950 {
-  background-color: #4b5563 !important;
+.bg-forge-accent,
+.hover\:bg-forge-accentHover:hover {
+  background-color: var(--ballpit-accent) !important;
 }
 
-.bg-forge-900 {
-  background-color: #525c6a !important;
+.text-forge-accent {
+  color: var(--ballpit-accent) !important;
 }
 
-.bg-forge-900\/60 {
-  background-color: rgba(82, 92, 106, 0.85) !important;
+.border-forge-accent,
+.hover\:border-forge-accent\/40:hover,
+.hover\:border-forge-accent\/50:hover {
+  border-color: var(--ballpit-accent) !important;
 }
 
+.bg-forge-900,
+.bg-forge-900\/60,
 .bg-forge-900\/70 {
-  background-color: rgba(82, 92, 106, 0.9) !important;
+  background-color: color-mix(in srgb, var(--ballpit-card) 90%, black) !important;
 }
 
-.bg-forge-800 {
-  background-color: #5b6573 !important;
-}
-
+.bg-forge-800,
 .bg-forge-700 {
-  background-color: #6b7280 !important;
-}
-
-.border-forge-800 {
-  border-color: #7b8494 !important;
-}
-
-.border-forge-800\/80 {
-  border-color: rgba(123, 132, 148, 0.8) !important;
-}
-
-.border-forge-700 {
-  border-color: #8b93a1 !important;
+  background-color: color-mix(in srgb, var(--ballpit-card) 80%, white 5%) !important;
 }
