@@ -7,71 +7,83 @@ import { supabase } from "@/lib/supabaseClient";
 type PromptPack = {
   id: string;
   title: string;
+  template: string; // use {{key}} blanks
   fields: { key: string; label: string; placeholder: string }[];
-  build: (vals: Record<string, string>, tone: string) => string;
+  buildTitle: (vals: Record<string, string>) => string;
+  buildBody: (vals: Record<string, string>, tone: string) => string;
 };
 
 const TONES = ["Funny", "Chaotic", "Deadpan", "Overdramatic", "Sports Radio"] as const;
 
 const PROMPT_PACKS: PromptPack[] = [
   {
-    id: "locker-room",
+    id: "locker",
     title: "Locker Room Chaos",
+    template:
+      "At {{place}}, {{star}} suddenly {{verb}} while holding a {{object}}, and {{rival}} could only watch as {{outcome}}.",
     fields: [
-      { key: "star", label: "Star player / celebrity", placeholder: "Patrick Mahomes" },
-      { key: "rival", label: "Rival / side character", placeholder: "a mascot named Larry" },
-      { key: "place", label: "Place", placeholder: "Arrowhead Stadium" },
-      { key: "object", label: "Weird object", placeholder: "glow-in-the-dark football" },
-      { key: "verb", label: "Action verb", placeholder: "moonwalked" },
-      { key: "outcome", label: "Wild outcome", placeholder: "the scoreboard apologized" },
+      { key: "place", label: "place", placeholder: "Arrowhead Stadium" },
+      { key: "star", label: "star", placeholder: "Patrick Mahomes" },
+      { key: "verb", label: "verb", placeholder: "moonwalked" },
+      { key: "object", label: "object", placeholder: "glow-in-the-dark football" },
+      { key: "rival", label: "rival", placeholder: "the opposing mascot" },
+      { key: "outcome", label: "outcome", placeholder: "the scoreboard apologized" },
     ],
-    build: (v, tone) =>
-      `# ${v.star} ${v.verb} Into History at ${v.place}\n\n` +
-      `In a development nobody requested and everyone will pretend they predicted, ${v.star} reportedly ${v.verb} across ${v.place} while holding a ${v.object}.\n\n` +
-      `Witnesses say ${v.rival} tried to intervene, only to discover the ${v.object} had already filed for free agency.\n\n` +
-      `Tone check: this piece is pure ${tone.toLowerCase()} satire.\n\n` +
-      `By the fourth quarter of whatever this was, ${v.outcome}. League officials declined to comment, mostly because they were busy rewriting the rulebook in crayon.\n\n` +
-      `![satire image](https://placehold.co/1200x630/1f2937/a78bfa/png?text=Satire+Scene)\n\n` +
-      `Analysts later confirmed the only real winner was the ${v.object}.`,
+    buildTitle: (v) => `${v.star} ${v.verb} Into History at ${v.place}`,
+    buildBody: (v, tone) =>
+      `In a development nobody requested, ${v.star} reportedly ${v.verb} across ${v.place} while clutching a ${v.object}.\n\n` +
+      `${v.rival} tried to restore order, but it was already too late. By the end, ${v.outcome}.\n\n` +
+      `This ${tone.toLowerCase()} satire is not real reporting. It is pure Ballpit nonsense.\n\n` +
+      `![satire](https://placehold.co/1200x630/7c3aed/ffffff/png?text=Satire+Scene)`,
   },
   {
-    id: "press-conference",
+    id: "press",
     title: "Press Conference Meltdown",
+    template:
+      "{{coach}} told reporters in {{city}} that {{team}} would {{verb}} the season with a {{object}}, then added, \"{{quote}}.\"",
     fields: [
-      { key: "coach", label: "Coach / executive", placeholder: "Coach Rivera" },
-      { key: "team", label: "Team / brand", placeholder: "the underdogs" },
-      { key: "city", label: "City", placeholder: "Chicago" },
-      { key: "noun", label: "Random noun", placeholder: "bag of frozen peas" },
-      { key: "quote", label: "Fake quote fragment", placeholder: "we were never not winning" },
-      { key: "twist", label: "Plot twist", placeholder: "the podium walked away" },
+      { key: "coach", label: "coach", placeholder: "Coach Rivera" },
+      { key: "city", label: "city", placeholder: "Chicago" },
+      { key: "team", label: "team", placeholder: "the underdogs" },
+      { key: "verb", label: "verb", placeholder: "reinvent" },
+      { key: "object", label: "object", placeholder: "bag of frozen peas" },
+      { key: "quote", label: "quote", placeholder: "we were never not winning" },
     ],
-    build: (v, tone) =>
-      `# ${v.coach} Addresses ${v.city} After the Unexplainable\n\n` +
-      `${v.coach} stood before reporters in ${v.city}, flanked by ${v.team} staff and one highly suspicious ${v.noun}.\n\n` +
+    buildTitle: (v) => `${v.coach} Stuns ${v.city} With Unhinged Presser`,
+    buildBody: (v, tone) =>
+      `${v.coach} stood before the media in ${v.city} and announced that ${v.team} would ${v.verb} the season using a ${v.object}.\n\n` +
       `"${v.quote}," ${v.coach} said, in a tone best described as ${tone.toLowerCase()}.\n\n` +
-      `Then ${v.twist}.\n\n` +
-      `![press conference](https://placehold.co/1200x630/312e81/f5f3ff/png?text=Press+Conference+Satire)\n\n` +
-      `Local coverage remains divided on whether this was strategy, performance art, or both.`,
+      `Reporters requested clarification. The podium declined comment.\n\n` +
+      `![satire](https://placehold.co/1200x630/312e81/f5f3ff/png?text=Press+Conference+Satire)`,
   },
   {
-    id: "trade-rumor",
+    id: "trade",
     title: "Ridiculous Trade Rumor",
+    template:
+      "Sources say {{player}} is leaving {{teamA}} for {{teamB}} in exchange for {{asset}}, according to {{source}}, sparking {{reaction}}.",
     fields: [
-      { key: "player", label: "Player / star", placeholder: "Shohei Ohtani" },
-      { key: "teamA", label: "Team A", placeholder: "the Cubs" },
-      { key: "teamB", label: "Team B", placeholder: "a minor league snack stand" },
-      { key: "asset", label: "Trade asset", placeholder: "three draft picks and a blender" },
-      { key: "source", label: "Unreliable source", placeholder: "a guy outside the stadium" },
-      { key: "reaction", label: "Fan reaction", placeholder: "collective confusion" },
+      { key: "player", label: "player", placeholder: "Shohei Ohtani" },
+      { key: "teamA", label: "team A", placeholder: "the Cubs" },
+      { key: "teamB", label: "team B", placeholder: "a minor-league snack stand" },
+      { key: "asset", label: "asset", placeholder: "three draft picks and a blender" },
+      { key: "source", label: "source", placeholder: "a guy outside the stadium" },
+      { key: "reaction", label: "reaction", placeholder: "collective confusion" },
     ],
-    build: (v, tone) =>
-      `# Report: ${v.player} Headed to ${v.teamB} in Stunning Deal\n\n` +
-      `According to ${v.source}, ${v.player} is on the move from ${v.teamA} to ${v.teamB} in exchange for ${v.asset}.\n\n` +
-      `The report, which has the energy of pure ${tone.toLowerCase()} satire, triggered ${v.reaction} across the fanbase.\n\n` +
-      `![trade graphic](https://placehold.co/1200x630/111827/fb923c/png?text=Trade+Rumor+Satire)\n\n` +
-      `Insiders stress this is not real. That has never stopped a good rumor.`,
+    buildTitle: (v) => `Report: ${v.player} Headed to ${v.teamB}`,
+    buildBody: (v, tone) =>
+      `According to ${v.source}, ${v.player} is moving from ${v.teamA} to ${v.teamB} for ${v.asset}.\n\n` +
+      `The leak, dripping with ${tone.toLowerCase()} energy, caused ${v.reaction} across the fanbase.\n\n` +
+      `This is satire. Do not rearrange your fantasy roster.\n\n` +
+      `![satire](https://placehold.co/1200x630/111827/fb923c/png?text=Trade+Rumor+Satire)`,
   },
 ];
+
+function fillTemplate(template: string, values: Record<string, string>) {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    const val = (values[key] || "").trim();
+    return val || `〔${key}〕`;
+  });
+}
 
 export default function SatireLabPage() {
   const [authLoading, setAuthLoading] = useState(true);
@@ -80,10 +92,10 @@ export default function SatireLabPage() {
   const [packIndex, setPackIndex] = useState(0);
   const [tone, setTone] = useState<(typeof TONES)[number]>("Funny");
   const [values, setValues] = useState<Record<string, string>>({});
-  const [draft, setDraft] = useState("");
-  const [title, setTitle] = useState("");
+  const [resultTitle, setResultTitle] = useState("");
+  const [resultBody, setResultBody] = useState("");
   const [message, setMessage] = useState("");
-  const [publishing, setPublishing] = useState(false);
+  const [working, setWorking] = useState(false);
   const [publishedId, setPublishedId] = useState<string | null>(null);
 
   const pack = PROMPT_PACKS[packIndex];
@@ -107,17 +119,21 @@ export default function SatireLabPage() {
   }, []);
 
   useEffect(() => {
-    // reset inputs when pack changes
     const next: Record<string, string> = {};
     pack.fields.forEach((f) => {
       next[f.key] = "";
     });
     setValues(next);
-    setDraft("");
-    setTitle("");
+    setResultTitle("");
+    setResultBody("");
     setMessage("");
     setPublishedId(null);
   }, [packIndex]);
+
+  const filledPrompt = useMemo(
+    () => fillTemplate(pack.template, values),
+    [pack.template, values]
+  );
 
   const canGenerate = useMemo(
     () => pack.fields.every((f) => (values[f.key] || "").trim().length > 0),
@@ -126,23 +142,6 @@ export default function SatireLabPage() {
 
   const refreshPack = () => {
     setPackIndex((i) => (i + 1) % PROMPT_PACKS.length);
-  };
-
-  const generateDraft = () => {
-    if (!canGenerate) {
-      setMessage("Fill in every madlib field first.");
-      return;
-    }
-    const cleaned: Record<string, string> = {};
-    pack.fields.forEach((f) => {
-      cleaned[f.key] = values[f.key].trim();
-    });
-    const body = pack.build(cleaned, tone);
-    const firstLine = body.split("\n").find((l) => l.startsWith("# "));
-    setTitle(firstLine ? firstLine.replace(/^#\s*/, "") : `${cleaned.star || cleaned.player || "Satire"} Report`);
-    setDraft(body.replace(/^#.*\n\n/, ""));
-    setMessage("Satire draft generated. Edit if you want, then publish.");
-    setPublishedId(null);
   };
 
   const awardPoints = async (uid: string, articleId: string) => {
@@ -165,24 +164,39 @@ export default function SatireLabPage() {
     window.dispatchEvent(new Event("ballpit-wallet-updated"));
   };
 
-  const publish = async () => {
+  const generateAndPost = async () => {
     if (!userId) return;
-    if (!title.trim() || !draft.trim()) {
-      setMessage("Generate a draft first.");
+    if (!canGenerate) {
+      setMessage("Fill in every blank first.");
       return;
     }
-    setPublishing(true);
+
+    setWorking(true);
     setMessage("");
+    setPublishedId(null);
+
     try {
+      const cleaned: Record<string, string> = {};
+      pack.fields.forEach((f) => {
+        cleaned[f.key] = values[f.key].trim();
+      });
+
+      const title = pack.buildTitle(cleaned);
+      const bodyCore = pack.buildBody(cleaned, tone);
       const body =
         `![satire banner](https://placehold.co/1200x400/7c3aed/ffffff/png?text=SATIRE)\n\n` +
-        draft.trim();
+        bodyCore;
 
+      // show output immediately
+      setResultTitle(title);
+      setResultBody(bodyCore);
+
+      // auto-post — no user choice
       const { data, error } = await supabase
         .from("articles")
         .insert({
           user_id: userId,
-          title: title.trim(),
+          title,
           section: "Satire",
           body,
           author_name: displayName,
@@ -191,16 +205,16 @@ export default function SatireLabPage() {
         .single();
 
       if (error) {
-        setMessage(`Publish failed: ${error.message}`);
+        setMessage(`Generated, but post failed: ${error.message}`);
       } else {
         await awardPoints(userId, data.id);
         setPublishedId(data.id);
-        setMessage("Satire published. +5 points");
+        setMessage("Satire generated and posted automatically. +5 points");
       }
     } catch {
-      setMessage("Something went wrong while publishing.");
+      setMessage("Something went wrong while generating/posting.");
     } finally {
-      setPublishing(false);
+      setWorking(false);
     }
   };
 
@@ -217,7 +231,7 @@ export default function SatireLabPage() {
       <main className="max-w-3xl mx-auto px-4 py-16 text-center">
         <h1 className="text-3xl font-bold mb-3">Satire Lab</h1>
         <p className="text-gray-300 mb-6">
-          Account required to generate and publish madlib-style satire.
+          Account required to generate and auto-post satire.
         </p>
         <Link href="/login" className="inline-block px-6 py-3 rounded-xl bg-forge-accent text-white font-medium">
           Log in / Sign up
@@ -227,118 +241,104 @@ export default function SatireLabPage() {
   }
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-10">
+    <main className="max-w-4xl mx-auto px-4 py-10">
       <div className="mb-8">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-600/20 text-purple-200 text-xs font-semibold mb-3">
-          SATIRE · clearly untrue
+          SATIRE · auto-posted
         </div>
         <h1 className="text-3xl font-bold mb-2">Satire Lab</h1>
         <p className="text-gray-300 text-sm">
-          Madlib-style generation. Fill the blanks, pick a tone, generate a full satire draft with image placeholders.
+          Fill in the blanks. Generate. It posts automatically.
         </p>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <div>
-                <div className="text-sm text-gray-400">Prompt set</div>
-                <div className="font-semibold">{pack.title}</div>
-              </div>
-              <button
-                type="button"
-                onClick={refreshPack}
-                className="px-3 py-2 rounded-xl bg-black/20 text-sm hover:bg-black/30"
-              >
-                Refresh setup
-              </button>
-            </div>
+      <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 mb-6">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <div className="text-sm text-gray-400">Prompt set</div>
+            <div className="font-semibold">{pack.title}</div>
+          </div>
+          <button
+            type="button"
+            onClick={refreshPack}
+            className="px-3 py-2 rounded-xl bg-black/20 text-sm hover:bg-black/30"
+          >
+            New blanks
+          </button>
+        </div>
 
-            <div className="mb-4">
-              <label className="block text-sm text-gray-300 mb-1">Tone</label>
-              <select
-                value={tone}
-                onChange={(e) => setTone(e.target.value as (typeof TONES)[number])}
+        {/* Fill-in-the-blanks sentence */}
+        <div className="rounded-xl bg-black/20 border border-forge-800 p-4 mb-5 text-sm leading-relaxed text-gray-100">
+          {filledPrompt}
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm text-gray-300 mb-1">Tone</label>
+          <select
+            value={tone}
+            onChange={(e) => setTone(e.target.value as (typeof TONES)[number])}
+            className="w-full bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm outline-none"
+          >
+            {TONES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-3 mb-5">
+          {pack.fields.map((field) => (
+            <div key={field.key}>
+              <label className="block text-xs uppercase tracking-wide text-gray-400 mb-1">
+                {field.label}
+              </label>
+              <input
+                value={values[field.key] || ""}
+                onChange={(e) =>
+                  setValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                }
+                placeholder={field.placeholder}
                 className="w-full bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm outline-none"
-              >
-                {TONES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
-
-            <div className="space-y-3">
-              {pack.fields.map((field) => (
-                <div key={field.key}>
-                  <label className="block text-sm text-gray-300 mb-1">{field.label}</label>
-                  <input
-                    value={values[field.key] || ""}
-                    onChange={(e) =>
-                      setValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                    }
-                    placeholder={field.placeholder}
-                    className="w-full bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm outline-none"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={generateDraft}
-              disabled={!canGenerate}
-              className="mt-5 w-full px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-medium text-sm disabled:opacity-50"
-            >
-              Generate satire draft
-            </button>
-          </div>
-
-          <p className="text-xs text-gray-400">
-            Later this will call real AI for richer writing and images. For now it’s template-driven so the flow works end-to-end.
-          </p>
+          ))}
         </div>
 
-        <div className="space-y-4">
-          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 min-h-[420px]">
-            <div className="text-sm text-gray-400 mb-2">Draft preview</div>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Generated title..."
-              className="w-full bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm outline-none mb-3 font-semibold"
-            />
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Your generated satire will appear here..."
-              className="w-full min-h-[280px] bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm outline-none leading-relaxed"
-            />
-          </div>
+        <button
+          type="button"
+          onClick={generateAndPost}
+          disabled={!canGenerate || working}
+          className="w-full px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-medium text-sm disabled:opacity-50"
+        >
+          {working ? "Generating & posting..." : "Generate & auto-post satire"}
+        </button>
+      </div>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={publish}
-              disabled={publishing || !draft.trim()}
-              className="px-5 py-2.5 rounded-xl bg-forge-accent text-white text-sm font-medium disabled:opacity-60"
-            >
-              {publishing ? "Publishing..." : "Publish as Satire (+5 pts)"}
-            </button>
-            <Link href="/" className="px-5 py-2.5 rounded-xl bg-black/20 text-sm">
-              Back home
-            </Link>
+      {(resultTitle || resultBody) && (
+        <div className="bg-forge-900 border border-purple-500/30 rounded-2xl p-5 mb-4">
+          <div className="text-xs uppercase tracking-wide text-purple-200 mb-2">
+            AI result (posted)
           </div>
-
-          {message && <p className="text-sm text-yellow-200">{message}</p>}
-          {publishedId && (
-            <Link href={`/article/${publishedId}`} className="inline-block text-sm text-purple-200">
-              View published satire →
-            </Link>
-          )}
+          <h2 className="text-xl font-bold mb-3">{resultTitle}</h2>
+          <div className="text-sm text-gray-100 leading-relaxed whitespace-pre-wrap">
+            {resultBody}
+          </div>
         </div>
+      )}
+
+      {message && <p className="text-sm text-yellow-200 mb-3">{message}</p>}
+
+      {publishedId && (
+        <Link href={`/article/${publishedId}`} className="inline-block text-sm text-purple-200">
+          View posted satire →
+        </Link>
+      )}
+
+      <div className="mt-8">
+        <Link href="/" className="text-sm text-gray-300 hover:text-white">
+          ← Back home
+        </Link>
       </div>
     </main>
   );
