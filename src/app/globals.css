@@ -4,16 +4,9 @@
 
 :root {
   --pit-bg: #1e2022;
-  --pit-surface: #252729;
-  --pit-raised: #2c2f32;
-  --pit-deep: #16181a;
-  --metal-silver: #c8cdd2;
-  --metal-bronze: #b08d57;
-  --metal-copper: #c47a4a;
-  --neon-write: #ff8a3d;
-  --neon-purple: #a78bfa;
-  --vibe-tint: rgba(196, 122, 74, 0.08);
-  --vibe-side: transparent;
+  --vibe-left: transparent;
+  --vibe-right: transparent;
+  --vibe-glow: rgba(196, 122, 74, 0.08);
 }
 
 html,
@@ -24,87 +17,59 @@ body {
 body {
   background-color: var(--pit-bg);
   background-image:
-    var(--vibe-side),
-    radial-gradient(ellipse 80% 50% at 50% -10%, var(--vibe-tint), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(167, 139, 250, 0.05), transparent 45%),
-    radial-gradient(ellipse 50% 30% at 0% 100%, rgba(176, 141, 87, 0.04), transparent 40%);
+    var(--vibe-left),
+    var(--vibe-right),
+    radial-gradient(ellipse 80% 45% at 50% -8%, var(--vibe-glow), transparent 55%);
   background-attachment: fixed;
   color: #e8eaed;
   font-family: var(--font-body), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  transition: background-image 0.35s ease;
+  transition: background-image 0.4s ease;
 }
 
-/* Sport vibes — side-wall atmosphere, still dark/metallic */
+/* Clean cinematic washes only */
 body.vibe-default {
-  --vibe-tint: rgba(196, 122, 74, 0.08);
-  --vibe-side: transparent;
+  --vibe-left: transparent;
+  --vibe-right: transparent;
+  --vibe-glow: rgba(196, 122, 74, 0.08);
 }
 
 body.vibe-football {
-  --vibe-tint: rgba(34, 120, 60, 0.14);
-  --vibe-side:
-    linear-gradient(90deg, rgba(22, 70, 38, 0.35) 0%, transparent 18%),
-    linear-gradient(270deg, rgba(22, 70, 38, 0.28) 0%, transparent 16%),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent 48px,
-      rgba(255, 255, 255, 0.03) 48px,
-      rgba(255, 255, 255, 0.03) 49px
-    );
+  --vibe-glow: rgba(40, 130, 70, 0.16);
+  --vibe-left: linear-gradient(90deg, rgba(18, 70, 40, 0.55) 0%, rgba(18, 70, 40, 0.18) 22%, transparent 42%);
+  --vibe-right: linear-gradient(270deg, rgba(18, 70, 40, 0.45) 0%, rgba(18, 70, 40, 0.12) 20%, transparent 40%);
 }
 
 body.vibe-basketball {
-  --vibe-tint: rgba(180, 90, 40, 0.12);
-  --vibe-side:
-    linear-gradient(90deg, rgba(90, 45, 20, 0.32) 0%, transparent 18%),
-    linear-gradient(270deg, rgba(90, 45, 20, 0.26) 0%, transparent 16%),
-    radial-gradient(circle at 8% 50%, rgba(255, 140, 60, 0.08), transparent 28%),
-    radial-gradient(circle at 92% 50%, rgba(255, 140, 60, 0.06), transparent 26%);
+  --vibe-glow: rgba(200, 100, 40, 0.14);
+  --vibe-left: linear-gradient(90deg, rgba(90, 40, 18, 0.55) 0%, rgba(90, 40, 18, 0.18) 22%, transparent 42%);
+  --vibe-right: linear-gradient(270deg, rgba(90, 40, 18, 0.45) 0%, rgba(90, 40, 18, 0.12) 20%, transparent 40%);
 }
 
 body.vibe-baseball {
-  --vibe-tint: rgba(160, 110, 70, 0.11);
-  --vibe-side:
-    linear-gradient(90deg, rgba(90, 55, 35, 0.3) 0%, transparent 18%),
-    linear-gradient(270deg, rgba(50, 90, 45, 0.22) 0%, transparent 16%),
-    radial-gradient(ellipse at 50% 100%, rgba(200, 160, 110, 0.08), transparent 40%);
+  --vibe-glow: rgba(170, 120, 70, 0.13);
+  --vibe-left: linear-gradient(90deg, rgba(95, 55, 30, 0.5) 0%, rgba(95, 55, 30, 0.16) 22%, transparent 42%);
+  --vibe-right: linear-gradient(270deg, rgba(40, 85, 45, 0.35) 0%, rgba(40, 85, 45, 0.1) 20%, transparent 40%);
 }
 
 body.vibe-hockey {
-  --vibe-tint: rgba(120, 170, 210, 0.1);
-  --vibe-side:
-    linear-gradient(90deg, rgba(40, 70, 95, 0.35) 0%, transparent 18%),
-    linear-gradient(270deg, rgba(40, 70, 95, 0.28) 0%, transparent 16%),
-    linear-gradient(180deg, rgba(180, 210, 230, 0.04), transparent 30%);
+  --vibe-glow: rgba(120, 175, 220, 0.12);
+  --vibe-left: linear-gradient(90deg, rgba(35, 70, 100, 0.55) 0%, rgba(35, 70, 100, 0.18) 22%, transparent 42%);
+  --vibe-right: linear-gradient(270deg, rgba(35, 70, 100, 0.45) 0%, rgba(35, 70, 100, 0.12) 20%, transparent 40%);
 }
 
 body.vibe-golf {
-  --vibe-tint: rgba(60, 140, 80, 0.12);
-  --vibe-side:
-    linear-gradient(90deg, rgba(30, 80, 45, 0.32) 0%, transparent 18%),
-    linear-gradient(270deg, rgba(30, 80, 45, 0.26) 0%, transparent 16%),
-    radial-gradient(ellipse at 20% 80%, rgba(120, 180, 90, 0.08), transparent 35%);
+  --vibe-glow: rgba(55, 150, 85, 0.14);
+  --vibe-left: linear-gradient(90deg, rgba(25, 85, 50, 0.52) 0%, rgba(25, 85, 50, 0.16) 22%, transparent 42%);
+  --vibe-right: linear-gradient(270deg, rgba(25, 85, 50, 0.42) 0%, rgba(25, 85, 50, 0.12) 20%, transparent 40%);
 }
 
-/* Premium recessed panels */
 .pit-panel {
   background: linear-gradient(180deg, #2a2d30 0%, #232629 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow:
     inset 0 4px 20px rgba(0, 0, 0, 0.55),
     0 1px 0 rgba(255, 255, 255, 0.03);
-  border-radius: 1rem;
-}
-
-.pit-panel-deep {
-  background: linear-gradient(180deg, #222527 0%, #1a1c1e 100%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow:
-    inset 0 6px 28px rgba(0, 0, 0, 0.7),
-    0 8px 24px rgba(0, 0, 0, 0.25);
   border-radius: 1rem;
 }
 
@@ -117,7 +82,6 @@ body.vibe-golf {
     0 10px 30px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   border-radius: 1rem;
-  backdrop-filter: blur(8px);
 }
 
 .metal-card:hover {
@@ -128,22 +92,6 @@ body.vibe-golf {
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.metal-title {
-  background: linear-gradient(180deg, #f4f6f7 0%, #c8cdd2 42%, #8b9298 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.55));
-}
-
-.copper-title {
-  background: linear-gradient(180deg, #e8b48a 0%, #c47a4a 48%, #8a4e2a 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.5));
-}
-
 .btn-write {
   background: linear-gradient(180deg, #ff9a4d 0%, #ff8a3d 45%, #e06d22 100%);
   color: #1a120c;
@@ -152,14 +100,10 @@ body.vibe-golf {
   box-shadow:
     0 0 20px rgba(255, 138, 61, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
 .btn-write:hover {
   filter: brightness(1.06);
-  box-shadow:
-    0 0 28px rgba(255, 138, 61, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
   transform: translateY(-1px);
 }
 
@@ -176,11 +120,11 @@ body.vibe-golf {
 }
 
 .btn-metal.active-vibe {
-  border-color: rgba(196, 122, 74, 0.45);
+  border-color: rgba(196, 122, 74, 0.5);
   color: #fff;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 0 1px rgba(196, 122, 74, 0.2);
+    0 0 0 1px rgba(196, 122, 74, 0.22);
 }
 
 .pit-divider {
@@ -209,7 +153,6 @@ select:focus {
 
 ::-webkit-scrollbar {
   width: 10px;
-  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: #16181a;
@@ -218,14 +161,4 @@ select:focus {
   background: #3a3f44;
   border-radius: 999px;
   border: 2px solid #16181a;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #4a5056;
-}
-
-.glass-strip {
-  background: rgba(37, 39, 41, 0.82);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
 }
