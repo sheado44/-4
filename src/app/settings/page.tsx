@@ -15,6 +15,17 @@ function calcAge(birthday: string): number | null {
   return age;
 }
 
+const PRESET_COLORS = [
+  "#2563eb",
+  "#f97316",
+  "#16a34a",
+  "#db2777",
+  "#7c3aed",
+  "#0891b2",
+  "#ca8a04",
+  "#dc2626",
+];
+
 export default function SettingsPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
@@ -24,6 +35,7 @@ export default function SettingsPage() {
   const [birthday, setBirthday] = useState("");
   const [location, setLocation] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [commentAvatarColor, setCommentAvatarColor] = useState("#2563eb");
   const [aiCredits, setAiCredits] = useState(0);
   const [aiPrompt, setAiPrompt] = useState("");
   const [message, setMessage] = useState("");
@@ -45,7 +57,9 @@ export default function SettingsPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, bio, link, sex, birthday, location, avatar_url, ai_credits")
+        .select(
+          "display_name, bio, link, sex, birthday, location, avatar_url, comment_avatar_color, ai_credits"
+        )
         .eq("id", user.id)
         .maybeSingle();
 
@@ -56,6 +70,7 @@ export default function SettingsPage() {
       setBirthday(profile?.birthday || "");
       setLocation(profile?.location || "");
       setAvatarUrl(profile?.avatar_url || "");
+      setCommentAvatarColor(profile?.comment_avatar_color || "#2563eb");
       setAiCredits(profile?.ai_credits ?? 0);
       setLoading(false);
     };
@@ -78,6 +93,7 @@ export default function SettingsPage() {
       age,
       location: location.trim(),
       avatar_url: avatarUrl || null,
+      comment_avatar_color: commentAvatarColor,
       updated_at: new Date().toISOString(),
     });
 
@@ -121,11 +137,8 @@ export default function SettingsPage() {
       updated_at: new Date().toISOString(),
     });
 
-    if (saveError) {
-      setMessage(`Uploaded, but save failed: ${saveError.message}`);
-    } else {
-      setMessage("Profile picture saved.");
-    }
+    if (saveError) setMessage(`Uploaded, but save failed: ${saveError.message}`);
+    else setMessage("Profile picture saved.");
     setUploading(false);
   };
 
@@ -173,11 +186,8 @@ export default function SettingsPage() {
       updated_at: new Date().toISOString(),
     });
 
-    if (saveError) {
-      setMessage(`AI avatar set, but save failed: ${saveError.message}`);
-    } else {
-      setMessage("AI avatar saved (placeholder provider). 1 credit used.");
-    }
+    if (saveError) setMessage(`AI avatar set, but save failed: ${saveError.message}`);
+    else setMessage("AI avatar saved (placeholder provider). 1 credit used.");
   };
 
   if (loading) {
@@ -199,6 +209,13 @@ export default function SettingsPage() {
     );
   }
 
+  const initials = (displayName || "U")
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <main className="max-w-2xl mx-auto px-4 py-10">
       <h1 className="text-3xl font-bold mb-6">Edit Profile</h1>
@@ -213,7 +230,7 @@ export default function SettingsPage() {
           />
         ) : (
           <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold">
-            {(displayName || "U").slice(0, 2).toUpperCase()}
+            {initials}
           </div>
         )}
         <div className="text-sm text-gray-300">
@@ -238,16 +255,49 @@ export default function SettingsPage() {
           <p className="text-sm text-gray-200 mb-2">
             {uploading ? "Uploading..." : "Drag & drop a profile picture here"}
           </p>
-          <p className="text-xs text-gray-400 mb-3">or browse from your computer</p>
+          <p className="text-xs text-gray-400 mb-3">Used on your profile page</p>
           <input type="file" accept="image/*" onChange={handleAvatarUpload} />
         </div>
 
         <div className="p-4 rounded-xl border border-forge-800 bg-forge-900">
-          <label className="block text-sm text-gray-300 mb-1">Or generate AI avatar</label>
+          <div className="text-sm font-medium mb-2">Comment / post avatar</div>
+          <p className="text-xs text-gray-400 mb-3">
+            Simple colored initials used in comments and article bylines.
+          </p>
+          <div className="flex items-center gap-3 mb-3">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
+              style={{ background: commentAvatarColor }}
+            >
+              {initials}
+            </div>
+            <input
+              type="color"
+              value={commentAvatarColor}
+              onChange={(e) => setCommentAvatarColor(e.target.value)}
+              className="w-12 h-10 bg-transparent cursor-pointer"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {PRESET_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCommentAvatarColor(c)}
+                className="w-7 h-7 rounded-full border border-white/20"
+                style={{ background: c }}
+                aria-label={c}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl border border-forge-800 bg-forge-900">
+          <label className="block text-sm text-gray-300 mb-1">Or generate AI profile photo</label>
           <input
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
-            placeholder="Describe your avatar..."
+            placeholder="Describe your profile photo..."
             className="w-full bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm mb-2 outline-none"
           />
           <button
@@ -255,7 +305,7 @@ export default function SettingsPage() {
             onClick={generateAiAvatar}
             className="px-3 py-2 rounded-lg bg-forge-accent text-white text-sm"
           >
-            Generate avatar (1 credit)
+            Generate profile photo (1 credit)
           </button>
         </div>
 
