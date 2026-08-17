@@ -294,4 +294,69 @@ export default function EditorPage() {
               className="px-3 py-1.5 rounded-lg bg-black/20 text-sm hover:bg-black/30"
             >
               Image URL
-            </button
+            </button>
+          </div>
+
+          <textarea
+            ref={bodyRef}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Write your article here..."
+            className="w-full min-h-[360px] bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
+          />
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              onClick={handlePublish}
+              disabled={loading}
+              className="px-6 py-2.5 bg-forge-accent hover:bg-forge-accentHover text-white font-medium rounded-xl transition text-sm disabled:opacity-60"
+            >
+              {loading ? "Publishing..." : "Publish"}
+            </button>
+            <Link href="/login" className="text-sm text-gray-300 hover:text-white transition">
+              Go to Login
+            </Link>
+          </div>
+
+          {message && (
+            <div className="mt-4 text-sm text-yellow-200">
+              <p>{message}</p>
+              {publishedId && (
+                <Link
+                  href={`/article/${publishedId}`}
+                  className="inline-block mt-2 text-forge-accent hover:text-orange-300 font-medium"
+                >
+                  View article →
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className="text-sm text-gray-300 mb-2">Live preview</div>
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 min-h-[500px]">
+            <h2 className="text-2xl font-bold mb-4">{title || "Untitled article"}</h2>
+            {thumbnailUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={thumbnailUrl}
+                alt="Thumbnail preview"
+                className="w-full max-h-56 object-cover rounded-xl mb-4"
+              />
+            )}
+            <div
+              className="text-gray-100 text-sm leading-relaxed"
+              dangerouslySetInnerHTML={{
+                __html: previewHtml || "<span class='text-gray-400'>Start writing to preview...</span>",
+              }}
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-3">
+            Next stage: direct computer uploads + AI image generation with credits.
+          </p>
+        </div>
+      </div>
+    </main>
+  );
+}
