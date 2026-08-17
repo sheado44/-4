@@ -49,6 +49,15 @@ function getGuestKey() {
   return key;
 }
 
+function getInitials(name: string) {
+  return (name || "U")
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 export default function ArticlePage() {
   const params = useParams();
   const id = params?.id as string;
@@ -342,12 +351,7 @@ export default function ArticlePage() {
 
   const isSatire = article.section === "Satire";
   const author = article.author_name || "Unknown author";
-  const initials = author
-    .split(" ")
-    .map((p) => p[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const authorInitials = getInitials(author);
   const isOwnArticle = Boolean(userId && article.user_id === userId);
 
   const topLevel = comments.filter((c) => !c.parent_id);
@@ -368,12 +372,19 @@ export default function ArticlePage() {
       downVoters: [],
     };
     const isOwnComment = Boolean(userId && c.user_id === userId);
+    const initials = getInitials(c.author_name);
     const upTitle =
       v.upVoters.length > 0 ? v.upVoters.map((x) => x.name).join(", ") : "No upvotes yet";
     const downTitle =
       v.downVoters.length > 0
         ? v.downVoters.map((x) => x.name).join(", ")
         : "No downvotes yet";
+
+    const avatar = (
+      <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-[11px] font-bold shrink-0">
+        {initials}
+      </div>
+    );
 
     return (
       <div
@@ -384,20 +395,29 @@ export default function ArticlePage() {
       >
         <div className="flex items-center gap-2 text-sm mb-2">
           {c.user_id ? (
-            <Link href={`/profile/${c.user_id}`} className="font-medium hover:text-forge-accent transition">
-              {c.author_name}
+            <Link
+              href={`/profile/${c.user_id}`}
+              className="flex items-center gap-2 font-medium hover:text-forge-accent transition"
+            >
+              {avatar}
+              <span>{c.author_name}</span>
             </Link>
           ) : (
-            <span className="font-medium text-gray-200">
-              {c.author_name}
-              <span className="ml-2 text-xs text-gray-400">guest</span>
+            <span className="flex items-center gap-2 font-medium text-gray-200">
+              {avatar}
+              <span>
+                {c.author_name}
+                <span className="ml-2 text-xs text-gray-400">guest</span>
+              </span>
             </span>
           )}
           <span className="text-gray-300 text-xs" title={formatTimeFull(c.created_at)}>
             {formatTime(c.created_at)}
           </span>
         </div>
+
         <p className="text-gray-100 text-sm leading-relaxed mb-3">{c.body}</p>
+
         <div className="flex items-center gap-3 text-sm">
           <button
             title={isOwnComment ? "You can’t vote on your own comment" : upTitle}
@@ -478,7 +498,7 @@ export default function ArticlePage() {
         className="flex items-center gap-3 mb-8 pb-6 border-b border-forge-800 group"
       >
         <div className="w-11 h-11 rounded-full bg-blue-600 flex items-center justify-center font-bold">
-          {initials}
+          {authorInitials}
         </div>
         <div>
           <div className="font-semibold group-hover:text-forge-accent transition">{author}</div>
