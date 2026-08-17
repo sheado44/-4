@@ -8,6 +8,7 @@ export default function AuthNav() {
   const [email, setEmail] = useState<string | null>(null);
   const [initials, setInitials] = useState("?");
   const [points, setPoints] = useState<number>(0);
+  const [avatarColor, setAvatarColor] = useState("#2563eb");
   const [loading, setLoading] = useState(true);
 
   const loadUser = async () => {
@@ -18,13 +19,21 @@ export default function AuthNav() {
       setEmail(null);
       setInitials("?");
       setPoints(0);
+      setAvatarColor("#2563eb");
       setLoading(false);
       return;
     }
 
     setEmail(user.email ?? null);
 
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name, points, comment_avatar_color")
+      .eq("id", user.id)
+      .maybeSingle();
+
     const displayName =
+      profile?.display_name ||
       user.user_metadata?.display_name ||
       user.email?.split("@")[0] ||
       "U";
@@ -37,14 +46,8 @@ export default function AuthNav() {
         .slice(0, 2)
         .toUpperCase()
     );
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("points")
-      .eq("id", user.id)
-      .maybeSingle();
-
     setPoints(profile?.points ?? 0);
+    setAvatarColor(profile?.comment_avatar_color || "#2563eb");
     setLoading(false);
   };
 
@@ -96,7 +99,8 @@ export default function AuthNav() {
 
       <Link
         href="/profile"
-        className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold hover:opacity-90 transition"
+        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold hover:opacity-90 transition"
+        style={{ background: avatarColor }}
         title={email}
       >
         {initials}
