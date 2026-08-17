@@ -34,10 +34,21 @@ type Comment = {
   article_title?: string;
 };
 
+type ReactionItem = {
+  vote: number;
+  comment_id: string;
+  comment_body: string;
+  comment_author: string;
+  article_id: string;
+  article_title: string;
+  created_at: string;
+};
+
 export default function ProfilePage() {
   const [user, setUser] = useState<ProfileUser | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [reactions, setReactions] = useState<ReactionItem[]>([]);
   const [upReceived, setUpReceived] = useState(0);
   const [downReceived, setDownReceived] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -113,22 +124,57 @@ export default function ProfilePage() {
       }
       setComments(commentsWithTitles);
 
-      // reactions received on this user's comments
-      const commentIds = (commentData || []).map((c) => c.id);
+      // votes received on my comments
+      const myCommentIds = (commentData || []).map((c) => c.id);
       let up = 0;
       let down = 0;
-      if (commentIds.length > 0) {
-        const { data: voteData } = await supabase
+      if (myCommentIds.length > 0) {
+        const { data: receivedVotes } = await supabase
           .from("comment_votes")
           .select("vote")
-          .in("comment_id", commentIds);
-        (voteData || []).forEach((v) => {
+          .in("comment_id", myCommentIds);
+        (receivedVotes || []).forEach((v) => {
           if (v.vote === 1) up += 1;
           if (v.vote === -1) down += 1;
         });
       }
       setUpReceived(up);
       setDownReceived(down);
+
+      // reactions I made on other comments
+      const { data: myVotes } = await supabase
+        .from("comment_votes")
+        .select("vote, comment_id, created_at")
+        .eq("user_id", authUser.id)
+        .order("created_at", { ascending: false });
+
+      const reactionItems: ReactionItem[] = [];
+      for (const vote of myVotes || []) {
+        const { data: targetComment } = await supabase
+          .from("comments")
+          .select("id, body, author_name, article_id")
+          .eq("id", vote.comment_id)
+          .maybeSingle();
+
+        if (!targetComment) continue;
+
+        const { data: art } = await supabase
+          .from("articles")
+          .select("title")
+          .eq("id", targetComment.article_id)
+          .maybeSingle();
+
+        reactionItems.push({
+          vote: vote.vote,
+          comment_id: targetComment.id,
+          comment_body: targetComment.body,
+          comment_author: targetComment.author_name,
+          article_id: targetComment.article_id,
+          article_title: art?.title || "Article",
+          created_at: vote.created_at,
+        });
+      }
+      setReactions(reactionItems);
 
       setLoading(false);
     };
@@ -313,22 +359,45 @@ export default function ProfilePage() {
       )}
 
       {activeTab === "reactions" && (
-        <div className="bg-forge-900 border border-forge-800 rounded-2xl p-6">
-          <h3 className="text-lg font-semibold mb-4">Reaction log</h3>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="rounded-xl bg-black/20 p-4">
-              <div className="text-sm text-gray-300 mb-1">Upvotes received</div>
-              <div className="text-3xl font-bold text-green-300">{upReceived}</div>
-            </div>
-            <div className="rounded-xl bg-black/20 p-4">
-              <div className="text-sm text-gray-300 mb-1">Downvotes received</div>
-              <div className="text-3xl font-bold text-red-300">{downReceived}</div>
-            </div>
+        reactions.length === 0 ? (
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-10 text-center">
+            <p className="text-gray-100 font-medium mb-1">No reactions yet</p>
+            <p className="text-sm text-gray-300">
+              When you thumbs-up or thumbs-down comments, they’ll show up here.
+            </p>
           </div>
-          <p className="text-sm text-gray-300 mt-4">
-            These counts come from reactions on your comments. We can expand this into a full activity feed next.
-          </p>
-        </div>
+        ) : (
+          <div className="space-y-4">
+            {reactions.map((r) => (
+              <Link
+                key={`${r.comment_id}-${r.vote}-${r.created_at}`}
+                href={`/article/${r.article_id}`}
+                className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
+              >
+                <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
+                  <span
+                    className={
+                      r.vote === 1 ? "text-green-300 font-semibold" : "text-red-300 font-semibold"
+                    }
+                  >
+                    {r.vote === 1 ? "👍 Upvoted" : "👎 Downvoted"}
+                  </span>
+                  <span>•</span>
+                  <span title={formatTimeFull(r.created_at)}>{formatTime(r.created_at)}</span>
+                </div>
+                <div className="text-sm text-gray-300 mb-1">
+                  Comment by <span className="text-white font-medium">{r.comment_author}</span>
+                  {" on "}
+                  <span className="text-white">{r.article_title}</span>
+                </div>
+                <p className="text-gray-100 text-sm leading-relaxed line-clamp-3">
+                  {r.comment_body}
+                </p>
+                <div className="text-xs text-forge-accent mt-3">Open thread →</div>
+              </Link>
+            ))}
+          </div>
+        )
       )}
 
       {activeTab === "satire" && (
