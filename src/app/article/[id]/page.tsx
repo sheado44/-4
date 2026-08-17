@@ -95,10 +95,14 @@ export default function ArticlePage() {
     const currentUserId = currentUser?.id || null;
 
     if (commentIds.length > 0) {
-      const { data: voteData } = await supabase
+      const { data: voteData, error: voteError } = await supabase
         .from("comment_votes")
         .select("comment_id, user_id, vote")
         .in("comment_id", commentIds);
+
+      if (voteError) {
+        console.error("Vote load error:", voteError.message);
+      }
 
       const voterIds = Array.from(new Set((voteData || []).map((v) => v.user_id)));
       const nameById: Record<string, string> = {};
@@ -208,25 +212,29 @@ export default function ArticlePage() {
     setPosting(false);
   };
 
-  const handleCommentVote = async (commentId: string, nextVote: 1 | -1) => {
+  const handleCommentVote = async (comment: Comment, nextVote: 1 | -1) => {
     setMessage("");
     if (!userId) {
       setMessage("Log in to vote on comments.");
       return;
     }
+    if (comment.user_id && comment.user_id === userId) {
+      setMessage("You can’t vote on your own comment.");
+      return;
+    }
 
-    const current = votes[commentId]?.myVote ?? null;
+    const current = votes[comment.id]?.myVote ?? null;
     try {
       if (current === nextVote) {
         const { error } = await supabase
           .from("comment_votes")
           .delete()
-          .eq("comment_id", commentId)
+          .eq("comment_id", comment.id)
           .eq("user_id", userId);
         if (error) throw error;
       } else if (current === null) {
         const { error } = await supabase.from("comment_votes").insert({
-          comment_id: commentId,
+          comment_id: comment.id,
           user_id: userId,
           vote: nextVote,
         });
@@ -235,7 +243,7 @@ export default function ArticlePage() {
         const { error } = await supabase
           .from("comment_votes")
           .update({ vote: nextVote })
-          .eq("comment_id", commentId)
+          .eq("comment_id", comment.id)
           .eq("user_id", userId);
         if (error) throw error;
       }
@@ -251,6 +259,11 @@ export default function ArticlePage() {
       setMessage("Log in to rate articles.");
       return;
     }
+    if (article && article.user_id === userId) {
+      setMessage("You can’t rate your own article.");
+      return;
+    }
+
     try {
       if (myRating) {
         const { error } = await supabase
@@ -302,6 +315,7 @@ export default function ArticlePage() {
     .slice(0, 2)
     .toUpperCase();
 
+  const isOwnArticle = Boolean(userId && article.user_id === userId);
   const topLevel = comments.filter((c) => !c.parent_id);
   const repliesByParent: Record<string, Comment[]> = {};
   comments.forEach((c) => {
@@ -319,6 +333,7 @@ export default function ArticlePage() {
       upVoters: [],
       downVoters: [],
     };
+    const isOwnComment = Boolean(userId && c.user_id === userId);
     const upTitle =
       v.upVoters.length > 0 ? v.upVoters.map((x) => x.name).join(", ") : "No upvotes yet";
     const downTitle =
@@ -356,10 +371,13 @@ export default function ArticlePage() {
 
         <div className="flex items-center gap-3 text-sm">
           <button
-            title={upTitle}
-            onClick={() => handleCommentVote(c.id, 1)}
+            title={isOwnComment ? "You can’t vote on your own comment" : upTitle}
+            onClick={() => handleCommentVote(c, 1)}
+            disabled={isOwnComment}
             className={`px-2 py-1 rounded-lg transition ${
-              v.myVote === 1
+              isOwnComment
+                ? "bg-black/10 text-gray-500 cursor-not-allowed"
+                : v.myVote === 1
                 ? "bg-green-600/30 text-green-300"
                 : "bg-black/20 text-gray-300 hover:text-white"
             }`}
@@ -367,10 +385,13 @@ export default function ArticlePage() {
             👍 {v.up}
           </button>
           <button
-            title={downTitle}
-            onClick={() => handleCommentVote(c.id, -1)}
+            title={isOwnComment ? "You can’t vote on your own comment" : downTitle}
+            onClick={() => handleCommentVote(c, -1)}
+            disabled={isOwnComment}
             className={`px-2 py-1 rounded-lg transition ${
-              v.myVote === -1
+              isOwnComment
+                ? "bg-black/10 text-gray-500 cursor-not-allowed"
+                : v.myVote === -1
                 ? "bg-red-600/30 text-red-300"
                 : "bg-black/20 text-gray-300 hover:text-white"
             }`}
@@ -453,14 +474,28 @@ export default function ArticlePage() {
             <button
               key={star}
               onClick={() => handleRating(star)}
+              disabled={isOwnArticle}
               className={`transition hover:scale-110 ${
-                (myRating ?? 0) >= star ? "text-yellow-300" : "text-gray-500"
+                isOwnArticle
+                  ? "text-gray-600 cursor-not-allowed"
+                  : (myRating ?? 0) >= star
+                  ? "text-yellow-300"
+                  : "text-gray-500"
               }`}
             >
               ★
             </button>
           ))}
         </div>
+        <p className="text-xs text-gray-300 mt-2">
+          {isOwnArticle
+            ? "You can’t rate your own article."
+            : userId
+            ? myRating
+              ? `Your rating: ${myRating} star${myRating === 1 ? "" : "s"}`
+              : "Click a star to rate"
+            : "Log in to rate"}
+        </p>
       </div>
 
       <section className="border-t border-forge-800 pt-8">
@@ -499,7 +534,13 @@ export default function ArticlePage() {
               disabled={posting}
               className="px-5 py-2 bg-forge-accent hover:bg-forge-accentHover text-white text-sm font-medium rounded-xl transition disabled:opacity-60"
             >
-              {posting ? "Posting..." : replyTo ? "Post Reply" : userId ? "Post Comment" : "Post as Guest"}
+              {posting
+                ? "Posting..."
+                : replyTo
+                ? "Post Reply"
+                : userId
+                ? "Post Comment"
+                : "Post as Guest"}
             </button>
           </div>
         </div>
