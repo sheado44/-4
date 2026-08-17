@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function EditorPage() {
+  const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
   const [section, setSection] = useState("Sports");
   const [body, setBody] = useState("");
@@ -47,7 +49,12 @@ export default function EditorPage() {
 
   useEffect(() => {
     loadUser();
-  }, []);
+
+    const preset = searchParams.get("section");
+    if (preset === "Sports" || preset === "Pop Culture" || preset === "Satire") {
+      setSection(preset);
+    }
+  }, [searchParams]);
 
   const wrapSelection = (before: string, after = before) => {
     const el = bodyRef.current;
@@ -274,6 +281,7 @@ export default function EditorPage() {
         setThumbnailUrl("");
         setAiPrompt("");
         setSection("Sports");
+        window.dispatchEvent(new Event("ballpit-wallet-updated"));
       }
     } catch {
       setMessage("Something went wrong while publishing.");
