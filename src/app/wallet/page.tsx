@@ -9,38 +9,78 @@ type StoreItem = {
   name: string;
   description: string;
   cost: number;
+  kind: "ai" | "skin" | "other";
+  skinId?: string;
 };
 
 const STORE_ITEMS: StoreItem[] = [
   {
     id: "ai-credit-5",
     name: "5 AI Credits",
-    description: "Use for AI images, satire generation, and other AI tools.",
+    description: "Use for AI images and tools.",
     cost: 50,
+    kind: "ai",
   },
   {
     id: "ai-credit-20",
     name: "20 AI Credits",
-    description: "Bigger AI pack for articles and comments.",
+    description: "Bigger AI pack.",
     cost: 150,
+    kind: "ai",
   },
   {
-    id: "badge-correspondent",
-    name: "Correspondent Badge",
-    description: "Profile badge placeholder for active publishers.",
-    cost: 150,
+    id: "skin-leopard",
+    name: "Leopard Skin",
+    description: "Patterned comment avatar skin.",
+    cost: 100,
+    kind: "skin",
+    skinId: "leopard",
   },
   {
-    id: "merch-hat",
-    name: "Ballpit Hat",
-    description: "Merch placeholder. Fulfillment later.",
-    cost: 500,
+    id: "skin-zebra",
+    name: "Zebra Skin",
+    description: "Patterned comment avatar skin.",
+    cost: 100,
+    kind: "skin",
+    skinId: "zebra",
+  },
+  {
+    id: "skin-camo",
+    name: "Camo Skin",
+    description: "Patterned comment avatar skin.",
+    cost: 100,
+    kind: "skin",
+    skinId: "camo",
+  },
+  {
+    id: "skin-galaxy",
+    name: "Galaxy Skin",
+    description: "Patterned comment avatar skin.",
+    cost: 100,
+    kind: "skin",
+    skinId: "galaxy",
+  },
+  {
+    id: "skin-carbon",
+    name: "Carbon Skin",
+    description: "Patterned comment avatar skin.",
+    cost: 100,
+    kind: "skin",
+    skinId: "carbon",
   },
 ];
+
+function parseOwned(owned: string | null | undefined) {
+  return (owned || "none")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 export default function WalletPage() {
   const [points, setPoints] = useState(0);
   const [aiCredits, setAiCredits] = useState(0);
+  const [ownedSkins, setOwnedSkins] = useState<string[]>(["none"]);
   const [userId, setUserId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -57,12 +97,13 @@ export default function WalletPage() {
     setUserId(user.id);
     const { data: profile } = await supabase
       .from("profiles")
-      .select("points, ai_credits")
+      .select("points, ai_credits, owned_skins")
       .eq("id", user.id)
       .maybeSingle();
 
     setPoints(profile?.points ?? 0);
     setAiCredits(profile?.ai_credits ?? 0);
+    setOwnedSkins(parseOwned(profile?.owned_skins));
     setLoading(false);
   };
 
@@ -81,11 +122,23 @@ export default function WalletPage() {
       return;
     }
 
+    if (item.kind === "skin" && item.skinId && ownedSkins.includes(item.skinId)) {
+      setMessage("You already own that skin.");
+      return;
+    }
+
     const newPoints = points - item.cost;
     let newAiCredits = aiCredits;
+    let newOwned = [...ownedSkins];
 
-    if (item.id === "ai-credit-5") newAiCredits += 5;
-    if (item.id === "ai-credit-20") newAiCredits += 20;
+    if (item.kind === "ai") {
+      if (item.id === "ai-credit-5") newAiCredits += 5;
+      if (item.id === "ai-credit-20") newAiCredits += 20;
+    }
+
+    if (item.kind === "skin" && item.skinId) {
+      if (!newOwned.includes(item.skinId)) newOwned.push(item.skinId);
+    }
 
     const { error: ledgerError } = await supabase.from("points_ledger").insert({
       user_id: userId,
@@ -102,6 +155,7 @@ export default function WalletPage() {
       .update({
         points: newPoints,
         ai_credits: newAiCredits,
+        owned_skins: newOwned.join(","),
         updated_at: new Date().toISOString(),
       })
       .eq("id", userId);
@@ -113,6 +167,7 @@ export default function WalletPage() {
 
     setPoints(newPoints);
     setAiCredits(newAiCredits);
+    setOwnedSkins(newOwned);
     setMessage(`Redeemed ${item.name}.`);
   };
 
@@ -128,7 +183,6 @@ export default function WalletPage() {
     return (
       <main className="max-w-3xl mx-auto px-4 py-10 text-center">
         <h1 className="text-2xl font-bold mb-3">Wallet</h1>
-        <p className="text-gray-300 mb-4">Log in to view your wallet.</p>
         <Link href="/login" className="text-forge-accent">
           Log in / Sign up
         </Link>
@@ -141,7 +195,7 @@ export default function WalletPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Wallet</h1>
         <p className="text-gray-300 text-sm">
-          Points come from contributions. AI credits power generation tools.
+          Spend points on AI credits and avatar skins. All skins cost 100 pts.
         </p>
       </div>
 
@@ -149,19 +203,18 @@ export default function WalletPage() {
         <div className="bg-gradient-to-r from-orange-600/20 to-forge-900 border border-orange-500/30 rounded-2xl p-6">
           <div className="text-xs uppercase tracking-wide text-gray-300 mb-1">Points</div>
           <div className="text-4xl font-bold text-white mb-2">{points}</div>
-          <div className="text-sm text-gray-300">Real articles +50 · Satire +5</div>
         </div>
         <div className="bg-gradient-to-r from-blue-600/20 to-forge-900 border border-blue-400/30 rounded-2xl p-6">
           <div className="text-xs uppercase tracking-wide text-gray-300 mb-1">AI Credits</div>
           <div className="text-4xl font-bold text-white mb-2">{aiCredits}</div>
-          <div className="text-sm text-gray-300">New users get 20 · spend on AI tools</div>
         </div>
       </div>
 
       <h2 className="text-xl font-semibold mb-4">Store</h2>
       <div className="space-y-4">
         {STORE_ITEMS.map((item) => {
-          const canBuy = points >= item.cost;
+          const owned = item.kind === "skin" && item.skinId ? ownedSkins.includes(item.skinId) : false;
+          const canBuy = !owned && points >= item.cost;
           return (
             <div
               key={item.id}
@@ -176,12 +229,14 @@ export default function WalletPage() {
                 onClick={() => handleRedeem(item)}
                 disabled={!canBuy}
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
-                  canBuy
+                  owned
+                    ? "bg-black/20 text-gray-400 cursor-not-allowed"
+                    : canBuy
                     ? "bg-forge-accent hover:bg-forge-accentHover text-white"
                     : "bg-black/20 text-gray-400 cursor-not-allowed"
                 }`}
               >
-                {canBuy ? "Redeem" : "Need more points"}
+                {owned ? "Owned" : canBuy ? "Redeem" : "Need more points"}
               </button>
             </div>
           );
@@ -191,8 +246,8 @@ export default function WalletPage() {
       {message && <p className="mt-6 text-sm text-yellow-200">{message}</p>}
 
       <div className="mt-10">
-        <Link href="/profile" className="text-sm text-gray-300 hover:text-white">
-          ← Back to profile
+        <Link href="/settings" className="text-sm text-gray-300 hover:text-white">
+          Equip skins in Settings →
         </Link>
       </div>
     </main>
