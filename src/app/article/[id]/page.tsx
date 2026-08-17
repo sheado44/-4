@@ -12,517 +12,350 @@ type Article = {
   section: string;
   body: string;
   created_at: string;
-  user_id: string;
-  author_name: string | null;
 };
 
 type Comment = {
   id: string;
-  author_name: string;
+  article_id: string;
   body: string;
   created_at: string;
-  is_guest: boolean;
-  user_id: string | null;
-  parent_id: string | null;
+  article_title?: string;
 };
 
-type Voter = { user_id: string; name: string };
-type VoteInfo = {
-  up: number;
-  down: number;
-  myVote: number | null;
-  upVoters: Voter[];
-  downVoters: Voter[];
+type Relationship = {
+  tier: "BFF" | "Ally" | "Neutral" | "Foe" | "Strangers";
+  positive: number;
+  negative: number;
+  total: number;
 };
-type VoteMap = Record<string, VoteInfo>;
 
-function makeGuestName() {
-  return `anon_${Math.random().toString(16).slice(2, 8)}`;
+function calcTier(positive: number, negative: number): Relationship {
+  const total = positive + negative;
+  if (total === 0) {
+    return { tier: "Strangers", positive, negative, total };
+  }
+
+  const ratio = positive / total;
+  if (ratio >= 0.95) return { tier: "BFF", positive, negative, total };
+  if (ratio >= 0.7) return { tier: "Ally", positive, negative, total };
+  if (ratio <= 0.3) return { tier: "Foe", positive, negative, total };
+  return { tier: "Neutral", positive, negative, total };
 }
 
-export default function ArticlePage() {
+function tierColor(tier: Relationship["tier"]) {
+  switch (tier) {
+    case "BFF":
+      return "text-pink-300 border-pink-400/40 bg-pink-500/10";
+    case "Ally":
+      return "text-green-300 border-green-400/40 bg-green-500/10";
+    case "Foe":
+      return "text-red-300 border-red-400/40 bg-red-500/10";
+    case "Neutral":
+      return "text-yellow-200 border-yellow-400/30 bg-yellow-500/10";
+    default:
+      return "text-gray-300 border-gray-400/30 bg-black/20";
+  }
+}
+
+export default function PublicProfilePage() {
   const params = useParams();
   const id = params?.id as string;
 
-  const [article, setArticle] = useState<Article | null>(null);
+  const [displayName, setDisplayName] = useState("User");
+  const [bio, setBio] = useState("");
+  const [link, setLink] = useState("");
+  const [sex, setSex] = useState("");
+  const [age, setAge] = useState<number | null>(null);
+  const [location, setLocation] = useState("");
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [votes, setVotes] = useState<VoteMap>({});
-  const [avgRating, setAvgRating] = useState<number | null>(null);
-  const [ratingCount, setRatingCount] = useState(0);
-  const [myRating, setMyRating] = useState<number | null>(null);
-  const [commentText, setCommentText] = useState("");
-  const [replyTo, setReplyTo] = useState<Comment | null>(null);
-  const [message, setMessage] = useState("");
+  const [activeTab, setActiveTab] = useState<"articles" | "comments" | "satire">("articles");
+  const [relationship, setRelationship] = useState<Relationship | null>(null);
+  const [viewerId, setViewerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [posting, setPosting] = useState(false);
-  const [userName, setUserName] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [error, setError] = useState("");
-
-  const loadAll = async () => {
-    if (!id) return;
-
-    const { data: articleData, error: articleError } = await supabase
-      .from("articles")
-      .select("id, title, section, body, created_at, user_id, author_name")
-      .eq("id", id)
-      .single();
-
-    if (articleError || !articleData) {
-      setError("Article not found.");
-      setLoading(false);
-      return;
-    }
-    setArticle(articleData);
-
-    const { data: commentData } = await supabase
-      .from("comments")
-      .select("id, author_name, body, created_at, is_guest, user_id, parent_id")
-      .eq("article_id", id)
-      .order("created_at", { ascending: true });
-    const loadedComments = commentData || [];
-    setComments(loadedComments);
-
-    const commentIds = loadedComments.map((c) => c.id);
-    const voteMap: VoteMap = {};
-    commentIds.forEach((cid) => {
-      voteMap[cid] = { up: 0, down: 0, myVote: null, upVoters: [], downVoters: [] };
-    });
-
-    const { data: sessionData } = await supabase.auth.getSession();
-    const currentUser = sessionData.session?.user || null;
-    const currentUserId = currentUser?.id || null;
-
-    if (commentIds.length > 0) {
-      const { data: voteData } = await supabase
-        .from("comment_votes")
-        .select("comment_id, user_id, vote")
-        .in("comment_id", commentIds);
-
-      const voterIds = Array.from(new Set((voteData || []).map((v) => v.user_id)));
-      const nameById: Record<string, string> = {};
-      if (voterIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, display_name")
-          .in("id", voterIds);
-        (profiles || []).forEach((p) => {
-          nameById[p.id] = p.display_name || "User";
-        });
-      }
-
-      (voteData || []).forEach((v) => {
-        if (!voteMap[v.comment_id]) {
-          voteMap[v.comment_id] = {
-            up: 0,
-            down: 0,
-            myVote: null,
-            upVoters: [],
-            downVoters: [],
-          };
-        }
-        const voter = { user_id: v.user_id, name: nameById[v.user_id] || "User" };
-        if (v.vote === 1) {
-          voteMap[v.comment_id].up += 1;
-          voteMap[v.comment_id].upVoters.push(voter);
-        }
-        if (v.vote === -1) {
-          voteMap[v.comment_id].down += 1;
-          voteMap[v.comment_id].downVoters.push(voter);
-        }
-        if (currentUserId && v.user_id === currentUserId) {
-          voteMap[v.comment_id].myVote = v.vote;
-        }
-      });
-    }
-    setVotes(voteMap);
-
-    const { data: ratingData } = await supabase
-      .from("ratings")
-      .select("stars, user_id")
-      .eq("article_id", id);
-
-    if (ratingData && ratingData.length > 0) {
-      const total = ratingData.reduce((sum, r) => sum + r.stars, 0);
-      setAvgRating(total / ratingData.length);
-      setRatingCount(ratingData.length);
-    } else {
-      setAvgRating(null);
-      setRatingCount(0);
-    }
-
-    if (currentUser) {
-      setUserId(currentUser.id);
-      setUserName(
-        currentUser.user_metadata?.display_name ||
-          currentUser.email?.split("@")[0] ||
-          "User"
-      );
-      const mine = ratingData?.find((r) => r.user_id === currentUser.id);
-      setMyRating(mine ? mine.stars : null);
-    } else {
-      setUserId(null);
-      setUserName(null);
-      setMyRating(null);
-    }
-
-    setLoading(false);
-  };
 
   useEffect(() => {
-    loadAll();
+    const load = async () => {
+      if (!id) return;
+
+      const { data: authData } = await supabase.auth.getUser();
+      const viewer = authData.user;
+      setViewerId(viewer?.id || null);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("display_name, bio, link, sex, age, location, updated_at")
+        .eq("id", id)
+        .maybeSingle();
+
+      const { data: articleData } = await supabase
+        .from("articles")
+        .select("id, title, section, body, created_at, author_name")
+        .eq("user_id", id)
+        .order("created_at", { ascending: false });
+
+      const mappedArticles = (articleData || []).map((a) => ({
+        id: a.id,
+        title: a.title,
+        section: a.section,
+        body: a.body,
+        created_at: a.created_at,
+      }));
+      setArticles(mappedArticles);
+
+      const { data: commentData } = await supabase
+        .from("comments")
+        .select("id, article_id, body, created_at")
+        .eq("user_id", id)
+        .order("created_at", { ascending: false });
+
+      const commentsWithTitles: Comment[] = [];
+      for (const comment of commentData || []) {
+        const { data: art } = await supabase
+          .from("articles")
+          .select("title")
+          .eq("id", comment.article_id)
+          .single();
+        commentsWithTitles.push({
+          ...comment,
+          article_title: art?.title || "Article",
+        });
+      }
+      setComments(commentsWithTitles);
+
+      if (profile?.display_name) setDisplayName(profile.display_name);
+      else if (articleData?.[0]?.author_name) setDisplayName(articleData[0].author_name);
+
+      setBio(profile?.bio || "");
+      setLink(profile?.link || "");
+      setSex(profile?.sex || "");
+      setAge(profile?.age ?? null);
+      setLocation(profile?.location || "");
+      setUpdatedAt(profile?.updated_at || null);
+
+      // Private relationship vs viewer
+      if (viewer?.id && viewer.id !== id) {
+        let positive = 0;
+        let negative = 0;
+
+        // votes by viewer on this user's comments
+        const theirCommentIds = (commentData || []).map((c) => c.id);
+        if (theirCommentIds.length > 0) {
+          const { data: votesOnThem } = await supabase
+            .from("comment_votes")
+            .select("vote")
+            .eq("user_id", viewer.id)
+            .in("comment_id", theirCommentIds);
+          (votesOnThem || []).forEach((v) => {
+            if (v.vote === 1) positive += 1;
+            if (v.vote === -1) negative += 1;
+          });
+        }
+
+        // votes by this user on viewer's comments
+        const { data: viewerComments } = await supabase
+          .from("comments")
+          .select("id")
+          .eq("user_id", viewer.id);
+        const viewerCommentIds = (viewerComments || []).map((c) => c.id);
+        if (viewerCommentIds.length > 0) {
+          const { data: votesOnViewer } = await supabase
+            .from("comment_votes")
+            .select("vote")
+            .eq("user_id", id)
+            .in("comment_id", viewerCommentIds);
+          (votesOnViewer || []).forEach((v) => {
+            if (v.vote === 1) positive += 1;
+            if (v.vote === -1) negative += 1;
+          });
+        }
+
+        // article ratings by viewer on this user's articles
+        const theirArticleIds = mappedArticles.map((a) => a.id);
+        if (theirArticleIds.length > 0) {
+          const { data: ratings } = await supabase
+            .from("ratings")
+            .select("stars")
+            .eq("user_id", viewer.id)
+            .in("article_id", theirArticleIds);
+          (ratings || []).forEach((r) => {
+            if (r.stars >= 4) positive += 1;
+            else if (r.stars <= 2) negative += 1;
+            else {
+              // 3 stars counts lightly neutral: ignore for polarity
+            }
+          });
+        }
+
+        setRelationship(calcTier(positive, negative));
+      } else {
+        setRelationship(null);
+      }
+
+      setLoading(false);
+    };
+
+    load();
   }, [id]);
 
-  const handleComment = async () => {
-    setMessage("");
-    if (!commentText.trim()) {
-      setMessage("Write something first.");
-      return;
-    }
-
-    setPosting(true);
-    const isLoggedIn = Boolean(userId && userName);
-    const authorName = isLoggedIn ? userName! : makeGuestName();
-
-    const { error } = await supabase.from("comments").insert({
-      article_id: id,
-      user_id: isLoggedIn ? userId : null,
-      author_name: authorName,
-      body: commentText.trim(),
-      is_guest: !isLoggedIn,
-      parent_id: replyTo ? replyTo.id : null,
-    });
-
-    if (error) {
-      setMessage(`Comment failed: ${error.message}`);
-    } else {
-      setCommentText("");
-      setReplyTo(null);
-      setMessage(isLoggedIn ? "Comment posted." : `Guest comment posted as ${authorName}.`);
-      await loadAll();
-    }
-    setPosting(false);
-  };
-
-  const handleCommentVote = async (commentId: string, nextVote: 1 | -1) => {
-    setMessage("");
-    if (!userId) {
-      setMessage("Log in to vote on comments.");
-      return;
-    }
-
-    const current = votes[commentId]?.myVote ?? null;
-    try {
-      if (current === nextVote) {
-        const { error } = await supabase
-          .from("comment_votes")
-          .delete()
-          .eq("comment_id", commentId)
-          .eq("user_id", userId);
-        if (error) throw error;
-      } else if (current === null) {
-        const { error } = await supabase.from("comment_votes").insert({
-          comment_id: commentId,
-          user_id: userId,
-          vote: nextVote,
-        });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("comment_votes")
-          .update({ vote: nextVote })
-          .eq("comment_id", commentId)
-          .eq("user_id", userId);
-        if (error) throw error;
-      }
-      await loadAll();
-    } catch (err: any) {
-      setMessage(`Vote failed: ${err?.message || "unknown error"}`);
-    }
-  };
-
-  const handleRating = async (stars: number) => {
-    setMessage("");
-    if (!userId) {
-      setMessage("Log in to rate articles.");
-      return;
-    }
-    try {
-      if (myRating) {
-        const { error } = await supabase
-          .from("ratings")
-          .update({ stars })
-          .eq("article_id", id)
-          .eq("user_id", userId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("ratings").insert({
-          article_id: id,
-          user_id: userId,
-          stars,
-        });
-        if (error) throw error;
-      }
-      setMyRating(stars);
-      await loadAll();
-    } catch (err: any) {
-      setMessage(`Rating failed: ${err?.message || "unknown error"}`);
-    }
-  };
-
-  if (loading) {
-    return (
-      <main className="max-w-3xl mx-auto px-4 py-10">
-        <p className="text-gray-300">Loading article...</p>
-      </main>
-    );
-  }
-
-  if (error || !article) {
-    return (
-      <main className="max-w-3xl mx-auto px-4 py-10">
-        <p className="text-gray-200 mb-4">{error || "Article not found."}</p>
-        <Link href="/" className="text-forge-accent text-sm">
-          ← Back home
-        </Link>
-      </main>
-    );
-  }
-
-  const isSatire = article.section === "Satire";
-  const author = article.author_name || "Unknown author";
-  const initials = author
+  const initials = displayName
     .split(" ")
     .map((p) => p[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
 
-  const topLevel = comments.filter((c) => !c.parent_id);
-  const repliesByParent: Record<string, Comment[]> = {};
-  comments.forEach((c) => {
-    if (c.parent_id) {
-      if (!repliesByParent[c.parent_id]) repliesByParent[c.parent_id] = [];
-      repliesByParent[c.parent_id].push(c);
-    }
-  });
+  const details = [sex, age ? String(age) : "", location].filter(Boolean);
 
-  const renderComment = (c: Comment, isReply = false) => {
-    const v = votes[c.id] || {
-      up: 0,
-      down: 0,
-      myVote: null,
-      upVoters: [],
-      downVoters: [],
-    };
-    const upTitle =
-      v.upVoters.length > 0 ? v.upVoters.map((x) => x.name).join(", ") : "No upvotes yet";
-    const downTitle =
-      v.downVoters.length > 0
-        ? v.downVoters.map((x) => x.name).join(", ")
-        : "No downvotes yet";
-
+  if (loading) {
     return (
-      <div
-        key={c.id}
-        className={`bg-forge-900 border border-forge-800 rounded-xl p-4 ${
-          isReply ? "ml-6 md:ml-10" : ""
-        }`}
-      >
-        <div className="flex items-center gap-2 text-sm mb-2">
-          {c.user_id ? (
-            <Link
-              href={`/profile/${c.user_id}`}
-              className="font-medium hover:text-forge-accent transition"
-            >
-              {c.author_name}
-            </Link>
-          ) : (
-            <span className="font-medium text-gray-200">
-              {c.author_name}
-              <span className="ml-2 text-xs text-gray-400">guest</span>
-            </span>
-          )}
-          <span className="text-gray-300 text-xs" title={formatTimeFull(c.created_at)}>
-            {formatTime(c.created_at)}
-          </span>
-        </div>
-
-        <p className="text-gray-100 text-sm leading-relaxed mb-3">{c.body}</p>
-
-        <div className="flex items-center gap-3 text-sm">
-          <button
-            title={upTitle}
-            onClick={() => handleCommentVote(c.id, 1)}
-            className={`px-2 py-1 rounded-lg transition ${
-              v.myVote === 1
-                ? "bg-green-600/30 text-green-300"
-                : "bg-black/20 text-gray-300 hover:text-white"
-            }`}
-          >
-            👍 {v.up}
-          </button>
-          <button
-            title={downTitle}
-            onClick={() => handleCommentVote(c.id, -1)}
-            className={`px-2 py-1 rounded-lg transition ${
-              v.myVote === -1
-                ? "bg-red-600/30 text-red-300"
-                : "bg-black/20 text-gray-300 hover:text-white"
-            }`}
-          >
-            👎 {v.down}
-          </button>
-          <button
-            onClick={() => {
-              setReplyTo(c);
-              setMessage("");
-            }}
-            className="px-2 py-1 rounded-lg bg-black/20 text-gray-300 hover:text-white transition"
-          >
-            Reply
-          </button>
-        </div>
-      </div>
+      <main className="max-w-4xl mx-auto px-4 py-10">
+        <p className="text-gray-300">Loading profile...</p>
+      </main>
     );
-  };
+  }
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-10">
-      {isSatire && (
-        <div className="sticky top-14 z-40 -mx-4 px-4 mb-6">
-          <div className="bg-purple-600 text-white text-center text-sm font-semibold py-2 rounded-xl shadow-lg">
-            Satire
-          </div>
+    <main className="max-w-4xl mx-auto px-4 py-10">
+      <div className="flex flex-col items-center text-center mb-10">
+        <div className="w-40 h-40 md:w-48 md:h-48 rounded-full bg-blue-600 flex items-center justify-center text-5xl md:text-6xl font-bold mb-5 border-4 border-forge-800 shadow-lg">
+          {initials}
         </div>
-      )}
 
-      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-300 mb-4">
-        <span
-          className={`px-2.5 py-1 rounded-md font-semibold ${
-            isSatire
-              ? "bg-purple-500/15 text-purple-200"
-              : "bg-forge-accent/15 text-forge-accent"
-          }`}
-        >
-          {article.section}
-        </span>
-        <span title={formatTimeFull(article.created_at)}>
-          {formatTime(article.created_at)}
-        </span>
-        {avgRating !== null && (
-          <span className="text-yellow-300">
-            ★ {avgRating.toFixed(1)} · {ratingCount} rating{ratingCount === 1 ? "" : "s"}
-          </span>
+        <h1 className="text-3xl md:text-4xl font-bold mb-2">{displayName}</h1>
+
+        {details.length > 0 && (
+          <p className="text-sm text-gray-300 mb-3">{details.join(" · ")}</p>
+        )}
+
+        {bio && <p className="text-gray-100 text-sm max-w-xl mb-3">{bio}</p>}
+
+        {link && (
+          <a
+            href={link.startsWith("http") ? link : `https://${link}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-forge-accent hover:text-orange-300 mb-3"
+          >
+            {link}
+          </a>
+        )}
+
+        {viewerId && viewerId !== id && relationship && (
+          <div className={`mt-2 px-4 py-2 rounded-xl border text-sm ${tierColor(relationship.tier)}`}>
+            <div className="font-semibold">{relationship.tier}</div>
+            <div className="text-xs opacity-80">
+              {relationship.total === 0
+                ? "No interactions yet"
+                : `${relationship.positive} positive · ${relationship.negative} negative`}
+            </div>
+            <div className="text-[11px] opacity-70 mt-1">Only visible to you</div>
+          </div>
         )}
       </div>
 
-      <h1 className="text-3xl md:text-4xl font-extrabold leading-tight mb-6 tracking-tight">
-        {article.title}
-      </h1>
-
-      <Link
-        href={`/profile/${article.user_id}`}
-        className="flex items-center gap-3 mb-8 pb-6 border-b border-forge-800 group"
-      >
-        <div className="w-11 h-11 rounded-full bg-blue-600 flex items-center justify-center font-bold">
-          {initials}
-        </div>
-        <div>
-          <div className="font-semibold group-hover:text-forge-accent transition">{author}</div>
-          <div className="text-sm text-gray-300">Rank —</div>
-        </div>
-      </Link>
-
-      <article className="max-w-none mb-10">
-        {article.body.split("\n").filter(Boolean).map((paragraph, i) => (
-          <p key={i} className="text-gray-100 leading-relaxed mb-5">
-            {paragraph}
-          </p>
-        ))}
-      </article>
-
-      <div className="mb-10 p-5 bg-forge-900 border border-forge-800 rounded-2xl">
-        <div className="text-sm text-gray-300 mb-2">Rate this article</div>
-        <div className="flex items-center gap-1 text-2xl">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button
-              key={star}
-              onClick={() => handleRating(star)}
-              className={`transition hover:scale-110 ${
-                (myRating ?? 0) >= star ? "text-yellow-300" : "text-gray-500"
-              }`}
-            >
-              ★
-            </button>
-          ))}
-        </div>
+      <div className="flex gap-6 border-b border-forge-800 mb-6 text-sm font-medium overflow-x-auto justify-center md:justify-start">
+        <button
+          onClick={() => setActiveTab("articles")}
+          className={`pb-3 whitespace-nowrap transition ${
+            activeTab === "articles"
+              ? "border-b-2 border-forge-accent text-forge-accent"
+              : "text-gray-300 hover:text-white"
+          }`}
+        >
+          Articles
+        </button>
+        <button
+          onClick={() => setActiveTab("comments")}
+          className={`pb-3 whitespace-nowrap transition ${
+            activeTab === "comments"
+              ? "border-b-2 border-forge-accent text-forge-accent"
+              : "text-gray-300 hover:text-white"
+          }`}
+        >
+          Comments
+        </button>
+        <button
+          onClick={() => setActiveTab("satire")}
+          className={`pb-3 whitespace-nowrap transition ${
+            activeTab === "satire"
+              ? "border-b-2 border-purple-300 text-purple-200"
+              : "text-gray-300 hover:text-white"
+          }`}
+        >
+          Satire
+        </button>
       </div>
 
-      <section className="border-t border-forge-800 pt-8">
-        <h3 className="text-xl font-bold mb-5">Comments ({comments.length})</h3>
-
-        <div className="bg-forge-900 border border-forge-800 rounded-2xl p-4 mb-6">
-          {replyTo && (
-            <div className="mb-3 text-sm text-gray-300 flex items-center justify-between gap-3">
-              <span>
-                Replying to <span className="text-white font-medium">{replyTo.author_name}</span>
-              </span>
-              <button
-                onClick={() => setReplyTo(null)}
-                className="text-xs text-gray-400 hover:text-white"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-
-          <textarea
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            placeholder={
-              replyTo
-                ? `Reply to ${replyTo.author_name}...`
-                : userId
-                ? "Write a comment..."
-                : "Write a guest comment..."
-            }
-            className="w-full min-h-[100px] bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
-          />
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <button
-              onClick={handleComment}
-              disabled={posting}
-              className="px-5 py-2 bg-forge-accent hover:bg-forge-accentHover text-white text-sm font-medium rounded-xl transition disabled:opacity-60"
-            >
-              {posting ? "Posting..." : replyTo ? "Post Reply" : userId ? "Post Comment" : "Post as Guest"}
-            </button>
-          </div>
-        </div>
-
-        {message && <p className="text-sm text-yellow-200 mb-4">{message}</p>}
-
-        {topLevel.length === 0 ? (
-          <div className="bg-forge-900/50 border border-forge-800 rounded-xl p-6 text-center text-sm text-gray-300">
-            No comments yet. Jump in.
+      {activeTab === "articles" && (
+        articles.length === 0 ? (
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-8 text-center text-gray-300 text-sm">
+            No articles yet.
           </div>
         ) : (
           <div className="space-y-4">
-            {topLevel.map((c) => (
-              <div key={c.id} className="space-y-3">
-                {renderComment(c)}
-                {(repliesByParent[c.id] || []).map((r) => renderComment(r, true))}
-              </div>
+            {articles.map((article) => (
+              <Link
+                key={article.id}
+                href={`/article/${article.id}`}
+                className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
+              >
+                <div className="flex items-center gap-2 text-xs text-gray-300 mb-1">
+                  <span className="text-forge-accent font-medium">{article.section}</span>
+                  <span>•</span>
+                  <span title={formatTimeFull(article.created_at)}>
+                    {formatTime(article.created_at)}
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold mb-2">{article.title}</h3>
+                <p className="text-gray-300 text-sm line-clamp-3">{article.body}</p>
+              </Link>
             ))}
           </div>
-        )}
-      </section>
+        )
+      )}
 
-      <div className="mt-10">
-        <Link href="/" className="text-sm text-gray-300 hover:text-white transition">
-          ← Back home
-        </Link>
-      </div>
+      {activeTab === "comments" && (
+        comments.length === 0 ? (
+          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-8 text-center text-gray-300 text-sm">
+            No comments yet.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {comments.map((comment) => (
+              <Link
+                key={comment.id}
+                href={`/article/${comment.article_id}`}
+                className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
+              >
+                <div className="text-xs text-gray-300 mb-2">
+                  On <span className="text-white">{comment.article_title}</span>
+                  {" · "}
+                  <span title={formatTimeFull(comment.created_at)}>
+                    {formatTime(comment.created_at)}
+                  </span>
+                </div>
+                <p className="text-gray-100 text-sm leading-relaxed">{comment.body}</p>
+              </Link>
+            ))}
+          </div>
+        )
+      )}
+
+      {activeTab === "satire" && (
+        <div className="bg-forge-900 border border-purple-500/20 rounded-2xl p-8 text-center text-gray-300 text-sm">
+          No satire yet.
+        </div>
+      )}
+
+      {updatedAt && (
+        <div className="mt-10 pt-6 border-t border-forge-800 text-center text-xs text-gray-300">
+          <span title={formatTimeFull(updatedAt)}>
+            Profile updated {formatTime(updatedAt)}
+          </span>
+        </div>
+      )}
     </main>
   );
 }
