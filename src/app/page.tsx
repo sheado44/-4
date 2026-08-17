@@ -491,10 +491,18 @@ export default function Home() {
             </>
           ) : (
             <div className="pit-panel p-5 text-center">
-              <p className="text-[#F0A04B] text-lg font-semibold tracking-wide mb-2">
-                Jump in.
+              <p
+                className="text-xl font-bold mb-2 tracking-wide"
+                style={{
+                  background: "linear-gradient(180deg, #F4F6F7 0%, #C8CDD2 42%, #8B9298 100%)",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                  filter: "drop-shadow(0 2px 1px rgba(0,0,0,0.55))",
+                }}
+              >
+                Want to jump in?
               </p>
-              <p className="font-semibold mb-1 text-white">Want to jump in?</p>
               <p className="text-sm text-[#A7AEB4] mb-4">
                 Create an account to write articles and use AI tools.
               </p>
