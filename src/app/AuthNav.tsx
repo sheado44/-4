@@ -92,8 +92,30 @@ export default function AuthNav() {
 
   useEffect(() => {
     loadUser();
-    const { data: authListener } = supabase.auth.onAuthStateChange(() => loadUser());
-    return () => authListener.subscription.unsubscribe();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      loadUser();
+    });
+
+    const onFocus = () => loadUser();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") loadUser();
+    };
+    const onWallet = () => loadUser();
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("ballpit-wallet-updated", onWallet);
+
+    const interval = window.setInterval(loadUser, 8000);
+
+    return () => {
+      authListener.subscription.unsubscribe();
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("ballpit-wallet-updated", onWallet);
+      window.clearInterval(interval);
+    };
   }, []);
 
   if (loading) {
@@ -102,7 +124,10 @@ export default function AuthNav() {
 
   if (!email) {
     return (
-      <Link href="/login" className="text-sm font-medium text-gray-200 hover:text-white transition">
+      <Link
+        href="/login"
+        className="text-sm font-medium text-gray-200 hover:text-white transition"
+      >
         Log in / Sign up
       </Link>
     );
@@ -119,7 +144,11 @@ export default function AuthNav() {
         <span className="text-sm font-semibold text-forge-accent">{points} pts</span>
       </Link>
 
-      <Link href="/wallet" className="sm:hidden text-xs font-semibold text-forge-accent" title="Your private wallet">
+      <Link
+        href="/wallet"
+        className="sm:hidden text-xs font-semibold text-forge-accent"
+        title="Your private wallet"
+      >
         {points} pts
       </Link>
 
