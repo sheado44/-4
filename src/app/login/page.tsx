@@ -8,13 +8,10 @@ function calcAge(birthday: string): number | null {
   if (!birthday) return null;
   const birth = new Date(birthday);
   if (Number.isNaN(birth.getTime())) return null;
-
   const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-    age -= 1;
-  }
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age -= 1;
   return age;
 }
 
@@ -83,10 +80,12 @@ export default function LoginPage() {
             display_name: displayName.trim(),
             birthday,
             age,
+            points: 0,
+            ai_credits: 20,
             updated_at: new Date().toISOString(),
           });
 
-          setMessage("Account created. Check your email if confirmation is required, then log in.");
+          setMessage("Account created with 20 AI credits. Check email if confirmation is required, then log in.");
           setMode("login");
         }
       } else {
@@ -122,7 +121,7 @@ export default function LoginPage() {
           <p className="text-sm text-gray-300">
             {mode === "login"
               ? "Log in to write, comment, and track your ranks."
-              : "Join The Ballpit to publish articles, satire, and comments."}
+              : "Join The Ballpit. New users get 20 AI credits."}
           </p>
         </div>
 
@@ -169,12 +168,10 @@ export default function LoginPage() {
                     type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="How you want to appear"
                     required
                     className="w-full bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
                   />
                 </div>
-
                 <div>
                   <label className="block text-xs text-gray-300 mb-1.5">
                     Birthday <span className="text-red-400">*</span>
@@ -198,7 +195,6 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@email.com"
                 required
                 className="w-full bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
               />
@@ -212,7 +208,6 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
                 required
                 minLength={6}
                 className="w-full bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm focus:border-forge-accent outline-none transition"
@@ -224,19 +219,11 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full mt-2 bg-forge-accent hover:bg-forge-accentHover text-white font-medium py-3 rounded-xl transition text-sm disabled:opacity-60"
             >
-              {loading
-                ? "Please wait..."
-                : mode === "login"
-                ? "Log in"
-                : "Create account"}
+              {loading ? "Please wait..." : mode === "login" ? "Log in" : "Create account"}
             </button>
           </form>
 
-          {message && (
-            <p className="text-center text-sm mt-4 text-gray-200">
-              {message}
-            </p>
-          )}
+          {message && <p className="text-center text-sm mt-4 text-gray-200">{message}</p>}
         </div>
       </div>
     </main>
