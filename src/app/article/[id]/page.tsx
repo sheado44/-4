@@ -25,7 +25,20 @@ type Comment = {
   user_id: string | null;
 };
 
-type VoteMap = Record<string, { up: number; down: number; myVote: number | null }>;
+type Voter = {
+  user_id: string;
+  name: string;
+};
+
+type VoteInfo = {
+  up: number;
+  down: number;
+  myVote: number | null;
+  upVoters: Voter[];
+  downVoters: Voter[];
+};
+
+type VoteMap = Record<string, VoteInfo>;
 
 function makeGuestName() {
   const rand = Math.random().toString(16).slice(2, 8);
@@ -75,10 +88,14 @@ export default function ArticlePage() {
     setComments(loadedComments);
 
     const commentIds = loadedComments.map((c) => c.id);
-    let voteMap: VoteMap = {};
+    const voteMap: VoteMap = {};
     commentIds.forEach((cid) => {
-      voteMap[cid] = { up: 0, down: 0, myVote: null };
+      voteMap[cid] = { up: 0, down: 0, myVote: null, upVoters: [], downVoters: [] };
     });
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUser = sessionData.session?.user || null;
+    const currentUserId = currentUser?.id || null;
 
     if (commentIds.length > 0) {
       const { data: voteData } = await supabase
@@ -86,15 +103,46 @@ export default function ArticlePage() {
         .select("comment_id, user_id, vote")
         .in("comment_id", commentIds);
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserId = sessionData.session?.user?.id || null;
+      const voterIds = Array.from(
+        new Set((voteData || []).map((v) => v.user_id).filter(Boolean))
+      );
+
+      const nameById: Record<string, string> = {};
+      if (voterIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, display_name")
+          .in("id", voterIds);
+
+        (profiles || []).forEach((p) => {
+          nameById[p.id] = p.display_name || "User";
+        });
+      }
 
       (voteData || []).forEach((v) => {
         if (!voteMap[v.comment_id]) {
-          voteMap[v.comment_id] = { up: 0, down: 0, myVote: null };
+          voteMap[v.comment_id] = {
+            up: 0,
+            down: 0,
+            myVote: null,
+            upVoters: [],
+            downVoters: [],
+          };
         }
-        if (v.vote === 1) voteMap[v.comment_id].up += 1;
-        if (v.vote === -1) voteMap[v.comment_id].down += 1;
+
+        const voter = {
+          user_id: v.user_id,
+          name: nameById[v.user_id] || "User",
+        };
+
+        if (v.vote === 1) {
+          voteMap[v.comment_id].up += 1;
+          voteMap[v.comment_id].upVoters.push(voter);
+        }
+        if (v.vote === -1) {
+          voteMap[v.comment_id].down += 1;
+          voteMap[v.comment_id].downVoters.push(voter);
+        }
         if (currentUserId && v.user_id === currentUserId) {
           voteMap[v.comment_id].myVote = v.vote;
         }
@@ -116,16 +164,14 @@ export default function ArticlePage() {
       setRatingCount(0);
     }
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const user = sessionData.session?.user;
-    if (user) {
-      setUserId(user.id);
+    if (currentUser) {
+      setUserId(currentUser.id);
       setUserName(
-        user.user_metadata?.display_name ||
-          user.email?.split("@")[0] ||
+        currentUser.user_metadata?.display_name ||
+          currentUser.email?.split("@")[0] ||
           "User"
       );
-      const mine = ratingData?.find((r) => r.user_id === user.id);
+      const mine = ratingData?.find((r) => r.user_id === currentUser.id);
       setMyRating(mine ? mine.stars : null);
     } else {
       setUserId(null);
@@ -148,7 +194,6 @@ export default function ArticlePage() {
     }
 
     setPosting(true);
-
     const isLoggedIn = Boolean(userId && userName);
     const authorName = isLoggedIn ? userName! : makeGuestName();
 
@@ -183,39 +228,34 @@ export default function ArticlePage() {
 
     const current = votes[commentId]?.myVote ?? null;
 
-    if (current === nextVote) {
-      const { error } = await supabase
-        .from("comment_votes")
-        .delete()
-        .eq("comment_id", commentId)
-        .eq("user_id", userId);
-      if (error) {
-        setMessage(`Vote failed: ${error.message}`);
-        return;
+    try {
+      if (current === nextVote) {
+        const { error } = await supabase
+          .from("comment_votes")
+          .delete()
+          .eq("comment_id", commentId)
+          .eq("user_id", userId);
+        if (error) throw error;
+      } else if (current === null) {
+        const { error } = await supabase.from("comment_votes").insert({
+          comment_id: commentId,
+          user_id: userId,
+          vote: nextVote,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("comment_votes")
+          .update({ vote: nextVote })
+          .eq("comment_id", commentId)
+          .eq("user_id", userId);
+        if (error) throw error;
       }
-    } else if (current === null) {
-      const { error } = await supabase.from("comment_votes").insert({
-        comment_id: commentId,
-        user_id: userId,
-        vote: nextVote,
-      });
-      if (error) {
-        setMessage(`Vote failed: ${error.message}`);
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from("comment_votes")
-        .update({ vote: nextVote })
-        .eq("comment_id", commentId)
-        .eq("user_id", userId);
-      if (error) {
-        setMessage(`Vote failed: ${error.message}`);
-        return;
-      }
-    }
 
-    await loadAll();
+      await loadAll();
+    } catch (err: any) {
+      setMessage(`Vote failed: ${err?.message || "unknown error"}`);
+    }
   };
 
   const handleRating = async (stars: number) => {
@@ -225,31 +265,29 @@ export default function ArticlePage() {
       return;
     }
 
-    if (myRating) {
-      const { error } = await supabase
-        .from("ratings")
-        .update({ stars })
-        .eq("article_id", id)
-        .eq("user_id", userId);
-      if (error) {
-        setMessage(`Rating failed: ${error.message}`);
-        return;
+    try {
+      if (myRating) {
+        const { error } = await supabase
+          .from("ratings")
+          .update({ stars })
+          .eq("article_id", id)
+          .eq("user_id", userId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("ratings").insert({
+          article_id: id,
+          user_id: userId,
+          stars,
+        });
+        if (error) throw error;
       }
-    } else {
-      const { error } = await supabase.from("ratings").insert({
-        article_id: id,
-        user_id: userId,
-        stars,
-      });
-      if (error) {
-        setMessage(`Rating failed: ${error.message}`);
-        return;
-      }
-    }
 
-    setMyRating(stars);
-    setMessage(`You rated this ${stars} star${stars === 1 ? "" : "s"}.`);
-    await loadAll();
+      setMyRating(stars);
+      setMessage(`You rated this ${stars} star${stars === 1 ? "" : "s"}.`);
+      await loadAll();
+    } catch (err: any) {
+      setMessage(`Rating failed: ${err?.message || "unknown error"}`);
+    }
   };
 
   if (loading) {
@@ -352,13 +390,6 @@ export default function ArticlePage() {
             </button>
           ))}
         </div>
-        <p className="text-xs text-gray-300 mt-2">
-          {userId
-            ? myRating
-              ? `Your rating: ${myRating} star${myRating === 1 ? "" : "s"}`
-              : "Click a star to rate"
-            : "Log in to rate"}
-        </p>
       </div>
 
       <section className="border-t border-forge-800 pt-8">
@@ -385,11 +416,6 @@ export default function ArticlePage() {
             >
               {posting ? "Posting..." : userId ? "Post Comment" : "Post as Guest"}
             </button>
-            {!userId && (
-              <Link href="/login" className="text-sm text-gray-300 hover:text-white">
-                or log in
-              </Link>
-            )}
           </div>
         </div>
 
@@ -402,7 +428,23 @@ export default function ArticlePage() {
         ) : (
           <div className="space-y-4">
             {comments.map((c) => {
-              const v = votes[c.id] || { up: 0, down: 0, myVote: null };
+              const v = votes[c.id] || {
+                up: 0,
+                down: 0,
+                myVote: null,
+                upVoters: [],
+                downVoters: [],
+              };
+
+              const upTitle =
+                v.upVoters.length > 0
+                  ? v.upVoters.map((x) => x.name).join(", ")
+                  : "No upvotes yet";
+              const downTitle =
+                v.downVoters.length > 0
+                  ? v.downVoters.map((x) => x.name).join(", ")
+                  : "No downvotes yet";
+
               return (
                 <div key={c.id} className="bg-forge-900 border border-forge-800 rounded-xl p-4">
                   <div className="flex items-center gap-2 text-sm mb-2">
@@ -431,6 +473,7 @@ export default function ArticlePage() {
 
                   <div className="flex items-center gap-3 text-sm">
                     <button
+                      title={upTitle}
                       onClick={() => handleCommentVote(c.id, 1)}
                       className={`px-2 py-1 rounded-lg transition ${
                         v.myVote === 1
@@ -441,6 +484,7 @@ export default function ArticlePage() {
                       👍 {v.up}
                     </button>
                     <button
+                      title={downTitle}
                       onClick={() => handleCommentVote(c.id, -1)}
                       className={`px-2 py-1 rounded-lg transition ${
                         v.myVote === -1
