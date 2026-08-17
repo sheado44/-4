@@ -29,11 +29,17 @@ type WatchItem = {
   created_at: string;
 };
 
+type SearchUser = {
+  id: string;
+  display_name: string;
+};
+
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [points, setPoints] = useState(0);
@@ -42,12 +48,90 @@ export default function Home() {
   const [downReceived, setDownReceived] = useState(0);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [watchFeed, setWatchFeed] = useState<WatchItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  const [searchMessage, setSearchMessage] = useState("");
+  const [searching, setSearching] = useState(false);
+
+  const loadFavoritesAndFeed = async (uid: string) => {
+    const { data: favRows } = await supabase
+      .from("favorites")
+      .select("favorite_user_id")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false });
+
+    const favList: Favorite[] = [];
+    const favIds: string[] = [];
+    for (const row of favRows || []) {
+      favIds.push(row.favorite_user_id);
+      const { data: favProfile } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", row.favorite_user_id)
+        .maybeSingle();
+      favList.push({
+        favorite_user_id: row.favorite_user_id,
+        display_name: favProfile?.display_name || "User",
+      });
+    }
+    setFavorites(favList);
+
+    const feed: WatchItem[] = [];
+    if (favIds.length > 0) {
+      const { data: favArticles } = await supabase
+        .from("articles")
+        .select("id, title, author_name, created_at, user_id")
+        .in("user_id", favIds)
+        .order("created_at", { ascending: false })
+        .limit(12);
+
+      (favArticles || []).forEach((a) => {
+        feed.push({
+          id: `a-${a.id}`,
+          kind: "article",
+          actor_name: a.author_name || "User",
+          summary: `published “${a.title}”`,
+          href: `/article/${a.id}`,
+          created_at: a.created_at,
+        });
+      });
+
+      const { data: favComments } = await supabase
+        .from("comments")
+        .select("id, body, author_name, article_id, created_at, user_id, parent_id")
+        .in("user_id", favIds)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      (favComments || []).forEach((c) => {
+        const isReply = Boolean(c.parent_id);
+        feed.push({
+          id: `c-${c.id}`,
+          kind: isReply ? "reply" : "comment",
+          actor_name: c.author_name || "User",
+          summary: `${isReply ? "replied" : "commented"}: ${c.body.slice(0, 80)}${
+            c.body.length > 80 ? "…" : ""
+          }`,
+          href: `/article/${c.article_id}`,
+          created_at: c.created_at,
+        });
+      });
+
+      feed.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      setWatchFeed(feed.slice(0, 15));
+    } else {
+      setWatchFeed([]);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
       const { data: auth } = await supabase.auth.getUser();
       const user = auth.user;
       setLoggedIn(Boolean(user));
+      setUserId(user?.id || null);
 
       const { data, error } = await supabase
         .from("articles")
@@ -93,83 +177,69 @@ export default function Home() {
           setDownReceived(down);
         }
 
-        const { data: favRows } = await supabase
-          .from("favorites")
-          .select("favorite_user_id")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        const favList: Favorite[] = [];
-        const favIds: string[] = [];
-        for (const row of favRows || []) {
-          favIds.push(row.favorite_user_id);
-          const { data: favProfile } = await supabase
-            .from("profiles")
-            .select("display_name")
-            .eq("id", row.favorite_user_id)
-            .maybeSingle();
-          favList.push({
-            favorite_user_id: row.favorite_user_id,
-            display_name: favProfile?.display_name || "User",
-          });
-        }
-        setFavorites(favList);
-
-        const feed: WatchItem[] = [];
-        if (favIds.length > 0) {
-          const { data: favArticles } = await supabase
-            .from("articles")
-            .select("id, title, author_name, created_at, user_id")
-            .in("user_id", favIds)
-            .order("created_at", { ascending: false })
-            .limit(12);
-
-          (favArticles || []).forEach((a) => {
-            feed.push({
-              id: `a-${a.id}`,
-              kind: "article",
-              actor_name: a.author_name || "User",
-              summary: `published “${a.title}”`,
-              href: `/article/${a.id}`,
-              created_at: a.created_at,
-            });
-          });
-
-          // Includes top-level comments AND replies (parent_id not null)
-          const { data: favComments } = await supabase
-            .from("comments")
-            .select("id, body, author_name, article_id, created_at, user_id, parent_id")
-            .in("user_id", favIds)
-            .order("created_at", { ascending: false })
-            .limit(20);
-
-          (favComments || []).forEach((c) => {
-            const isReply = Boolean(c.parent_id);
-            feed.push({
-              id: `c-${c.id}`,
-              kind: isReply ? "reply" : "comment",
-              actor_name: c.author_name || "User",
-              summary: `${isReply ? "replied" : "commented"}: ${c.body.slice(0, 80)}${
-                c.body.length > 80 ? "…" : ""
-              }`,
-              href: `/article/${c.article_id}`,
-              created_at: c.created_at,
-            });
-          });
-
-          feed.sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-          setWatchFeed(feed.slice(0, 15));
-        } else {
-          setWatchFeed([]);
-        }
+        await loadFavoritesAndFeed(user.id);
       }
 
       setLoading(false);
     };
     load();
   }, []);
+
+  const handleSearchUsers = async () => {
+    setSearchMessage("");
+    setSearchResults([]);
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchMessage("Type at least 2 characters.");
+      return;
+    }
+
+    setSearching(true);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, display_name")
+      .ilike("display_name", `%${q}%`)
+      .limit(8);
+
+    if (error) {
+      setSearchMessage(error.message);
+      setSearching(false);
+      return;
+    }
+
+    setSearchResults(
+      (data || [])
+        .filter((u) => u.id !== userId)
+        .map((u) => ({
+          id: u.id,
+          display_name: u.display_name || "User",
+        }))
+    );
+    if ((data || []).length === 0) setSearchMessage("No users found.");
+    setSearching(false);
+  };
+
+  const addFavorite = async (favoriteUserId: string, name: string) => {
+    if (!userId) return;
+    const already = favorites.some((f) => f.favorite_user_id === favoriteUserId);
+    if (already) {
+      setSearchMessage(`${name} is already on your watchlist.`);
+      return;
+    }
+
+    const { error } = await supabase.from("favorites").insert({
+      user_id: userId,
+      favorite_user_id: favoriteUserId,
+    });
+
+    if (error) {
+      setSearchMessage(error.message);
+      return;
+    }
+
+    setSearchMessage(`Added ${name} to favorites.`);
+    await loadFavoritesAndFeed(userId);
+  };
 
   const filteredArticles =
     section === "All" ? articles : articles.filter((a) => a.section === section);
@@ -312,10 +382,52 @@ export default function Home() {
               </div>
 
               <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5">
+                <h3 className="font-semibold mb-3">Search users</h3>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by display name..."
+                    className="flex-1 bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm outline-none"
+                  />
+                  <button
+                    onClick={handleSearchUsers}
+                    disabled={searching}
+                    className="px-3 py-2 rounded-xl bg-forge-accent text-white text-sm disabled:opacity-60"
+                  >
+                    {searching ? "..." : "Search"}
+                  </button>
+                </div>
+
+                {searchMessage && (
+                  <p className="text-xs text-yellow-200 mb-2">{searchMessage}</p>
+                )}
+
+                <div className="space-y-2">
+                  {searchResults.map((u) => (
+                    <div
+                      key={u.id}
+                      className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2"
+                    >
+                      <Link href={`/profile/${u.id}`} className="text-sm hover:text-forge-accent">
+                        {u.display_name}
+                      </Link>
+                      <button
+                        onClick={() => addFavorite(u.id, u.display_name)}
+                        className="text-xs px-2 py-1 rounded-lg bg-forge-accent text-white"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5">
                 <h3 className="font-semibold mb-3">Watchlist activity</h3>
                 {watchFeed.length === 0 ? (
                   <p className="text-sm text-gray-300">
-                    No watchlist activity yet. Favorite people to track their posts, comments, and replies.
+                    No watchlist activity yet. Search and favorite people to track them.
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -346,9 +458,7 @@ export default function Home() {
               <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5">
                 <h3 className="font-semibold mb-3">Favorites</h3>
                 {favorites.length === 0 ? (
-                  <p className="text-sm text-gray-300">
-                    No favorites yet. Open a profile and add people you want to track.
-                  </p>
+                  <p className="text-sm text-gray-300">No favorites yet.</p>
                 ) : (
                   <div className="space-y-2">
                     {favorites.map((f) => (
