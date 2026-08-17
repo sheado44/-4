@@ -25,6 +25,8 @@ type Comment = {
   user_id: string | null;
 };
 
+type VoteMap = Record<string, { up: number; down: number; myVote: number | null }>;
+
 function makeGuestName() {
   const rand = Math.random().toString(16).slice(2, 8);
   return `anon_${rand}`;
@@ -36,6 +38,7 @@ export default function ArticlePage() {
 
   const [article, setArticle] = useState<Article | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [votes, setVotes] = useState<VoteMap>({});
   const [avgRating, setAvgRating] = useState<number | null>(null);
   const [ratingCount, setRatingCount] = useState(0);
   const [myRating, setMyRating] = useState<number | null>(null);
@@ -68,7 +71,36 @@ export default function ArticlePage() {
       .select("id, author_name, body, created_at, is_guest, user_id")
       .eq("article_id", id)
       .order("created_at", { ascending: false });
-    setComments(commentData || []);
+    const loadedComments = commentData || [];
+    setComments(loadedComments);
+
+    const commentIds = loadedComments.map((c) => c.id);
+    let voteMap: VoteMap = {};
+    commentIds.forEach((cid) => {
+      voteMap[cid] = { up: 0, down: 0, myVote: null };
+    });
+
+    if (commentIds.length > 0) {
+      const { data: voteData } = await supabase
+        .from("comment_votes")
+        .select("comment_id, user_id, vote")
+        .in("comment_id", commentIds);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserId = sessionData.session?.user?.id || null;
+
+      (voteData || []).forEach((v) => {
+        if (!voteMap[v.comment_id]) {
+          voteMap[v.comment_id] = { up: 0, down: 0, myVote: null };
+        }
+        if (v.vote === 1) voteMap[v.comment_id].up += 1;
+        if (v.vote === -1) voteMap[v.comment_id].down += 1;
+        if (currentUserId && v.user_id === currentUserId) {
+          voteMap[v.comment_id].myVote = v.vote;
+        }
+      });
+    }
+    setVotes(voteMap);
 
     const { data: ratingData } = await supabase
       .from("ratings")
@@ -140,6 +172,50 @@ export default function ArticlePage() {
       await loadAll();
     }
     setPosting(false);
+  };
+
+  const handleCommentVote = async (commentId: string, nextVote: 1 | -1) => {
+    setMessage("");
+    if (!userId) {
+      setMessage("Log in to vote on comments.");
+      return;
+    }
+
+    const current = votes[commentId]?.myVote ?? null;
+
+    if (current === nextVote) {
+      const { error } = await supabase
+        .from("comment_votes")
+        .delete()
+        .eq("comment_id", commentId)
+        .eq("user_id", userId);
+      if (error) {
+        setMessage(`Vote failed: ${error.message}`);
+        return;
+      }
+    } else if (current === null) {
+      const { error } = await supabase.from("comment_votes").insert({
+        comment_id: commentId,
+        user_id: userId,
+        vote: nextVote,
+      });
+      if (error) {
+        setMessage(`Vote failed: ${error.message}`);
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from("comment_votes")
+        .update({ vote: nextVote })
+        .eq("comment_id", commentId)
+        .eq("user_id", userId);
+      if (error) {
+        setMessage(`Vote failed: ${error.message}`);
+        return;
+      }
+    }
+
+    await loadAll();
   };
 
   const handleRating = async (stars: number) => {
@@ -315,11 +391,6 @@ export default function ArticlePage() {
               </Link>
             )}
           </div>
-          {!userId && (
-            <p className="text-xs text-gray-300 mt-2">
-              Guest comments use a one-time random name and build no reputation.
-            </p>
-          )}
         </div>
 
         {message && <p className="text-sm text-yellow-200 mb-4">{message}</p>}
@@ -330,32 +401,59 @@ export default function ArticlePage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {comments.map((c) => (
-              <div key={c.id} className="bg-forge-900 border border-forge-800 rounded-xl p-4">
-                <div className="flex items-center gap-2 text-sm mb-2">
-                  {c.user_id ? (
-                    <Link
-                      href={`/profile/${c.user_id}`}
-                      className="font-medium hover:text-forge-accent transition"
+            {comments.map((c) => {
+              const v = votes[c.id] || { up: 0, down: 0, myVote: null };
+              return (
+                <div key={c.id} className="bg-forge-900 border border-forge-800 rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-sm mb-2">
+                    {c.user_id ? (
+                      <Link
+                        href={`/profile/${c.user_id}`}
+                        className="font-medium hover:text-forge-accent transition"
+                      >
+                        {c.author_name}
+                      </Link>
+                    ) : (
+                      <span className="font-medium text-gray-200">
+                        {c.author_name}
+                        <span className="ml-2 text-xs text-gray-400">guest</span>
+                      </span>
+                    )}
+                    <span
+                      className="text-gray-300 text-xs"
+                      title={formatTimeFull(c.created_at)}
                     >
-                      {c.author_name}
-                    </Link>
-                  ) : (
-                    <span className="font-medium text-gray-200">
-                      {c.author_name}
-                      <span className="ml-2 text-xs text-gray-400">guest</span>
+                      {formatTime(c.created_at)}
                     </span>
-                  )}
-                  <span
-                    className="text-gray-300 text-xs"
-                    title={formatTimeFull(c.created_at)}
-                  >
-                    {formatTime(c.created_at)}
-                  </span>
+                  </div>
+
+                  <p className="text-gray-100 text-sm leading-relaxed mb-3">{c.body}</p>
+
+                  <div className="flex items-center gap-3 text-sm">
+                    <button
+                      onClick={() => handleCommentVote(c.id, 1)}
+                      className={`px-2 py-1 rounded-lg transition ${
+                        v.myVote === 1
+                          ? "bg-green-600/30 text-green-300"
+                          : "bg-black/20 text-gray-300 hover:text-white"
+                      }`}
+                    >
+                      👍 {v.up}
+                    </button>
+                    <button
+                      onClick={() => handleCommentVote(c.id, -1)}
+                      className={`px-2 py-1 rounded-lg transition ${
+                        v.myVote === -1
+                          ? "bg-red-600/30 text-red-300"
+                          : "bg-black/20 text-gray-300 hover:text-white"
+                      }`}
+                    >
+                      👎 {v.down}
+                    </button>
+                  </div>
                 </div>
-                <p className="text-gray-100 text-sm leading-relaxed">{c.body}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
