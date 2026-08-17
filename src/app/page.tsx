@@ -251,7 +251,18 @@ export default function Home() {
     .slice(0, 2)
     .toUpperCase();
 
-  const writeSection = section === "All" ? "Sports" : section;
+  // Satire goes to madlib lab; other sections go to normal editor
+  const writeHref =
+    section === "Satire"
+      ? "/fan-fiction"
+      : `/editor?section=${encodeURIComponent(section === "All" ? "Sports" : section)}`;
+
+  const writeLabel =
+    section === "All"
+      ? "Write an article"
+      : section === "Satire"
+      ? "Write Satire"
+      : `Write in ${section}`;
 
   return (
     <main className="min-h-screen">
@@ -333,10 +344,10 @@ export default function Home() {
           {loggedIn && (
             <div className="pt-4">
               <Link
-                href={`/editor?section=${encodeURIComponent(writeSection)}`}
+                href={writeHref}
                 className="inline-flex items-center justify-center w-full sm:w-auto px-5 py-3 rounded-xl bg-forge-accent text-white text-sm font-medium"
               >
-                {section === "All" ? "Write an article" : `Write in ${section}`}
+                {writeLabel}
               </Link>
             </div>
           )}
