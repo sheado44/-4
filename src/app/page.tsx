@@ -20,6 +20,15 @@ type Favorite = {
   display_name: string;
 };
 
+type WatchItem = {
+  id: string;
+  kind: "article" | "comment" | "reply";
+  actor_name: string;
+  summary: string;
+  href: string;
+  created_at: string;
+};
+
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
   const [articles, setArticles] = useState<Article[]>([]);
@@ -32,6 +41,7 @@ export default function Home() {
   const [upReceived, setUpReceived] = useState(0);
   const [downReceived, setDownReceived] = useState(0);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [watchFeed, setWatchFeed] = useState<WatchItem[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -90,7 +100,9 @@ export default function Home() {
           .order("created_at", { ascending: false });
 
         const favList: Favorite[] = [];
+        const favIds: string[] = [];
         for (const row of favRows || []) {
+          favIds.push(row.favorite_user_id);
           const { data: favProfile } = await supabase
             .from("profiles")
             .select("display_name")
@@ -102,6 +114,56 @@ export default function Home() {
           });
         }
         setFavorites(favList);
+
+        const feed: WatchItem[] = [];
+        if (favIds.length > 0) {
+          const { data: favArticles } = await supabase
+            .from("articles")
+            .select("id, title, author_name, created_at, user_id")
+            .in("user_id", favIds)
+            .order("created_at", { ascending: false })
+            .limit(12);
+
+          (favArticles || []).forEach((a) => {
+            feed.push({
+              id: `a-${a.id}`,
+              kind: "article",
+              actor_name: a.author_name || "User",
+              summary: `published “${a.title}”`,
+              href: `/article/${a.id}`,
+              created_at: a.created_at,
+            });
+          });
+
+          // Includes top-level comments AND replies (parent_id not null)
+          const { data: favComments } = await supabase
+            .from("comments")
+            .select("id, body, author_name, article_id, created_at, user_id, parent_id")
+            .in("user_id", favIds)
+            .order("created_at", { ascending: false })
+            .limit(20);
+
+          (favComments || []).forEach((c) => {
+            const isReply = Boolean(c.parent_id);
+            feed.push({
+              id: `c-${c.id}`,
+              kind: isReply ? "reply" : "comment",
+              actor_name: c.author_name || "User",
+              summary: `${isReply ? "replied" : "commented"}: ${c.body.slice(0, 80)}${
+                c.body.length > 80 ? "…" : ""
+              }`,
+              href: `/article/${c.article_id}`,
+              created_at: c.created_at,
+            });
+          });
+
+          feed.sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          setWatchFeed(feed.slice(0, 15));
+        } else {
+          setWatchFeed([]);
+        }
       }
 
       setLoading(false);
@@ -246,10 +308,39 @@ export default function Home() {
                   <Link href="/wallet" className="text-gray-300 hover:text-white">
                     Wallet
                   </Link>
-                  <Link href="/editor" className="text-gray-300 hover:text-white">
-                    Write
-                  </Link>
                 </div>
+              </div>
+
+              <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5">
+                <h3 className="font-semibold mb-3">Watchlist activity</h3>
+                {watchFeed.length === 0 ? (
+                  <p className="text-sm text-gray-300">
+                    No watchlist activity yet. Favorite people to track their posts, comments, and replies.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {watchFeed.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={item.href}
+                        className="block rounded-xl bg-black/20 px-3 py-2 hover:bg-black/30 transition"
+                      >
+                        <div className="text-xs text-gray-400 mb-1">
+                          {item.kind === "article"
+                            ? "Article"
+                            : item.kind === "reply"
+                            ? "Reply"
+                            : "Comment"}{" "}
+                          · {formatTime(item.created_at)}
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium text-white">{item.actor_name}</span>{" "}
+                          <span className="text-gray-300">{item.summary}</span>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5">
@@ -271,25 +362,6 @@ export default function Home() {
                     ))}
                   </div>
                 )}
-              </div>
-
-              <div className="bg-gradient-to-br from-orange-600/15 to-forge-900 border border-orange-500/20 rounded-2xl p-5 text-center">
-                <p className="font-semibold mb-1">Got a take?</p>
-                <p className="text-sm text-gray-300 mb-4">Jump in. Write it. Rank it.</p>
-                <Link
-                  href="/editor"
-                  className="inline-block bg-forge-accent text-white font-medium px-6 py-2.5 rounded-xl transition text-sm mb-3"
-                >
-                  Write Article
-                </Link>
-                <div>
-                  <Link
-                    href="/fan-fiction"
-                    className="inline-block text-sm text-purple-200 hover:text-purple-100 transition"
-                  >
-                    or Write Satire →
-                  </Link>
-                </div>
               </div>
             </>
           ) : (
