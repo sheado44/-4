@@ -4,11 +4,48 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
+function skinStyle(skin: string, color: string): React.CSSProperties {
+  switch (skin) {
+    case "leopard":
+      return {
+        backgroundColor: "#c2a36b",
+        backgroundImage:
+          "radial-gradient(circle at 20% 30%, #5b3a1a 0 8%, transparent 9%), radial-gradient(circle at 70% 40%, #5b3a1a 0 10%, transparent 11%), radial-gradient(circle at 40% 75%, #5b3a1a 0 7%, transparent 8%)",
+      };
+    case "zebra":
+      return {
+        backgroundImage:
+          "repeating-linear-gradient(45deg, #111 0 8px, #f5f5f5 8px 16px)",
+      };
+    case "camo":
+      return {
+        backgroundColor: "#4b5320",
+        backgroundImage:
+          "radial-gradient(circle at 30% 30%, #2f3b1c 0 20%, transparent 21%), radial-gradient(circle at 70% 60%, #6b8e23 0 18%, transparent 19%), radial-gradient(circle at 50% 80%, #3d4c1f 0 16%, transparent 17%)",
+      };
+    case "galaxy":
+      return {
+        backgroundImage:
+          "radial-gradient(circle at 20% 30%, #fff 0 1px, transparent 2px), radial-gradient(circle at 70% 40%, #fff 0 1px, transparent 2px), radial-gradient(circle at 40% 70%, #a78bfa 0 12%, transparent 13%), linear-gradient(135deg, #0f172a, #312e81)",
+      };
+    case "carbon":
+      return {
+        backgroundColor: "#1f2937",
+        backgroundImage:
+          "linear-gradient(45deg, #111 25%, transparent 25%), linear-gradient(-45deg, #111 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #111 75%), linear-gradient(-45deg, transparent 75%, #111 75%)",
+        backgroundSize: "8px 8px",
+      };
+    default:
+      return { background: color };
+  }
+}
+
 export default function AuthNav() {
   const [email, setEmail] = useState<string | null>(null);
   const [initials, setInitials] = useState("?");
-  const [points, setPoints] = useState<number>(0);
+  const [points, setPoints] = useState(0);
   const [avatarColor, setAvatarColor] = useState("#2563eb");
+  const [avatarSkin, setAvatarSkin] = useState("none");
   const [loading, setLoading] = useState(true);
 
   const loadUser = async () => {
@@ -20,6 +57,7 @@ export default function AuthNav() {
       setInitials("?");
       setPoints(0);
       setAvatarColor("#2563eb");
+      setAvatarSkin("none");
       setLoading(false);
       return;
     }
@@ -28,7 +66,7 @@ export default function AuthNav() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name, points, comment_avatar_color")
+      .select("display_name, points, comment_avatar_color, comment_avatar_skin")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -48,19 +86,14 @@ export default function AuthNav() {
     );
     setPoints(profile?.points ?? 0);
     setAvatarColor(profile?.comment_avatar_color || "#2563eb");
+    setAvatarSkin(profile?.comment_avatar_skin || "none");
     setLoading(false);
   };
 
   useEffect(() => {
     loadUser();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
-      loadUser();
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => loadUser());
+    return () => authListener.subscription.unsubscribe();
   }, []);
 
   if (loading) {
@@ -69,10 +102,7 @@ export default function AuthNav() {
 
   if (!email) {
     return (
-      <Link
-        href="/login"
-        className="text-sm font-medium text-gray-200 hover:text-white transition"
-      >
+      <Link href="/login" className="text-sm font-medium text-gray-200 hover:text-white transition">
         Log in / Sign up
       </Link>
     );
@@ -89,18 +119,14 @@ export default function AuthNav() {
         <span className="text-sm font-semibold text-forge-accent">{points} pts</span>
       </Link>
 
-      <Link
-        href="/wallet"
-        className="sm:hidden text-xs font-semibold text-forge-accent"
-        title="Your private wallet"
-      >
+      <Link href="/wallet" className="sm:hidden text-xs font-semibold text-forge-accent" title="Your private wallet">
         {points} pts
       </Link>
 
       <Link
         href="/profile"
-        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold hover:opacity-90 transition"
-        style={{ background: avatarColor }}
+        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold hover:opacity-90 transition border border-white/10"
+        style={skinStyle(avatarSkin, avatarColor)}
         title={email}
       >
         {initials}
