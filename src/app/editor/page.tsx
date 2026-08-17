@@ -14,6 +14,7 @@ export default function EditorPage() {
   const [message, setMessage] = useState("");
   const [publishedId, setPublishedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [aiCredits, setAiCredits] = useState(0);
@@ -28,6 +29,7 @@ export default function EditorPage() {
       setUserId(null);
       setLoggedInName(null);
       setAiCredits(0);
+      setAuthLoading(false);
       return;
     }
     setUserId(user.id);
@@ -40,6 +42,7 @@ export default function EditorPage() {
       .eq("id", user.id)
       .maybeSingle();
     setAiCredits(profile?.ai_credits ?? 0);
+    setAuthLoading(false);
   };
 
   useEffect(() => {
@@ -80,61 +83,47 @@ export default function EditorPage() {
   const spendAiCredit = async () => {
     if (!userId) return { ok: false, reason: "Log in first." };
     if (aiCredits < 1) return { ok: false, reason: "No AI credits left." };
-
     const next = aiCredits - 1;
     const { error } = await supabase
       .from("profiles")
       .update({ ai_credits: next, updated_at: new Date().toISOString() })
       .eq("id", userId);
     if (error) return { ok: false, reason: error.message };
-
     setAiCredits(next);
     return { ok: true, reason: "" };
   };
 
-  // Placeholder until xAI image API is connected
   const generateWithXAI = async (prompt: string) => {
-    // TODO: call xAI image endpoint here
-    // For now return a deterministic placeholder image service based on prompt
     const encoded = encodeURIComponent(prompt.slice(0, 40) || "ballpit");
     return {
       ok: true,
       url: `https://placehold.co/1024x768/1f2937/f97316/png?text=${encoded}`,
-      reviewed: false,
       reviewNote:
         "Placeholder image only. Connect xAI API for real generation. Failed reviews will not refund credits.",
     };
   };
 
   const reviewImage = async (prompt: string) => {
-    // Lightweight pre-filter before/after generation
     const banned = ["nude", "nsfw", "porn", "explicit", "gore"];
     const lower = prompt.toLowerCase();
     if (banned.some((w) => lower.includes(w))) {
       return {
         ok: false,
-        reason:
-          "Generation used 1 credit and did not pass review. No refund.",
+        reason: "Generation used 1 credit and did not pass review. No refund.",
       };
     }
-    // Future: real AI decency + relevance scoring
     return { ok: true, reason: "" };
   };
 
   const handleGenerateAiImage = async (target: "inline" | "thumbnail") => {
     setUploadStatus("");
-    if (!userId) {
-      setUploadStatus("Log in to generate AI images.");
-      return;
-    }
+    if (!userId) return;
     if (!aiPrompt.trim() || aiPrompt.trim().length < 8) {
       setUploadStatus("Write a clearer prompt (at least 8 characters).");
       return;
     }
 
     setGenerating(true);
-
-    // Spend first, no refund policy
     const spend = await spendAiCredit();
     if (!spend.ok) {
       setUploadStatus(spend.reason);
@@ -151,36 +140,19 @@ export default function EditorPage() {
 
     const result = await generateWithXAI(aiPrompt.trim());
     if (!result.ok || !result.url) {
-      setUploadStatus(
-        "Generation used 1 credit and failed. No refund."
-      );
+      setUploadStatus("Generation used 1 credit and failed. No refund.");
       setGenerating(false);
       return;
     }
 
     if (target === "thumbnail") {
       setThumbnailUrl(result.url);
-      setUploadStatus(
-        "AI thumbnail set (placeholder provider). 1 credit used. " + result.reviewNote
-      );
+      setUploadStatus(`AI thumbnail set. 1 credit used. ${result.reviewNote}`);
     } else {
       insertAtCursor(`\n![AI image](${result.url})\n`);
-      setUploadStatus(
-        "AI image inserted (placeholder provider). 1 credit used. " + result.reviewNote
-      );
+      setUploadStatus(`AI image inserted. 1 credit used. ${result.reviewNote}`);
     }
-
     setGenerating(false);
-  };
-
-  const mockAiReviewUpload = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      return { ok: false, reason: "File must be an image." };
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      return { ok: false, reason: "Image must be under 5MB." };
-    }
-    return { ok: true, reason: "" };
   };
 
   const handleFileUpload = async (
@@ -189,20 +161,18 @@ export default function EditorPage() {
   ) => {
     setUploadStatus("");
     const file = e.target.files?.[0];
-    if (!file) return;
-    if (!userId) {
-      setUploadStatus("Log in to upload images.");
+    if (!file || !userId) return;
+
+    if (!file.type.startsWith("image/")) {
+      setUploadStatus("File must be an image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadStatus("Image must be under 5MB.");
       return;
     }
 
     setUploading(true);
-    const review = await mockAiReviewUpload(file);
-    if (!review.ok) {
-      setUploadStatus(review.reason);
-      setUploading(false);
-      return;
-    }
-
     const ext = file.name.split(".").pop() || "jpg";
     const path = `${userId}/${Date.now()}.${ext}`;
     const { error: uploadError } = await supabase.storage
@@ -259,9 +229,7 @@ export default function EditorPage() {
     setPublishedId(null);
     setLoading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData.session?.user;
-      if (!user) {
+      if (!userId) {
         setMessage("You are not logged in.");
         setLoading(false);
         return;
@@ -272,10 +240,7 @@ export default function EditorPage() {
         return;
       }
 
-      const authorName =
-        user.user_metadata?.display_name ||
-        user.email?.split("@")[0] ||
-        "Anonymous";
+      const authorName = loggedInName || "Anonymous";
       const finalBody = thumbnailUrl.trim()
         ? `![thumbnail](${thumbnailUrl.trim()})\n\n${body.trim()}`
         : body.trim();
@@ -283,7 +248,7 @@ export default function EditorPage() {
       const { data, error } = await supabase
         .from("articles")
         .insert({
-          user_id: user.id,
+          user_id: userId,
           title: title.trim(),
           section,
           body: finalBody,
@@ -297,7 +262,7 @@ export default function EditorPage() {
       } else {
         const reward = section === "Satire" ? 5 : 50;
         await awardPoints(
-          user.id,
+          userId,
           reward,
           section === "Satire" ? "Published satire article" : "Published real article",
           data.id
@@ -333,22 +298,39 @@ export default function EditorPage() {
     )
     .replace(/\n/g, "<br />");
 
+  if (authLoading) {
+    return (
+      <main className="max-w-3xl mx-auto px-4 py-10">
+        <p className="text-gray-300">Checking account...</p>
+      </main>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <main className="max-w-3xl mx-auto px-4 py-16 text-center">
+        <h1 className="text-3xl font-bold mb-3">Editors only</h1>
+        <p className="text-gray-300 mb-6">
+          You need a Ballpit account to write articles, upload media, and use AI tools.
+        </p>
+        <Link
+          href="/login"
+          className="inline-block px-6 py-3 rounded-xl bg-forge-accent text-white font-medium"
+        >
+          Log in / Sign up
+        </Link>
+      </main>
+    );
+  }
+
   return (
     <main className="max-w-6xl mx-auto px-4 py-10">
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold mb-1">Write Article</h1>
         <p className="text-gray-300 text-sm">
-          Storytelling tools with upload + AI image generation (xAI-ready).
+          Account tools only. AI credits: <span className="text-white font-medium">{aiCredits}</span>
         </p>
-        <p className="text-sm mt-2">
-          {loggedInName ? (
-            <span className="text-green-300">
-              Logged in as {loggedInName} · AI credits: {aiCredits}
-            </span>
-          ) : (
-            <span className="text-red-300">Not logged in</span>
-          )}
-        </p>
+        <p className="text-sm mt-2 text-green-300">Logged in as {loggedInName}</p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -413,13 +395,13 @@ export default function EditorPage() {
                 Generate thumbnail (1 credit)
               </button>
             </div>
-            <p className="text-xs text-gray-400 mt-2">
-              Failed reviews are not refunded.
-            </p>
+            <p className="text-xs text-gray-400 mt-2">Failed reviews are not refunded.</p>
           </div>
 
           {(uploading || uploadStatus) && (
-            <p className="text-sm text-yellow-200 mb-3">{uploading ? "Uploading..." : uploadStatus}</p>
+            <p className="text-sm text-yellow-200 mb-3">
+              {uploading ? "Uploading..." : uploadStatus}
+            </p>
           )}
 
           <div className="mb-2 flex flex-wrap gap-2">
