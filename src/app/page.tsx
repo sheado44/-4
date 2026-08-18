@@ -49,6 +49,94 @@ type SearchUser = {
 
 type Generation = "Silent" | "Boomer" | "Gen X" | "Millennial" | "Gen Z" | "Gen Alpha";
 
+type LeagueId = "NFL" | "NBA" | "MLB" | "NHL" | "CFB" | "CBB" | "Golf";
+
+type ScoreItem = {
+  id: string;
+  league: LeagueId;
+  status: "Live" | "Final" | "Upcoming";
+  scoreLine: string;
+  headline: string;
+};
+
+const ALL_LEAGUES: LeagueId[] = ["NFL", "NBA", "MLB", "NHL", "CFB", "CBB", "Golf"];
+const DEFAULT_LEAGUES: LeagueId[] = ["NFL", "CFB", "NBA"];
+const SCORES_STORAGE_KEY = "ballpit-desk-leagues";
+
+// Stub data — replace with real sports API later
+const STUB_SCORES: ScoreItem[] = [
+  {
+    id: "1",
+    league: "NFL",
+    status: "Final",
+    scoreLine: "KC 24 · BUF 20",
+    headline: "Chiefs edge Bills in a late-drive finish",
+  },
+  {
+    id: "2",
+    league: "NFL",
+    status: "Live",
+    scoreLine: "PHI 17 · DAL 14",
+    headline: "Eagles lead as fourth quarter opens",
+  },
+  {
+    id: "3",
+    league: "CFB",
+    status: "Final",
+    scoreLine: "UGA 31 · ALA 24",
+    headline: "Bulldogs hold off Tide in night-game thriller",
+  },
+  {
+    id: "4",
+    league: "CFB",
+    status: "Upcoming",
+    scoreLine: "OSU vs MICH · 7:30 PM",
+    headline: "Rivalry week: Buckeyes and Wolverines set for primetime",
+  },
+  {
+    id: "5",
+    league: "NBA",
+    status: "Final",
+    scoreLine: "BOS 112 · NYK 105",
+    headline: "Celtics close out Knicks with fourth-quarter surge",
+  },
+  {
+    id: "6",
+    league: "NBA",
+    status: "Live",
+    scoreLine: "DEN 88 · MIN 84",
+    headline: "Nuggets cling to a slim lead late",
+  },
+  {
+    id: "7",
+    league: "MLB",
+    status: "Final",
+    scoreLine: "NYY 5 · BOS 3",
+    headline: "Yankees take the rubber match at Fenway",
+  },
+  {
+    id: "8",
+    league: "NHL",
+    status: "Final",
+    scoreLine: "TOR 4 · MTL 2",
+    headline: "Leafs pull away after a messy second period",
+  },
+  {
+    id: "9",
+    league: "CBB",
+    status: "Upcoming",
+    scoreLine: "UConn vs PUR · 8:00 PM",
+    headline: "Title contenders meet in a top-10 showdown",
+  },
+  {
+    id: "10",
+    league: "Golf",
+    status: "Live",
+    scoreLine: "Round 3 · -12 lead",
+    headline: "Leaderboard tightens as contenders make the turn",
+  },
+];
+
 const GENERATIONS: { id: Generation; label: string; start: number; end: number }[] = [
   { id: "Silent", label: "Silent", start: 1928, end: 1945 },
   { id: "Boomer", label: "Boomer", start: 1946, end: 1964 },
@@ -105,6 +193,166 @@ function GenChip({
   );
 }
 
+function ScoresDeskWidget({
+  selectedLeagues,
+  setSelectedLeagues,
+}: {
+  selectedLeagues: LeagueId[];
+  setSelectedLeagues: (leagues: LeagueId[]) => void;
+}) {
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const activeLeagues = selectedLeagues.length ? selectedLeagues : DEFAULT_LEAGUES;
+  const safeIndex = Math.min(carouselIndex, Math.max(activeLeagues.length - 1, 0));
+  const currentLeague = activeLeagues[safeIndex] || DEFAULT_LEAGUES[0];
+
+  const leagueScores = STUB_SCORES.filter((s) => s.league === currentLeague);
+
+  useEffect(() => {
+    if (carouselIndex > activeLeagues.length - 1) {
+      setCarouselIndex(0);
+    }
+  }, [activeLeagues.length, carouselIndex]);
+
+  const toggleLeague = (league: LeagueId) => {
+    if (selectedLeagues.includes(league)) {
+      if (selectedLeagues.length === 1) return;
+      const next = selectedLeagues.filter((l) => l !== league);
+      setSelectedLeagues(next);
+      try {
+        localStorage.setItem(SCORES_STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+    } else {
+      const next = [...selectedLeagues, league];
+      setSelectedLeagues(next);
+      try {
+        localStorage.setItem(SCORES_STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+    }
+  };
+
+  return (
+    <div className="pit-panel p-5">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <h3 className="font-semibold">Scores</h3>
+        <button
+          type="button"
+          onClick={() => setEditOpen((v) => !v)}
+          className="text-xs text-muted-pit hover:opacity-100"
+        >
+          {editOpen ? "Done" : "Leagues"}
+        </button>
+      </div>
+
+      {editOpen && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {ALL_LEAGUES.map((league) => {
+            const on = selectedLeagues.includes(league);
+            return (
+              <button
+                key={league}
+                type="button"
+                onClick={() => toggleLeague(league)}
+                className="px-2.5 py-1 rounded-lg text-xs border"
+                style={{
+                  borderColor: on
+                    ? "color-mix(in srgb, var(--pit-highlight) 60%, transparent)"
+                    : "rgba(255,255,255,0.12)",
+                  background: on
+                    ? "color-mix(in srgb, var(--pit-highlight) 18%, transparent)"
+                    : "rgba(255,255,255,0.04)",
+                  color: "var(--pit-text)",
+                }}
+              >
+                {league}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-3">
+        <button
+          type="button"
+          className="text-xs px-2 py-1 rounded-lg btn-metal"
+          onClick={() =>
+            setCarouselIndex((i) => (i - 1 + activeLeagues.length) % activeLeagues.length)
+          }
+        >
+          ‹
+        </button>
+        <div className="text-sm font-semibold tracking-wide" style={{ color: "var(--pit-text)" }}>
+          {currentLeague}
+        </div>
+        <button
+          type="button"
+          className="text-xs px-2 py-1 rounded-lg btn-metal"
+          onClick={() => setCarouselIndex((i) => (i + 1) % activeLeagues.length)}
+        >
+          ›
+        </button>
+      </div>
+
+      <div className="flex justify-center gap-1 mb-3">
+        {activeLeagues.map((league, i) => (
+          <button
+            key={league}
+            type="button"
+            onClick={() => setCarouselIndex(i)}
+            className="h-1.5 rounded-full transition-all"
+            style={{
+              width: i === safeIndex ? 16 : 6,
+              background:
+                i === safeIndex
+                  ? "var(--pit-highlight)"
+                  : "rgba(255,255,255,0.2)",
+            }}
+            aria-label={league}
+          />
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        {leagueScores.length === 0 ? (
+          <p className="text-sm text-muted-pit">No games in this league right now.</p>
+        ) : (
+          leagueScores.map((game) => (
+            <div
+              key={game.id}
+              className="rounded-xl border border-white/5 px-3 py-2"
+              style={{ background: "rgba(0,0,0,0.12)" }}
+            >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="text-sm font-semibold" style={{ color: "var(--pit-text)" }}>
+                  {game.scoreLine}
+                </span>
+                <span
+                  className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded"
+                  style={{
+                    background:
+                      game.status === "Live"
+                        ? "rgba(239,68,68,0.2)"
+                        : "rgba(255,255,255,0.08)",
+                    color: game.status === "Live" ? "#fca5a5" : "var(--pit-muted)",
+                  }}
+                >
+                  {game.status}
+                </span>
+              </div>
+              <p className="text-xs text-muted-pit leading-snug">{game.headline}</p>
+            </div>
+          ))
+        )}
+      </div>
+
+      <p className="text-[10px] text-muted-pit mt-3">
+        Sample scores for layout. Live feed comes when a sports data provider is connected.
+      </p>
+    </div>
+  );
+}
+
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
   const [articles, setArticles] = useState<Article[]>([]);
@@ -135,6 +383,18 @@ export default function Home() {
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [feedGens, setFeedGens] = useState<Generation[]>([]);
   const filterRef = useRef<HTMLDivElement | null>(null);
+
+  const [selectedLeagues, setSelectedLeagues] = useState<LeagueId[]>(DEFAULT_LEAGUES);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SCORES_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as LeagueId[];
+        if (Array.isArray(parsed) && parsed.length) setSelectedLeagues(parsed);
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -492,7 +752,6 @@ export default function Home() {
     let list = articles;
 
     if (section === "All") {
-      // Legal separation: satire never appears in the main feed
       list = articles.filter((a) => a.section !== "Satire");
     } else {
       list = articles.filter((a) => a.section === section);
@@ -644,7 +903,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Frozen satire disclosure — only when Satire feed is open */}
       {section === "Satire" && (
         <div
           className="sticky top-0 z-30 border-y"
@@ -855,6 +1113,11 @@ export default function Home() {
                   </Link>
                 </div>
               </div>
+
+              <ScoresDeskWidget
+                selectedLeagues={selectedLeagues}
+                setSelectedLeagues={setSelectedLeagues}
+              />
 
               <div className="pit-panel p-5">
                 <h3 className="font-semibold mb-3">Watchlist activity</h3>
