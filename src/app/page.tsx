@@ -48,6 +48,8 @@ const GENERATIONS: { id: Generation; label: string; start: number; end: number }
   { id: "Gen Alpha", label: "Gen Alpha", start: 2013, end: 2030 },
 ];
 
+const ALL_GEN_IDS = GENERATIONS.map((g) => g.id);
+
 function ageFromBirthday(birthday: string | null | undefined): number | null {
   if (!birthday) return null;
   const d = new Date(birthday);
@@ -71,7 +73,6 @@ function generationFromBirthday(birthday: string | null | undefined): Generation
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
   const [articles, setArticles] = useState<Article[]>([]);
-  const [authorAges, setAuthorAges] = useState<Record<string, number | null>>({});
   const [authorGens, setAuthorGens] = useState<Record<string, Generation | null>>({});
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -86,8 +87,6 @@ export default function Home() {
   const [watchFeed, setWatchFeed] = useState<WatchItem[]>([]);
 
   // Find users
-  const [finderMinAge, setFinderMinAge] = useState(18);
-  const [finderMaxAge, setFinderMaxAge] = useState(65);
   const [finderFavoritesOnly, setFinderFavoritesOnly] = useState(false);
   const [finderGens, setFinderGens] = useState<Generation[]>([]);
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
@@ -97,9 +96,6 @@ export default function Home() {
   // Feed filters
   const [filterOpen, setFilterOpen] = useState(false);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
-  const [feedAgeEnabled, setFeedAgeEnabled] = useState(false);
-  const [feedAgeMin, setFeedAgeMin] = useState("");
-  const [feedAgeMax, setFeedAgeMax] = useState("");
   const [feedGens, setFeedGens] = useState<Generation[]>([]);
   const filterRef = useRef<HTMLDivElement | null>(null);
 
@@ -119,6 +115,11 @@ export default function Home() {
   const toggleFinderGen = (g: Generation) => {
     setFinderGens((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
   };
+
+  const selectAllFeedGens = () => setFeedGens([...ALL_GEN_IDS]);
+  const clearFeedGens = () => setFeedGens([]);
+  const selectAllFinderGens = () => setFinderGens([...ALL_GEN_IDS]);
+  const clearFinderGens = () => setFinderGens([]);
 
   const loadFavoritesAndFeed = async (uid: string) => {
     const { data: favRows } = await supabase
@@ -215,17 +216,13 @@ export default function Home() {
             .select("id, birthday")
             .in("id", ids);
 
-          const ageMap: Record<string, number | null> = {};
           const genMap: Record<string, Generation | null> = {};
           (profiles || []).forEach((p) => {
-            ageMap[p.id] = ageFromBirthday(p.birthday);
             genMap[p.id] = generationFromBirthday(p.birthday);
           });
           ids.forEach((id) => {
-            if (!(id in ageMap)) ageMap[id] = null;
             if (!(id in genMap)) genMap[id] = null;
           });
-          setAuthorAges(ageMap);
           setAuthorGens(genMap);
         }
       }
@@ -282,9 +279,6 @@ export default function Home() {
     setSearchResults([]);
     setSearching(true);
 
-    const min = Math.min(finderMinAge, finderMaxAge);
-    const max = Math.max(finderMinAge, finderMaxAge);
-
     const mapRows = (data: any[]) =>
       (data || [])
         .map((u) => ({
@@ -295,12 +289,8 @@ export default function Home() {
           generation: generationFromBirthday(u.birthday),
         }))
         .filter((u) => {
-          if (u.age === null) return false;
-          if (u.age < min || u.age > max) return false;
-          if (finderGens.length > 0 && (!u.generation || !finderGens.includes(u.generation))) {
-            return false;
-          }
-          return true;
+          if (finderGens.length === 0) return true; // no gen filter = all gens
+          return u.generation !== null && finderGens.includes(u.generation);
         });
 
     if (finderFavoritesOnly) {
@@ -342,17 +332,8 @@ export default function Home() {
 
     const rows = mapRows(data || []).slice(0, 20);
     setSearchResults(rows);
-    if (rows.length === 0) setSearchMessage("No users match those filters.");
+    if (rows.length === 0) setSearchMessage("No users match those generations.");
     setSearching(false);
-  };
-
-  const onMinAge = (v: number) => {
-    setFinderMinAge(v);
-    if (v > finderMaxAge) setFinderMaxAge(v);
-  };
-  const onMaxAge = (v: number) => {
-    setFinderMaxAge(v);
-    if (v < finderMinAge) setFinderMinAge(v);
   };
 
   const addFavorite = async (favoriteUserId: string, name: string) => {
@@ -385,28 +366,15 @@ export default function Home() {
   const activeFilterCount = useMemo(() => {
     let n = 0;
     if (onlyFavorites) n += 1;
-    if (feedAgeEnabled) n += 1;
     if (feedGens.length > 0) n += 1;
     return n;
-  }, [onlyFavorites, feedAgeEnabled, feedGens]);
+  }, [onlyFavorites, feedGens]);
 
   const filteredArticles = useMemo(() => {
     let list = section === "All" ? articles : articles.filter((a) => a.section === section);
 
     if (loggedIn && onlyFavorites) {
       list = list.filter((a) => favoriteIds.has(a.user_id));
-    }
-
-    if (loggedIn && feedAgeEnabled) {
-      const min = feedAgeMin ? Number(feedAgeMin) : null;
-      const max = feedAgeMax ? Number(feedAgeMax) : null;
-      list = list.filter((a) => {
-        const age = authorAges[a.user_id];
-        if (age === null || age === undefined) return false;
-        if (min !== null && !Number.isNaN(min) && age < min) return false;
-        if (max !== null && !Number.isNaN(max) && age > max) return false;
-        return true;
-      });
     }
 
     if (loggedIn && feedGens.length > 0) {
@@ -417,19 +385,7 @@ export default function Home() {
     }
 
     return list;
-  }, [
-    articles,
-    section,
-    loggedIn,
-    onlyFavorites,
-    favoriteIds,
-    feedAgeEnabled,
-    feedAgeMin,
-    feedAgeMax,
-    authorAges,
-    feedGens,
-    authorGens,
-  ]);
+  }, [articles, section, loggedIn, onlyFavorites, favoriteIds, feedGens, authorGens]);
 
   const initials = displayName
     .split(" ")
@@ -452,9 +408,6 @@ export default function Home() {
 
   const clearFilters = () => {
     setOnlyFavorites(false);
-    setFeedAgeEnabled(false);
-    setFeedAgeMin("");
-    setFeedAgeMax("");
     setFeedGens([]);
   };
 
@@ -523,36 +476,26 @@ export default function Home() {
                     />
                   </label>
 
-                  <label className="flex items-center justify-between gap-3 mb-3 text-sm cursor-pointer">
-                    <span>Publisher age range</span>
-                    <input
-                      type="checkbox"
-                      checked={feedAgeEnabled}
-                      onChange={(e) => setFeedAgeEnabled(e.target.checked)}
-                      className="h-4 w-4"
-                    />
-                  </label>
-
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    <input
-                      value={feedAgeMin}
-                      onChange={(e) => setFeedAgeMin(e.target.value)}
-                      placeholder="Min age"
-                      inputMode="numeric"
-                      disabled={!feedAgeEnabled}
-                      className="w-full rounded-lg px-3 py-2 text-sm outline-none disabled:opacity-40"
-                    />
-                    <input
-                      value={feedAgeMax}
-                      onChange={(e) => setFeedAgeMax(e.target.value)}
-                      placeholder="Max age"
-                      inputMode="numeric"
-                      disabled={!feedAgeEnabled}
-                      className="w-full rounded-lg px-3 py-2 text-sm outline-none disabled:opacity-40"
-                    />
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs text-muted-pit">Generation</div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={selectAllFeedGens}
+                        className="text-[11px] text-highlight-pit hover:opacity-80"
+                      >
+                        Select all
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearFeedGens}
+                        className="text-[11px] text-muted-pit hover:opacity-80"
+                      >
+                        Clear
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="text-xs text-muted-pit mb-2">Generation</div>
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {GENERATIONS.map((g) => (
                       <button
@@ -569,7 +512,7 @@ export default function Home() {
                   </div>
 
                   <p className="text-[11px] text-muted-pit mb-3">
-                    From birthday year · Boomer 46–64 · Gen X 65–80 · Millennial 81–96 · Gen Z 97–12
+                    Click any mix of generations. Empty = all generations.
                   </p>
 
                   <button
@@ -606,9 +549,6 @@ export default function Home() {
                     <span className="px-2 py-0.5 rounded-md border border-white/10">
                       {authorGens[article.user_id]}
                     </span>
-                  )}
-                  {authorAges[article.user_id] != null && (
-                    <span>Age {authorAges[article.user_id]}</span>
                   )}
                 </div>
 
@@ -751,32 +691,26 @@ export default function Home() {
               <div className="pit-panel p-5">
                 <h3 className="font-semibold mb-3">Find users</h3>
 
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-xs text-muted-pit mb-1">
-                    <span>Age range</span>
-                    <span className="text-highlight-pit font-semibold">
-                      {Math.min(finderMinAge, finderMaxAge)} – {Math.max(finderMinAge, finderMaxAge)}
-                    </span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs text-muted-pit">Generation</div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={selectAllFinderGens}
+                      className="text-[11px] text-highlight-pit hover:opacity-80"
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearFinderGens}
+                      className="text-[11px] text-muted-pit hover:opacity-80"
+                    >
+                      Clear
+                    </button>
                   </div>
-                  <input
-                    type="range"
-                    min={13}
-                    max={90}
-                    value={finderMinAge}
-                    onChange={(e) => onMinAge(Number(e.target.value))}
-                    className="w-full mb-2"
-                  />
-                  <input
-                    type="range"
-                    min={13}
-                    max={90}
-                    value={finderMaxAge}
-                    onChange={(e) => onMaxAge(Number(e.target.value))}
-                    className="w-full"
-                  />
                 </div>
 
-                <div className="text-xs text-muted-pit mb-2">Generation</div>
                 <div className="flex flex-wrap gap-1.5 mb-3">
                   {GENERATIONS.map((g) => (
                     <button
@@ -828,13 +762,7 @@ export default function Home() {
                           {u.display_name}
                         </Link>
                         <div className="text-[11px] text-muted-pit truncate">
-                          {[
-                            u.generation,
-                            u.age !== null ? `Age ${u.age}` : null,
-                            u.location,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ") || "No details"}
+                          {[u.generation, u.location].filter(Boolean).join(" · ") || "No details"}
                         </div>
                       </div>
                       {!favoriteIds.has(u.id) && (
