@@ -58,24 +58,26 @@ export default function BallpitWordmark({
   size = "md",
   className = "",
 }: Props) {
-  // Brushed aluminum (matches silver body letters)
+  // Bright platinum / aluminum — high contrast on dark header
   const metal: CSSProperties = {
     backgroundImage:
-      "linear-gradient(180deg, #F7F8F9 0%, #D5 recapDADF 28%, #A8B0B8 62%, #6E777F 100%)",
+      "linear-gradient(180deg, #FFFFFF 0%, #F2F4F6 18%, #C8CED4 48%, #9AA3AB 78%, #B8C0C8 100%)",
     WebkitBackgroundClip: "text",
     backgroundClip: "text",
     color: "transparent",
+    WebkitTextFillColor: "transparent",
     filter:
-      "drop-shadow(0 1px 0 rgba(255,255,255,0.25)) drop-shadow(0 2px 2px rgba(0,0,0,0.5))",
+      "drop-shadow(0 1px 0 rgba(255,255,255,0.45)) drop-shadow(0 2px 3px rgba(0,0,0,0.75))",
   };
 
-  // Polished bronze / copper (closer to your hero image a / i)
+  // Bronze / copper accents (a + i)
   const bronze: CSSProperties = {
     backgroundImage:
       "linear-gradient(165deg, #F0D0A0 0%, #D4A05A 18%, #B87333 42%, #8B5A2B 68%, #5C3A1E 100%)",
     WebkitBackgroundClip: "text",
     backgroundClip: "text",
     color: "transparent",
+    WebkitTextFillColor: "transparent",
     filter:
       "drop-shadow(0 1px 0 rgba(255,220,170,0.35)) drop-shadow(0 2px 2px rgba(40,18,6,0.55))",
   };
