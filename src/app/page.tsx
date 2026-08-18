@@ -565,7 +565,16 @@ export default function Home() {
                   </p>
                 </Link>
 
-                <div className="text-sm font-medium">{article.author_name || "Unknown author"}</div>
+                {article.user_id ? (
+                  <Link
+                    href={`/profile/${article.user_id}`}
+                    className="text-sm font-medium hover:opacity-80 text-highlight-pit"
+                  >
+                    {article.author_name || "Unknown author"}
+                  </Link>
+                ) : (
+                  <div className="text-sm font-medium">{article.author_name || "Unknown author"}</div>
+                )}
               </article>
             ))
           )}
