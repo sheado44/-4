@@ -489,7 +489,14 @@ export default function Home() {
   }, [onlyFavorites, feedGens]);
 
   const filteredArticles = useMemo(() => {
-    let list = section === "All" ? articles : articles.filter((a) => a.section === section);
+    let list = articles;
+
+    if (section === "All") {
+      // Legal separation: satire never appears in the main feed
+      list = articles.filter((a) => a.section !== "Satire");
+    } else {
+      list = articles.filter((a) => a.section === section);
+    }
 
     if (loggedIn && onlyFavorites) {
       list = list.filter((a) => favoriteIds.has(a.user_id));
@@ -637,7 +644,32 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 pb-16 grid lg:grid-cols-3 gap-8">
+      {/* Frozen satire disclosure — only when Satire feed is open */}
+      {section === "Satire" && (
+        <div
+          className="sticky top-0 z-30 border-y"
+          style={{
+            background: "color-mix(in srgb, #7a1f1f 55%, #1E2022 45%)",
+            borderColor: "rgba(255,180,120,0.35)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <div className="max-w-6xl mx-auto px-4 py-3">
+            <div className="text-sm font-bold tracking-wide mb-1" style={{ color: "#FFE6C7" }}>
+              SATIRE
+            </div>
+            <p className="text-xs leading-relaxed" style={{ color: "rgba(255,230,199,0.92)" }}>
+              This section contains satirical, exaggerated, and fictional content created for
+              entertainment. It is not news reporting. Names, events, and statements may be invented
+              or distorted on purpose. Do not treat anything here as fact. By viewing this section
+              you acknowledge it is labeled satire and is separate from Sports and Pop Culture
+              journalism on The Ballpit. Additional terms may apply in the site Terms of Service.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-6xl mx-auto px-4 pb-16 grid lg:grid-cols-3 gap-8 pt-2">
         <div className="lg:col-span-2 space-y-4">
           {loading ? (
             <div className="pit-panel p-8 text-center text-muted-pit text-sm">Loading articles...</div>
@@ -673,7 +705,6 @@ export default function Home() {
                     </p>
                   </Link>
 
-                  {/* Prominent AI + Star score row */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
                     <div
                       className="rounded-xl px-3 py-2.5 border"
