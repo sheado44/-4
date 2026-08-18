@@ -62,15 +62,16 @@ export default function Home() {
   const [downReceived, setDownReceived] = useState(0);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [watchFeed, setWatchFeed] = useState<WatchItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchHometown, setSearchHometown] = useState("");
-  const [searchAgeMin, setSearchAgeMin] = useState("");
-  const [searchAgeMax, setSearchAgeMax] = useState("");
+
+  // Dynamic user finder
+  const [finderMinAge, setFinderMinAge] = useState(18);
+  const [finderMaxAge, setFinderMaxAge] = useState(65);
+  const [finderFavoritesOnly, setFinderFavoritesOnly] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [searchMessage, setSearchMessage] = useState("");
   const [searching, setSearching] = useState(false);
 
-  // Feed filters (logged-in only)
+  // Feed filters
   const [filterOpen, setFilterOpen] = useState(false);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [feedAgeEnabled, setFeedAgeEnabled] = useState(false);
@@ -239,36 +240,55 @@ export default function Home() {
     load();
   }, []);
 
-  const handleSearchUsers = async () => {
+  const handleFindUsers = async () => {
+    if (!userId) return;
     setSearchMessage("");
     setSearchResults([]);
-
-    const q = searchQuery.trim();
-    const hometown = searchHometown.trim();
-    const minAge = searchAgeMin ? Number(searchAgeMin) : null;
-    const maxAge = searchAgeMax ? Number(searchAgeMax) : null;
-
-    if (!q && !hometown && minAge === null && maxAge === null) {
-      setSearchMessage("Enter a name, hometown, or age range.");
-      return;
-    }
-
-    if ((minAge !== null && Number.isNaN(minAge)) || (maxAge !== null && Number.isNaN(maxAge))) {
-      setSearchMessage("Age filters must be numbers.");
-      return;
-    }
-
     setSearching(true);
 
-    let query = supabase
+    let min = Math.min(finderMinAge, finderMaxAge);
+    let max = Math.max(finderMinAge, finderMaxAge);
+
+    if (finderFavoritesOnly) {
+      if (favorites.length === 0) {
+        setSearchMessage("No favorites yet.");
+        setSearching(false);
+        return;
+      }
+
+      const ids = favorites.map((f) => f.favorite_user_id);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, display_name, location, birthday")
+        .in("id", ids);
+
+      if (error) {
+        setSearchMessage(error.message);
+        setSearching(false);
+        return;
+      }
+
+      const rows = (data || [])
+        .map((u) => ({
+          id: u.id,
+          display_name: u.display_name || "User",
+          location: u.location || null,
+          age: ageFromBirthday(u.birthday),
+        }))
+        .filter((u) => u.age !== null && u.age! >= min && u.age! <= max);
+
+      setSearchResults(rows);
+      if (rows.length === 0) setSearchMessage("No favorites in that age range.");
+      setSearching(false);
+      return;
+    }
+
+    // Broad fetch then filter by age client-side (birthday math)
+    const { data, error } = await supabase
       .from("profiles")
       .select("id, display_name, location, birthday")
-      .limit(40);
-
-    if (q) query = query.ilike("display_name", `%${q}%`);
-    if (hometown) query = query.ilike("location", `%${hometown}%`);
-
-    const { data, error } = await query;
+      .neq("id", userId)
+      .limit(100);
 
     if (error) {
       setSearchMessage(error.message);
@@ -276,21 +296,29 @@ export default function Home() {
       return;
     }
 
-    let rows = (data || [])
-      .filter((u) => u.id !== userId)
+    const rows = (data || [])
       .map((u) => ({
         id: u.id,
         display_name: u.display_name || "User",
         location: u.location || null,
         age: ageFromBirthday(u.birthday),
-      }));
+      }))
+      .filter((u) => u.age !== null && u.age! >= min && u.age! <= max)
+      .slice(0, 20);
 
-    if (minAge !== null) rows = rows.filter((u) => u.age !== null && u.age >= minAge);
-    if (maxAge !== null) rows = rows.filter((u) => u.age !== null && u.age <= maxAge);
-
-    setSearchResults(rows.slice(0, 12));
-    if (rows.length === 0) setSearchMessage("No users found.");
+    setSearchResults(rows);
+    if (rows.length === 0) setSearchMessage("No users in that age range.");
     setSearching(false);
+  };
+
+  // Keep min/max ordered while sliding
+  const onMinAge = (v: number) => {
+    setFinderMinAge(v);
+    if (v > finderMaxAge) setFinderMaxAge(v);
+  };
+  const onMaxAge = (v: number) => {
+    setFinderMaxAge(v);
+    if (v < finderMinAge) setFinderMinAge(v);
   };
 
   const addFavorite = async (favoriteUserId: string, name: string) => {
@@ -416,7 +444,6 @@ export default function Home() {
             </button>
           ))}
 
-          {/* Filter options — logged in only */}
           {loggedIn && (
             <div className="relative" ref={filterRef}>
               <button
@@ -655,50 +682,57 @@ export default function Home() {
                 )}
               </div>
 
+              {/* Dynamic user finder */}
               <div className="pit-panel p-5">
-                <h3 className="font-semibold mb-3">Search users</h3>
+                <h3 className="font-semibold mb-3">Find users</h3>
 
-                <div className="space-y-2 mb-3">
-                  <input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Display name"
-                    className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-                  />
-                  <input
-                    value={searchHometown}
-                    onChange={(e) => setSearchHometown(e.target.value)}
-                    placeholder="Hometown / location"
-                    className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      value={searchAgeMin}
-                      onChange={(e) => setSearchAgeMin(e.target.value)}
-                      placeholder="Min age"
-                      inputMode="numeric"
-                      className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-                    />
-                    <input
-                      value={searchAgeMax}
-                      onChange={(e) => setSearchAgeMax(e.target.value)}
-                      placeholder="Max age"
-                      inputMode="numeric"
-                      className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-                    />
+                <div className="mb-4">
+                  <div className="flex items-center justify-between text-xs text-muted-pit mb-1">
+                    <span>Age range</span>
+                    <span className="text-highlight-pit font-semibold">
+                      {Math.min(finderMinAge, finderMaxAge)} – {Math.max(finderMinAge, finderMaxAge)}
+                    </span>
                   </div>
-                  <button
-                    onClick={handleSearchUsers}
-                    disabled={searching}
-                    className="btn-write w-full px-3 py-2 rounded-xl text-sm disabled:opacity-60"
-                  >
-                    {searching ? "Searching..." : "Search"}
-                  </button>
+                  <input
+                    type="range"
+                    min={13}
+                    max={90}
+                    value={finderMinAge}
+                    onChange={(e) => onMinAge(Number(e.target.value))}
+                    className="w-full mb-2"
+                  />
+                  <input
+                    type="range"
+                    min={13}
+                    max={90}
+                    value={finderMaxAge}
+                    onChange={(e) => onMaxAge(Number(e.target.value))}
+                    className="w-full"
+                  />
                 </div>
 
-                {searchMessage && <p className="text-xs text-yellow-500 mb-2">{searchMessage}</p>}
+                <button
+                  type="button"
+                  onClick={() => setFinderFavoritesOnly((v) => !v)}
+                  className={`w-full mb-3 px-3 py-2 rounded-xl text-sm font-medium transition btn-metal ${
+                    finderFavoritesOnly ? "ring-1 ring-[var(--pit-highlight)]" : ""
+                  }`}
+                >
+                  {finderFavoritesOnly ? "Favorites only · On" : "Favorites only · Off"}
+                </button>
 
-                <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={handleFindUsers}
+                  disabled={searching}
+                  className="btn-write w-full px-3 py-2.5 rounded-xl text-sm disabled:opacity-60"
+                >
+                  {searching ? "Finding..." : "Find users"}
+                </button>
+
+                {searchMessage && <p className="text-xs text-yellow-500 mt-2">{searchMessage}</p>}
+
+                <div className="space-y-2 mt-3">
                   {searchResults.map((u) => (
                     <div
                       key={u.id}
@@ -718,12 +752,14 @@ export default function Home() {
                             .join(" · ") || "No location/age"}
                         </div>
                       </div>
-                      <button
-                        onClick={() => addFavorite(u.id, u.display_name)}
-                        className="text-xs px-2 py-1 rounded-lg btn-write shrink-0"
-                      >
-                        Add
-                      </button>
+                      {!favoriteIds.has(u.id) && (
+                        <button
+                          onClick={() => addFavorite(u.id, u.display_name)}
+                          className="text-xs px-2 py-1 rounded-lg btn-write shrink-0"
+                        >
+                          Add
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
