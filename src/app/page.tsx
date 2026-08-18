@@ -63,7 +63,6 @@ const ALL_LEAGUES: LeagueId[] = ["NFL", "NBA", "MLB", "NHL", "CFB", "CBB", "Golf
 const DEFAULT_LEAGUES: LeagueId[] = ["NFL", "CFB", "NBA"];
 const SCORES_STORAGE_KEY = "ballpit-desk-leagues";
 
-// Stub data — replace with real sports API later
 const STUB_SCORES: ScoreItem[] = [
   {
     id: "1",
@@ -303,10 +302,7 @@ function ScoresDeskWidget({
             className="h-1.5 rounded-full transition-all"
             style={{
               width: i === safeIndex ? 16 : 6,
-              background:
-                i === safeIndex
-                  ? "var(--pit-highlight)"
-                  : "rgba(255,255,255,0.2)",
+              background: i === safeIndex ? "var(--pit-highlight)" : "rgba(255,255,255,0.2)",
             }}
             aria-label={league}
           />
@@ -331,9 +327,7 @@ function ScoresDeskWidget({
                   className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded"
                   style={{
                     background:
-                      game.status === "Live"
-                        ? "rgba(239,68,68,0.2)"
-                        : "rgba(255,255,255,0.08)",
+                      game.status === "Live" ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.08)",
                     color: game.status === "Live" ? "#fca5a5" : "var(--pit-muted)",
                   }}
                 >
@@ -467,9 +461,7 @@ export default function Home() {
     Object.keys(authorSums).forEach((uid) => {
       aMap[uid] = {
         count: authorSums[uid].count,
-        avg: authorSums[uid].count
-          ? authorSums[uid].total / authorSums[uid].count
-          : null,
+        avg: authorSums[uid].count ? authorSums[uid].total / authorSums[uid].count : null,
       };
     });
 
@@ -541,9 +533,7 @@ export default function Home() {
         });
       });
 
-      feed.sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
+      feed.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setWatchFeed(feed.slice(0, 15));
     } else {
       setWatchFeed([]);
@@ -986,7 +976,7 @@ export default function Home() {
                       style={{ background: "rgba(0,0,0,0.22)" }}
                     >
                       <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit font-semibold mb-0.5">
-                        Stars
+                        Community rating
                       </div>
                       <div className="text-2xl font-bold leading-none" style={{ color: "var(--pit-text)" }}>
                         {stats.avgRating != null ? stats.avgRating.toFixed(1) : "—"}
@@ -1032,9 +1022,7 @@ export default function Home() {
                       <span className="font-semibold" style={{ color: "var(--pit-text)" }}>
                         {authorRate?.avg != null ? authorRate.avg.toFixed(1) : "—"}
                       </span>
-                      {authorRate?.count ? (
-                        <span className="ml-1">({authorRate.count})</span>
-                      ) : null}
+                      {authorRate?.count ? <span className="ml-1">({authorRate.count})</span> : null}
                     </span>
                   </div>
                 </article>
