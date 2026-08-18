@@ -524,7 +524,7 @@ function TrendingIrlWidget({ articles }: { articles: Article[] }) {
 
             {matches.length === 0 ? (
               <div className="text-xs text-muted-pit">
-                No Ballpit takes yet.{" "}
+                No theBallpit takes yet.{" "}
                 <Link href="/editor" className="text-highlight-pit hover:opacity-80">
                   Write one
                 </Link>
@@ -549,7 +549,7 @@ function TrendingIrlWidget({ articles }: { articles: Article[] }) {
 
       <p className="text-[10px] text-muted-pit mt-3">
         Topics are news/trends-style samples. Live RSS/news trend feeds can replace this list
-        later; matching already uses your article database.
+        later; matching already uses your theBallpit article database.
       </p>
     </div>
   );
@@ -1002,7 +1002,7 @@ export default function Home() {
           <div className="metal-card overflow-hidden">
             <img
               src="/ballpit-hero.png"
-              alt="The Ballpit"
+              alt="theBallpit"
               className="w-full h-auto object-cover max-h-[360px] md:max-h-[420px]"
             />
           </div>
@@ -1119,7 +1119,7 @@ export default function Home() {
               entertainment. It is not news reporting. Names, events, and statements may be invented
               or distorted on purpose. Do not treat anything here as fact. By viewing this section
               you acknowledge it is labeled satire and is separate from Sports and Pop Culture
-              journalism on The Ballpit. Additional terms may apply in the site Terms of Service.
+              journalism on theBallpit. Additional terms may apply in the site Terms of Service.
             </p>
           </div>
         </div>
