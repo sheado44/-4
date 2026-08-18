@@ -32,7 +32,20 @@ type WatchItem = {
 type SearchUser = {
   id: string;
   display_name: string;
+  location: string | null;
+  age: number | null;
 };
+
+function ageFromBirthday(birthday: string | null | undefined): number | null {
+  if (!birthday) return null;
+  const d = new Date(birthday);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+  return age;
+}
 
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
@@ -49,6 +62,9 @@ export default function Home() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [watchFeed, setWatchFeed] = useState<WatchItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchHometown, setSearchHometown] = useState("");
+  const [searchAgeMin, setSearchAgeMin] = useState("");
+  const [searchAgeMax, setSearchAgeMax] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [searchMessage, setSearchMessage] = useState("");
   const [searching, setSearching] = useState(false);
@@ -188,18 +204,33 @@ export default function Home() {
   const handleSearchUsers = async () => {
     setSearchMessage("");
     setSearchResults([]);
+
     const q = searchQuery.trim();
-    if (q.length < 2) {
-      setSearchMessage("Type at least 2 characters.");
+    const hometown = searchHometown.trim();
+    const minAge = searchAgeMin ? Number(searchAgeMin) : null;
+    const maxAge = searchAgeMax ? Number(searchAgeMax) : null;
+
+    if (!q && !hometown && minAge === null && maxAge === null) {
+      setSearchMessage("Enter a name, hometown, or age range.");
+      return;
+    }
+
+    if ((minAge !== null && Number.isNaN(minAge)) || (maxAge !== null && Number.isNaN(maxAge))) {
+      setSearchMessage("Age filters must be numbers.");
       return;
     }
 
     setSearching(true);
-    const { data, error } = await supabase
+
+    let query = supabase
       .from("profiles")
-      .select("id, display_name")
-      .ilike("display_name", `%${q}%`)
-      .limit(8);
+      .select("id, display_name, location, birthday")
+      .limit(40);
+
+    if (q) query = query.ilike("display_name", `%${q}%`);
+    if (hometown) query = query.ilike("location", `%${hometown}%`);
+
+    const { data, error } = await query;
 
     if (error) {
       setSearchMessage(error.message);
@@ -207,15 +238,20 @@ export default function Home() {
       return;
     }
 
-    setSearchResults(
-      (data || [])
-        .filter((u) => u.id !== userId)
-        .map((u) => ({
-          id: u.id,
-          display_name: u.display_name || "User",
-        }))
-    );
-    if ((data || []).length === 0) setSearchMessage("No users found.");
+    let rows = (data || [])
+      .filter((u) => u.id !== userId)
+      .map((u) => ({
+        id: u.id,
+        display_name: u.display_name || "User",
+        location: u.location || null,
+        age: ageFromBirthday(u.birthday),
+      }));
+
+    if (minAge !== null) rows = rows.filter((u) => u.age !== null && u.age >= minAge);
+    if (maxAge !== null) rows = rows.filter((u) => u.age !== null && u.age <= maxAge);
+
+    setSearchResults(rows.slice(0, 12));
+    if (rows.length === 0) setSearchMessage("No users found.");
     setSearching(false);
   };
 
@@ -343,6 +379,7 @@ export default function Home() {
         <aside className="space-y-5">
           {loggedIn ? (
             <>
+              {/* 1. Your desk */}
               <div className="pit-panel p-5">
                 <div className="flex items-center gap-3 mb-4">
                   {avatarUrl ? (
@@ -397,52 +434,12 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="pit-panel p-5">
-                <h3 className="font-semibold mb-3">Search users</h3>
-                <div className="flex gap-2 mb-3">
-                  <input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by display name..."
-                    className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
-                  />
-                  <button
-                    onClick={handleSearchUsers}
-                    disabled={searching}
-                    className="btn-write px-3 py-2 rounded-xl text-sm disabled:opacity-60"
-                  >
-                    {searching ? "..." : "Search"}
-                  </button>
-                </div>
-
-                {searchMessage && <p className="text-xs text-yellow-500 mb-2">{searchMessage}</p>}
-
-                <div className="space-y-2">
-                  {searchResults.map((u) => (
-                    <div
-                      key={u.id}
-                      className="flex items-center justify-between gap-2 rounded-lg border border-white/5 px-3 py-2"
-                      style={{ background: "rgba(0,0,0,0.12)" }}
-                    >
-                      <Link href={`/profile/${u.id}`} className="text-sm hover:opacity-80">
-                        {u.display_name}
-                      </Link>
-                      <button
-                        onClick={() => addFavorite(u.id, u.display_name)}
-                        className="text-xs px-2 py-1 rounded-lg btn-write"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
+              {/* 2. Watchlist activity */}
               <div className="pit-panel p-5">
                 <h3 className="font-semibold mb-3">Watchlist activity</h3>
                 {watchFeed.length === 0 ? (
                   <p className="text-sm text-muted-pit">
-                    No watchlist activity yet. Search and favorite people to track them.
+                    No watchlist activity yet. Favorite people to track them.
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -471,6 +468,7 @@ export default function Home() {
                 )}
               </div>
 
+              {/* 3. Favorites */}
               <div className="pit-panel p-5">
                 <h3 className="font-semibold mb-3">Favorites</h3>
                 {favorites.length === 0 ? (
@@ -489,6 +487,78 @@ export default function Home() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* 4. Search users */}
+              <div className="pit-panel p-5">
+                <h3 className="font-semibold mb-3">Search users</h3>
+
+                <div className="space-y-2 mb-3">
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Display name"
+                    className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+                  />
+                  <input
+                    value={searchHometown}
+                    onChange={(e) => setSearchHometown(e.target.value)}
+                    placeholder="Hometown / location"
+                    className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={searchAgeMin}
+                      onChange={(e) => setSearchAgeMin(e.target.value)}
+                      placeholder="Min age"
+                      inputMode="numeric"
+                      className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+                    />
+                    <input
+                      value={searchAgeMax}
+                      onChange={(e) => setSearchAgeMax(e.target.value)}
+                      placeholder="Max age"
+                      inputMode="numeric"
+                      className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+                    />
+                  </div>
+                  <button
+                    onClick={handleSearchUsers}
+                    disabled={searching}
+                    className="btn-write w-full px-3 py-2 rounded-xl text-sm disabled:opacity-60"
+                  >
+                    {searching ? "Searching..." : "Search"}
+                  </button>
+                </div>
+
+                {searchMessage && <p className="text-xs text-yellow-500 mb-2">{searchMessage}</p>}
+
+                <div className="space-y-2">
+                  {searchResults.map((u) => (
+                    <div
+                      key={u.id}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-white/5 px-3 py-2"
+                      style={{ background: "rgba(0,0,0,0.12)" }}
+                    >
+                      <div className="min-w-0">
+                        <Link href={`/profile/${u.id}`} className="text-sm font-medium hover:opacity-80 block truncate">
+                          {u.display_name}
+                        </Link>
+                        <div className="text-[11px] text-muted-pit truncate">
+                          {[u.location, u.age !== null ? `Age ${u.age}` : null]
+                            .filter(Boolean)
+                            .join(" · ") || "No location/age"}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => addFavorite(u.id, u.display_name)}
+                        className="text-xs px-2 py-1 rounded-lg btn-write shrink-0"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </>
           ) : (
