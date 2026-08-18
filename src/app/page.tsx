@@ -59,6 +59,12 @@ type ScoreItem = {
   headline: string;
 };
 
+type TrendTopic = {
+  id: string;
+  label: string;
+  keywords: string[];
+};
+
 const ALL_LEAGUES: LeagueId[] = ["NFL", "NBA", "MLB", "NHL", "CFB", "CBB", "Golf"];
 const DEFAULT_LEAGUES: LeagueId[] = ["NFL", "CFB", "NBA"];
 const SCORES_STORAGE_KEY = "ballpit-desk-leagues";
@@ -136,6 +142,40 @@ const STUB_SCORES: ScoreItem[] = [
   },
 ];
 
+// News/trends-style topics (option C). Swap this list for live RSS/news trends later.
+const TREND_TOPICS: TrendTopic[] = [
+  {
+    id: "t1",
+    label: "NFL quarterback market",
+    keywords: ["quarterback", "qb", "nfl", "trade", "starter"],
+  },
+  {
+    id: "t2",
+    label: "College football playoff",
+    keywords: ["playoff", "cfb", "college football", "sec", "big ten"],
+  },
+  {
+    id: "t3",
+    label: "NBA finals race",
+    keywords: ["nba", "finals", "playoffs", "championship"],
+  },
+  {
+    id: "t4",
+    label: "Hollywood awards season",
+    keywords: ["oscar", "awards", "film", "movie", "hollywood"],
+  },
+  {
+    id: "t5",
+    label: "Streaming TV hits",
+    keywords: ["netflix", "streaming", "series", "tv", "episode"],
+  },
+  {
+    id: "t6",
+    label: "Golf major week",
+    keywords: ["golf", "masters", "pga", "major"],
+  },
+];
+
 const GENERATIONS: { id: Generation; label: string; start: number; end: number }[] = [
   { id: "Silent", label: "Silent", start: 1928, end: 1945 },
   { id: "Boomer", label: "Boomer", start: 1946, end: 1964 },
@@ -152,6 +192,11 @@ function generationFromBirthday(birthday: string | null | undefined): Generation
   const year = d.getFullYear();
   const hit = GENERATIONS.find((g) => year >= g.start && year <= g.end);
   return hit ? hit.id : null;
+}
+
+function articleMatchesTopic(article: Article, topic: TrendTopic) {
+  const text = `${article.title} ${article.body}`.toLowerCase();
+  return topic.keywords.some((k) => text.includes(k.toLowerCase()));
 }
 
 function GenChip({
@@ -205,13 +250,10 @@ function ScoresDeskWidget({
   const activeLeagues = selectedLeagues.length ? selectedLeagues : DEFAULT_LEAGUES;
   const safeIndex = Math.min(carouselIndex, Math.max(activeLeagues.length - 1, 0));
   const currentLeague = activeLeagues[safeIndex] || DEFAULT_LEAGUES[0];
-
   const leagueScores = STUB_SCORES.filter((s) => s.league === currentLeague);
 
   useEffect(() => {
-    if (carouselIndex > activeLeagues.length - 1) {
-      setCarouselIndex(0);
-    }
+    if (carouselIndex > activeLeagues.length - 1) setCarouselIndex(0);
   }, [activeLeagues.length, carouselIndex]);
 
   const toggleLeague = (league: LeagueId) => {
@@ -342,6 +384,68 @@ function ScoresDeskWidget({
 
       <p className="text-[10px] text-muted-pit mt-3">
         Sample scores for layout. Live feed comes when a sports data provider is connected.
+      </p>
+    </div>
+  );
+}
+
+function TrendingIrlWidget({ articles }: { articles: Article[] }) {
+  const rows = useMemo(() => {
+    return TREND_TOPICS.map((topic) => {
+      const matches = articles
+        .filter((a) => a.section !== "Satire")
+        .filter((a) => articleMatchesTopic(a, topic))
+        .slice(0, 3);
+      return { topic, matches };
+    });
+  }, [articles]);
+
+  return (
+    <div className="pit-panel p-5">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <h3 className="font-semibold">Trending IRL</h3>
+        <span className="text-[10px] uppercase tracking-wide text-muted-pit">News trends</span>
+      </div>
+
+      <div className="space-y-3">
+        {rows.map(({ topic, matches }) => (
+          <div
+            key={topic.id}
+            className="rounded-xl border border-white/5 px-3 py-2.5"
+            style={{ background: "rgba(0,0,0,0.12)" }}
+          >
+            <div className="text-sm font-semibold mb-1.5" style={{ color: "var(--pit-text)" }}>
+              {topic.label}
+            </div>
+
+            {matches.length === 0 ? (
+              <div className="text-xs text-muted-pit">
+                No Ballpit takes yet.{" "}
+                <Link href="/editor" className="text-highlight-pit hover:opacity-80">
+                  Write one
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {matches.map((a) => (
+                  <Link
+                    key={a.id}
+                    href={`/article/${a.id}`}
+                    className="block text-xs hover:opacity-90"
+                  >
+                    <span className="text-highlight-pit font-medium line-clamp-1">{a.title}</span>
+                    <span className="text-muted-pit"> · {a.author_name || "Unknown"}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <p className="text-[10px] text-muted-pit mt-3">
+        Topics are news/trends-style samples. Live RSS/news trend feeds can replace this list
+        later; matching already uses your article database.
       </p>
     </div>
   );
@@ -1106,6 +1210,8 @@ export default function Home() {
                 selectedLeagues={selectedLeagues}
                 setSelectedLeagues={setSelectedLeagues}
               />
+
+              <TrendingIrlWidget articles={articles} />
 
               <div className="pit-panel p-5">
                 <h3 className="font-semibold mb-3">Watchlist activity</h3>
