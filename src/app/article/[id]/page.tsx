@@ -42,6 +42,49 @@ type AvatarMeta = {
   skin: string;
 };
 
+
+function imgClass(place: string) {
+  switch (place) {
+    case "left":
+      return "w-full md:w-[42%] md:float-left md:mr-4 mb-4 rounded-xl";
+    case "right":
+      return "w-full md:w-[42%] md:float-right md:ml-4 mb-4 rounded-xl";
+    case "top":
+      return "w-full max-h-80 object-cover rounded-xl mb-6";
+    case "bottom":
+      return "w-full max-h-80 object-cover rounded-xl mt-6 mb-4";
+    case "split":
+      return "w-full md:w-[48%] inline-block md:mr-[2%] mb-4 rounded-xl align-top";
+    default:
+      return "w-full md:w-2/3 mx-auto block rounded-xl my-6";
+  }
+}
+
+function ArticleBody({ body }: { body: string }) {
+  const lines = body.split("\n");
+  return (
+    <article className="max-w-none mb-10 overflow-hidden">
+      {lines.map((line, i) => {
+        const m = line.match(/^!\[(.*?)\]\((.*?)\)\s*$/);
+        if (m) {
+          const place = (m[1].match(/img:(\w+)/) || [])[1] || "middle";
+          return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={i} src={m[2]} alt="" className={imgClass(place)} />
+          );
+        }
+        if (!line.trim()) return null;
+        return (
+          <p key={i} className="text-gray-100 leading-relaxed mb-5">
+            {line}
+          </p>
+        );
+      })}
+      <div className="clear-both" />
+    </article>
+  );
+}
+
 function makeGuestName() {
   return `anon_${Math.random().toString(16).slice(2, 8)}`;
 }
@@ -622,13 +665,7 @@ export default function ArticlePage() {
         </div>
       </Link>
 
-      <article className="max-w-none mb-10">
-        {article.body.split("\n").filter(Boolean).map((paragraph, i) => (
-          <p key={i} className="text-gray-100 leading-relaxed mb-5">
-            {paragraph}
-          </p>
-        ))}
-      </article>
+      <ArticleBody body={article.body} />
 
       <div className="mb-10 p-5 bg-forge-900 border border-forge-800 rounded-2xl">
         <div className="text-sm text-gray-300 mb-2">Rate this article</div>
