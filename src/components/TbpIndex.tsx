@@ -24,15 +24,13 @@ export function computeTbpBreakdown(
   const truth = base != null ? clamp10(base) : null;
   const style = base != null ? clamp10(base - 0.3) : null;
   const effort =
-    base != null
-      ? clamp10(base * 0.7 + Math.min(3, words / 250))
-      : null;
+    base != null ? clamp10(base * 0.7 + Math.min(3, words / 250)) : null;
 
   const community = avgRating != null ? clamp10(avgRating * 2) : null;
 
   const parts: { key: string; value: number; weight: number }[] = [];
-  if (truth != null) parts.push({ key: "truth", value: truth, weight: 0.4 });
-  if (style != null) parts.push({ key: "style", value: style, weight: 0.25 });
+  if (style != null) parts.push({ key: "style", value: style, weight: 0.4 });
+  if (truth != null) parts.push({ key: "truth", value: truth, weight: 0.25 });
   if (effort != null) parts.push({ key: "effort", value: effort, weight: 0.15 });
   if (community != null) parts.push({ key: "community", value: community, weight: 0.2 });
 
@@ -53,8 +51,8 @@ export default function TbpIndex({ aiScore, body, avgRating, ratingCount = 0 }: 
   );
 
   const rows = [
-    { label: "Truth telling", value: b.truth, note: "40%" },
-    { label: "Journalistic style", value: b.style, note: "25%" },
+    { label: "Journalistic style", value: b.style, note: "40%" },
+    { label: "Truth telling", value: b.truth, note: "25%" },
     { label: "Overall effort", value: b.effort, note: "15%" },
     {
       label: "Community stars",
