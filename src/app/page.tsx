@@ -1176,10 +1176,11 @@ export default function Home() {
               const gen = authorGens[article.user_id];
 
               return (
-                <article key={article.id} className="metal-card overflow-hidden transition-all duration-200">
-                  <Link href={`/article/${article.id}`} className="block">
-                    <div
-                      className="w-full aspect-[16/9] border-b border-white/10 overflow-hidden"
+                <article key={article.id} className="metal-card p-5 transition-all duration-200">
+                  <div className="flex gap-4 mb-4">
+                    <Link
+                      href={`/article/${article.id}`}
+                      className="shrink-0 w-28 h-20 md:w-36 md:h-24 rounded-xl overflow-hidden border border-white/10"
                       style={{ background: "rgba(0,0,0,0.28)" }}
                     >
                       {article.thumbnail_url ? (
@@ -1190,13 +1191,12 @@ export default function Home() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[11px] uppercase tracking-[0.18em] text-muted-pit">
-                          Thumbnail
+                        <div className="w-full h-full flex items-center justify-center text-[9px] uppercase tracking-[0.14em] text-muted-pit text-center px-1">
+                          Thumb
                         </div>
                       )}
-                    </div>
-                  </Link>
-                  <div className="p-5">
+                    </Link>
+                    <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-pit mb-2">
                     <span className="bg-highlight-soft px-2 py-0.5 rounded-md font-semibold">
                       {article.section}
@@ -1208,10 +1208,12 @@ export default function Home() {
                     <h2 className="text-lg md:text-xl font-bold mb-2 hover:opacity-90 transition leading-snug">
                       {article.title}
                     </h2>
-                    <p className="text-muted-pit text-sm line-clamp-3 mb-4 leading-relaxed">
+                    <p className="text-muted-pit text-sm line-clamp-3 leading-relaxed">
                       {article.body}
                     </p>
                   </Link>
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-2 gap-2 mb-4">
                     <TbpIndex
@@ -1270,7 +1272,6 @@ export default function Home() {
                       </span>
                       {authorRate?.count ? <span className="ml-1">({authorRate.count})</span> : null}
                     </span>
-                  </div>
                   </div>
                 </article>
               );
