@@ -14,6 +14,7 @@ type Article = {
   user_id: string;
   author_name: string | null;
   ai_score: number | null;
+  status?: string | null;
 };
 
 type ArticleStats = {
@@ -219,7 +220,7 @@ const TREND_TOPICS: TrendTopic[] = [
   {
     id: "t4",
     label: "Hollywood awards season",
-    keywords: ["oscar", "awards", "film", "movie", "hollywood"],
+    keywords: ["oscar", "awards", "film", "movie", "actress"],
   },
   {
     id: "t5",
@@ -254,6 +255,11 @@ function generationFromBirthday(birthday: string | null | undefined): Generation
 function articleMatchesTopic(article: Article, topic: TrendTopic) {
   const text = `${article.title} ${article.body}`.toLowerCase();
   return topic.keywords.some((k) => text.includes(k.toLowerCase()));
+}
+
+function isPublicArticle(article: Article) {
+  // Missing status = older rows → still public
+  return !article.status || article.status === "published";
 }
 
 function GenChip({
@@ -497,6 +503,7 @@ function TrendingIrlWidget({ articles }: { articles: Article[] }) {
   const rows = useMemo(() => {
     return TREND_TOPICS.map((topic) => {
       const matches = articles
+        .filter(isPublicArticle)
         .filter((a) => a.section !== "Satire")
         .filter((a) => articleMatchesTopic(a, topic))
         .slice(0, 3);
@@ -704,21 +711,23 @@ export default function Home() {
     if (favIds.length > 0) {
       const { data: favArticles } = await supabase
         .from("articles")
-        .select("id, title, author_name, created_at, user_id")
+        .select("id, title, author_name, created_at, user_id, status")
         .in("user_id", favIds)
         .order("created_at", { ascending: false })
-        .limit(12);
+        .limit(20);
 
-      (favArticles || []).forEach((a) => {
-        feed.push({
-          id: `a-${a.id}`,
-          kind: "article",
-          actor_name: a.author_name || "User",
-          summary: `published “${a.title}”`,
-          href: `/article/${a.id}`,
-          created_at: a.created_at,
+      (favArticles || [])
+        .filter((a: any) => !a.status || a.status === "published")
+        .forEach((a) => {
+          feed.push({
+            id: `a-${a.id}`,
+            kind: "article",
+            actor_name: a.author_name || "User",
+            summary: `published “${a.title}”`,
+            href: `/article/${a.id}`,
+            created_at: a.created_at,
+          });
         });
-      });
 
       const { data: favComments } = await supabase
         .from("comments")
@@ -757,7 +766,7 @@ export default function Home() {
 
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, section, body, created_at, user_id, author_name, ai_score")
+        .select("id, title, section, body, created_at, user_id, author_name, ai_score, status")
         .order("created_at", { ascending: false });
 
       let mapped: Article[] = [];
@@ -767,16 +776,21 @@ export default function Home() {
           .from("articles")
           .select("id, title, section, body, created_at, user_id, author_name")
           .order("created_at", { ascending: false });
-        mapped = (fallback || []).map((a: any) => ({ ...a, ai_score: null }));
+        mapped = (fallback || []).map((a: any) => ({
+          ...a,
+          ai_score: null,
+          status: "published",
+        }));
       } else {
         mapped = (data || []).map((a: any) => ({
           ...a,
           ai_score: a.ai_score == null ? null : Number(a.ai_score),
+          status: a.status || "published",
         }));
       }
 
       setArticles(mapped);
-      await loadArticleStats(mapped);
+      await loadArticleStats(mapped.filter(isPublicArticle));
 
       const ids = Array.from(new Set(mapped.map((a) => a.user_id).filter(Boolean)));
       if (ids.length > 0) {
@@ -886,10 +900,10 @@ export default function Home() {
     if (topicQ) {
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, section, body, created_at, user_id, author_name, ai_score")
+        .select("id, title, section, body, created_at, user_id, author_name, ai_score, status")
         .or(`title.ilike.%${topicQ}%,body.ilike.%${topicQ}%`)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(30);
 
       if (error) {
         const { data: fallback } = await supabase
@@ -897,14 +911,23 @@ export default function Home() {
           .select("id, title, section, body, created_at, user_id, author_name")
           .or(`title.ilike.%${topicQ}%,body.ilike.%${topicQ}%`)
           .order("created_at", { ascending: false })
-          .limit(20);
-        setTopicArticles((fallback || []).map((a: any) => ({ ...a, ai_score: null })));
+          .limit(30);
+        setTopicArticles(
+          (fallback || [])
+            .map((a: any) => ({ ...a, ai_score: null, status: "published" }))
+            .filter(isPublicArticle)
+            .slice(0, 20)
+        );
       } else {
         setTopicArticles(
-          (data || []).map((a: any) => ({
-            ...a,
-            ai_score: a.ai_score == null ? null : Number(a.ai_score),
-          }))
+          (data || [])
+            .map((a: any) => ({
+              ...a,
+              ai_score: a.ai_score == null ? null : Number(a.ai_score),
+              status: a.status || "published",
+            }))
+            .filter(isPublicArticle)
+            .slice(0, 20)
         );
       }
     }
@@ -947,12 +970,13 @@ export default function Home() {
   }, [onlyFavorites, feedGens]);
 
   const filteredArticles = useMemo(() => {
-    let list = articles;
+    // Public feeds never show author_only
+    let list = articles.filter(isPublicArticle);
 
     if (section === "All") {
-      list = articles.filter((a) => a.section !== "Satire");
+      list = list.filter((a) => a.section !== "Satire");
     } else {
-      list = articles.filter((a) => a.section === section);
+      list = list.filter((a) => a.section === section);
     }
 
     if (loggedIn && onlyFavorites) {
