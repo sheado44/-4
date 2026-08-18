@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { formatTime } from "@/lib/time";
+import TbpIndex from "@/components/TbpIndex";
 
 type Article = {
   id: string;
@@ -258,7 +259,6 @@ function articleMatchesTopic(article: Article, topic: TrendTopic) {
 }
 
 function isPublicArticle(article: Article) {
-  // Missing status = older rows → still public
   return !article.status || article.status === "published";
 }
 
@@ -568,6 +568,7 @@ export default function Home() {
   const [statsById, setStatsById] = useState<Record<string, ArticleStats>>({});
   const [authorRatings, setAuthorRatings] = useState<Record<string, AuthorRating>>({});
   const [authorGens, setAuthorGens] = useState<Record<string, Generation | null>>({});
+  const [authorAvatars, setAuthorAvatars] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -796,16 +797,19 @@ export default function Home() {
       if (ids.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, birthday")
+          .select("id, birthday, avatar_url")
           .in("id", ids);
         const genMap: Record<string, Generation | null> = {};
+        const avatarMap: Record<string, string> = {};
         (profiles || []).forEach((p) => {
           genMap[p.id] = generationFromBirthday(p.birthday);
+          if (p.avatar_url) avatarMap[p.id] = p.avatar_url;
         });
         ids.forEach((id) => {
           if (!(id in genMap)) genMap[id] = null;
         });
         setAuthorGens(genMap);
+        setAuthorAvatars(avatarMap);
       }
 
       if (user) {
@@ -970,7 +974,6 @@ export default function Home() {
   }, [onlyFavorites, feedGens]);
 
   const filteredArticles = useMemo(() => {
-    // Public feeds never show author_only
     let list = articles.filter(isPublicArticle);
 
     if (section === "All") {
@@ -1185,41 +1188,16 @@ export default function Home() {
                     </p>
                   </Link>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
-                    <div
-                      className="rounded-xl px-3 py-2.5 border"
-                      style={{
-                        background:
-                          "linear-gradient(135deg, color-mix(in srgb, var(--pit-highlight) 28%, transparent), rgba(0,0,0,0.25))",
-                        borderColor: "color-mix(in srgb, var(--pit-highlight) 45%, transparent)",
-                        boxShadow: "0 0 18px color-mix(in srgb, var(--pit-highlight) 18%, transparent)",
-                      }}
-                    >
-                      <div className="text-[10px] uppercase tracking-[0.16em] text-highlight-pit font-semibold mb-0.5">
-                        AI Score
-                      </div>
-                      <div className="text-2xl font-bold leading-none" style={{ color: "var(--pit-text)" }}>
-                        {article.ai_score != null ? Number(article.ai_score).toFixed(1) : "—"}
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    <TbpIndex
+                      aiScore={article.ai_score}
+                      body={article.body}
+                      avgRating={stats.avgRating}
+                      ratingCount={stats.ratingCount}
+                    />
 
                     <div
                       className="rounded-xl px-3 py-2.5 border border-white/10"
-                      style={{ background: "rgba(0,0,0,0.22)" }}
-                    >
-                      <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit font-semibold mb-0.5">
-                        Community rating
-                      </div>
-                      <div className="text-2xl font-bold leading-none" style={{ color: "var(--pit-text)" }}>
-                        {stats.avgRating != null ? stats.avgRating.toFixed(1) : "—"}
-                        <span className="text-sm font-medium text-muted-pit ml-1">
-                          ({stats.ratingCount})
-                        </span>
-                      </div>
-                    </div>
-
-                    <div
-                      className="rounded-xl px-3 py-2.5 border border-white/10 col-span-2 sm:col-span-1"
                       style={{ background: "rgba(0,0,0,0.18)" }}
                     >
                       <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit font-semibold mb-0.5">
@@ -1232,6 +1210,16 @@ export default function Home() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 text-sm">
+                    {authorAvatars[article.user_id] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={authorAvatars[article.user_id]}
+                        alt={article.author_name || "Author"}
+                        className="w-6 h-6 rounded-full object-cover border border-white/10 bg-black/20"
+                      />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-white/10 border border-white/10" />
+                    )}
                     {article.user_id ? (
                       <Link
                         href={`/profile/${article.user_id}`}
