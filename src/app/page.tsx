@@ -668,31 +668,56 @@ export default function Home() {
                     <h2 className="text-lg md:text-xl font-bold mb-2 hover:opacity-90 transition leading-snug">
                       {article.title}
                     </h2>
-                    <p className="text-muted-pit text-sm line-clamp-3 mb-3 leading-relaxed">
+                    <p className="text-muted-pit text-sm line-clamp-3 mb-4 leading-relaxed">
                       {article.body}
                     </p>
                   </Link>
 
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-pit mb-3">
-                    <span title="AI quality score">
-                      AI{" "}
-                      <span className="font-semibold" style={{ color: "var(--pit-text)" }}>
+                  {/* Prominent AI + Star score row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+                    <div
+                      className="rounded-xl px-3 py-2.5 border"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, color-mix(in srgb, var(--pit-highlight) 28%, transparent), rgba(0,0,0,0.25))",
+                        borderColor: "color-mix(in srgb, var(--pit-highlight) 45%, transparent)",
+                        boxShadow: "0 0 18px color-mix(in srgb, var(--pit-highlight) 18%, transparent)",
+                      }}
+                    >
+                      <div className="text-[10px] uppercase tracking-[0.16em] text-highlight-pit font-semibold mb-0.5">
+                        AI Score
+                      </div>
+                      <div className="text-2xl font-bold leading-none" style={{ color: "var(--pit-text)" }}>
                         {article.ai_score != null ? Number(article.ai_score).toFixed(1) : "—"}
-                      </span>
-                    </span>
-                    <span title="Average user star rating">
-                      ★{" "}
-                      <span className="font-semibold" style={{ color: "var(--pit-text)" }}>
+                      </div>
+                    </div>
+
+                    <div
+                      className="rounded-xl px-3 py-2.5 border border-white/10"
+                      style={{ background: "rgba(0,0,0,0.22)" }}
+                    >
+                      <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit font-semibold mb-0.5">
+                        Stars
+                      </div>
+                      <div className="text-2xl font-bold leading-none" style={{ color: "var(--pit-text)" }}>
                         {stats.avgRating != null ? stats.avgRating.toFixed(1) : "—"}
-                      </span>
-                      <span className="ml-1">({stats.ratingCount})</span>
-                    </span>
-                    <span title="Comment count">
-                      💬{" "}
-                      <span className="font-semibold" style={{ color: "var(--pit-text)" }}>
+                        <span className="text-sm font-medium text-muted-pit ml-1">
+                          ({stats.ratingCount})
+                        </span>
+                      </div>
+                    </div>
+
+                    <div
+                      className="rounded-xl px-3 py-2.5 border border-white/10 col-span-2 sm:col-span-1"
+                      style={{ background: "rgba(0,0,0,0.18)" }}
+                    >
+                      <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit font-semibold mb-0.5">
+                        Comments
+                      </div>
+                      <div className="text-2xl font-bold leading-none" style={{ color: "var(--pit-text)" }}>
                         {stats.commentCount}
-                      </span>
-                    </span>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 text-sm">
