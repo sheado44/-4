@@ -13,6 +13,13 @@ type Article = {
   created_at: string;
   user_id: string;
   author_name: string | null;
+  ai_score: number | null;
+};
+
+type ArticleStats = {
+  avgRating: number | null;
+  ratingCount: number;
+  commentCount: number;
 };
 
 type Favorite = {
@@ -96,6 +103,7 @@ function GenChip({
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
   const [articles, setArticles] = useState<Article[]>([]);
+  const [statsById, setStatsById] = useState<Record<string, ArticleStats>>({});
   const [authorGens, setAuthorGens] = useState<Record<string, Generation | null>>({});
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -133,6 +141,45 @@ export default function Home() {
 
   const toggleFeedGen = (g: Generation) => {
     setFeedGens((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
+  };
+
+  const loadArticleStats = async (articleIds: string[]) => {
+    if (articleIds.length === 0) {
+      setStatsById({});
+      return;
+    }
+
+    const map: Record<string, ArticleStats> = {};
+    articleIds.forEach((id) => {
+      map[id] = { avgRating: null, ratingCount: 0, commentCount: 0 };
+    });
+
+    const { data: ratings } = await supabase
+      .from("ratings")
+      .select("article_id, stars")
+      .in("article_id", articleIds);
+
+    const sums: Record<string, { total: number; count: number }> = {};
+    (ratings || []).forEach((r: any) => {
+      if (!sums[r.article_id]) sums[r.article_id] = { total: 0, count: 0 };
+      sums[r.article_id].total += Number(r.stars) || 0;
+      sums[r.article_id].count += 1;
+    });
+    Object.keys(sums).forEach((id) => {
+      map[id].ratingCount = sums[id].count;
+      map[id].avgRating = sums[id].count ? sums[id].total / sums[id].count : null;
+    });
+
+    const { data: comments } = await supabase
+      .from("comments")
+      .select("article_id")
+      .in("article_id", articleIds);
+
+    (comments || []).forEach((c: any) => {
+      if (map[c.article_id]) map[c.article_id].commentCount += 1;
+    });
+
+    setStatsById(map);
   };
 
   const loadFavoritesAndFeed = async (uid: string) => {
@@ -215,21 +262,52 @@ export default function Home() {
       setLoggedIn(Boolean(user));
       setUserId(user?.id || null);
 
+      // ai_score optional — if column missing, remove it from select
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, section, body, created_at, user_id, author_name")
+        .select("id, title, section, body, created_at, user_id, author_name, ai_score")
         .order("created_at", { ascending: false });
 
-      if (!error && data) {
-        setArticles(data);
+      if (error) {
+        // fallback without ai_score column
+        const { data: fallback } = await supabase
+          .from("articles")
+          .select("id, title, section, body, created_at, user_id, author_name")
+          .order("created_at", { ascending: false });
 
-        const ids = Array.from(new Set(data.map((a) => a.user_id).filter(Boolean)));
+        const mapped = (fallback || []).map((a: any) => ({ ...a, ai_score: null }));
+        setArticles(mapped);
+        await loadArticleStats(mapped.map((a) => a.id));
+
+        const ids = Array.from(new Set(mapped.map((a) => a.user_id).filter(Boolean)));
         if (ids.length > 0) {
           const { data: profiles } = await supabase
             .from("profiles")
             .select("id, birthday")
             .in("id", ids);
+          const genMap: Record<string, Generation | null> = {};
+          (profiles || []).forEach((p) => {
+            genMap[p.id] = generationFromBirthday(p.birthday);
+          });
+          ids.forEach((id) => {
+            if (!(id in genMap)) genMap[id] = null;
+          });
+          setAuthorGens(genMap);
+        }
+      } else if (data) {
+        const mapped = data.map((a: any) => ({
+          ...a,
+          ai_score: a.ai_score == null ? null : Number(a.ai_score),
+        }));
+        setArticles(mapped);
+        await loadArticleStats(mapped.map((a) => a.id));
 
+        const ids = Array.from(new Set(mapped.map((a) => a.user_id).filter(Boolean)));
+        if (ids.length > 0) {
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, birthday")
+            .in("id", ids);
           const genMap: Record<string, Generation | null> = {};
           (profiles || []).forEach((p) => {
             genMap[p.id] = generationFromBirthday(p.birthday);
@@ -333,18 +411,27 @@ export default function Home() {
     if (topicQ) {
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, section, body, created_at, user_id, author_name")
+        .select("id, title, section, body, created_at, user_id, author_name, ai_score")
         .or(`title.ilike.%${topicQ}%,body.ilike.%${topicQ}%`)
         .order("created_at", { ascending: false })
         .limit(20);
 
       if (error) {
-        setSearchMessage(error.message);
-        setSearching(false);
-        return;
+        const { data: fallback } = await supabase
+          .from("articles")
+          .select("id, title, section, body, created_at, user_id, author_name")
+          .or(`title.ilike.%${topicQ}%,body.ilike.%${topicQ}%`)
+          .order("created_at", { ascending: false })
+          .limit(20);
+        setTopicArticles((fallback || []).map((a: any) => ({ ...a, ai_score: null })));
+      } else {
+        setTopicArticles(
+          (data || []).map((a: any) => ({
+            ...a,
+            ai_score: a.ai_score == null ? null : Number(a.ai_score),
+          }))
+        );
       }
-
-      setTopicArticles(data || []);
     }
 
     setSearching(false);
@@ -542,41 +629,73 @@ export default function Home() {
               No articles match this filter.
             </div>
           ) : (
-            filteredArticles.map((article) => (
-              <article key={article.id} className="metal-card p-5 transition-all duration-200">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-pit mb-2">
-                  <span className="bg-highlight-soft px-2 py-0.5 rounded-md font-semibold">
-                    {article.section}
-                  </span>
-                  <span>{formatTime(article.created_at)}</span>
-                  {authorGens[article.user_id] && (
-                    <span className="px-2 py-0.5 rounded-md border border-white/10">
-                      {authorGens[article.user_id]}
+            filteredArticles.map((article) => {
+              const stats = statsById[article.id] || {
+                avgRating: null,
+                ratingCount: 0,
+                commentCount: 0,
+              };
+
+              return (
+                <article key={article.id} className="metal-card p-5 transition-all duration-200">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-pit mb-2">
+                    <span className="bg-highlight-soft px-2 py-0.5 rounded-md font-semibold">
+                      {article.section}
                     </span>
-                  )}
-                </div>
+                    <span>{formatTime(article.created_at)}</span>
+                    {authorGens[article.user_id] && (
+                      <span className="px-2 py-0.5 rounded-md border border-white/10">
+                        {authorGens[article.user_id]}
+                      </span>
+                    )}
+                  </div>
 
-                <Link href={`/article/${article.id}`}>
-                  <h2 className="text-lg md:text-xl font-bold mb-2 hover:opacity-90 transition leading-snug">
-                    {article.title}
-                  </h2>
-                  <p className="text-muted-pit text-sm line-clamp-3 mb-3 leading-relaxed">
-                    {article.body}
-                  </p>
-                </Link>
-
-                {article.user_id ? (
-                  <Link
-                    href={`/profile/${article.user_id}`}
-                    className="text-sm font-medium hover:opacity-80 text-highlight-pit"
-                  >
-                    {article.author_name || "Unknown author"}
+                  <Link href={`/article/${article.id}`}>
+                    <h2 className="text-lg md:text-xl font-bold mb-2 hover:opacity-90 transition leading-snug">
+                      {article.title}
+                    </h2>
+                    <p className="text-muted-pit text-sm line-clamp-3 mb-3 leading-relaxed">
+                      {article.body}
+                    </p>
                   </Link>
-                ) : (
-                  <div className="text-sm font-medium">{article.author_name || "Unknown author"}</div>
-                )}
-              </article>
-            ))
+
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-pit mb-3">
+                    <span title="AI quality score">
+                      AI{" "}
+                      <span className="font-semibold" style={{ color: "var(--pit-text)" }}>
+                        {article.ai_score != null ? Number(article.ai_score).toFixed(1) : "—"}
+                      </span>
+                    </span>
+                    <span title="Average user star rating">
+                      ★{" "}
+                      <span className="font-semibold" style={{ color: "var(--pit-text)" }}>
+                        {stats.avgRating != null ? stats.avgRating.toFixed(1) : "—"}
+                      </span>
+                      <span className="ml-1">({stats.ratingCount})</span>
+                    </span>
+                    <span title="Comment count">
+                      💬{" "}
+                      <span className="font-semibold" style={{ color: "var(--pit-text)" }}>
+                        {stats.commentCount}
+                      </span>
+                    </span>
+                  </div>
+
+                  {article.user_id ? (
+                    <Link
+                      href={`/profile/${article.user_id}`}
+                      className="text-sm font-medium hover:opacity-80 text-highlight-pit"
+                    >
+                      {article.author_name || "Unknown author"}
+                    </Link>
+                  ) : (
+                    <div className="text-sm font-medium">
+                      {article.author_name || "Unknown author"}
+                    </div>
+                  )}
+                </article>
+              );
+            })
           )}
 
           {loggedIn && (
