@@ -303,6 +303,14 @@ export default function ArticlePage() {
     loadAll();
   }, [id]);
 
+  useEffect(() => {
+    if (loading) return;
+    if (typeof window === "undefined") return;
+    if (window.location.hash === "#comments") {
+      document.getElementById("comments")?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [loading]);
+
   const handleComment = async () => {
     setMessage("");
     if (!commentText.trim()) {
@@ -623,7 +631,7 @@ export default function ArticlePage() {
         </div>
       </div>
 
-      <section className="border-t border-forge-800 pt-8">
+      <section id="comments" className="border-t border-forge-800 pt-8 scroll-mt-20">
         <h3 className="text-xl font-bold mb-5">Comments ({comments.length})</h3>
 
         <div className="bg-forge-900 border border-forge-800 rounded-2xl p-4 mb-6">
