@@ -34,8 +34,6 @@ type SearchUser = {
   display_name: string;
 };
 
-type TextMode = "white" | "black";
-
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
   const [articles, setArticles] = useState<Article[]>([]);
@@ -54,44 +52,6 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [searchMessage, setSearchMessage] = useState("");
   const [searching, setSearching] = useState(false);
-
-  // Theme controls
-  const [bgColor, setBgColor] = useState("#1E2022");
-  const [highlightColor, setHighlightColor] = useState("#F0A04B");
-  const [textMode, setTextMode] = useState<TextMode>("white");
-
-  // Load saved theme
-  useEffect(() => {
-    const bg = localStorage.getItem("ballpit-bg");
-    const hi = localStorage.getItem("ballpit-highlight");
-    const tx = localStorage.getItem("ballpit-text") as TextMode | null;
-    if (bg) setBgColor(bg);
-    if (hi) setHighlightColor(hi);
-    if (tx === "white" || tx === "black") setTextMode(tx);
-  }, []);
-
-  // Apply theme to document
-  useEffect(() => {
-    const root = document.documentElement;
-    const text = textMode === "white" ? "#E8EAED" : "#121212";
-    const muted = textMode === "white" ? "#A7AEB4" : "#4B5563";
-    const panel = textMode === "white" ? "#252729" : "#F3F4F6";
-    const card = textMode === "white" ? "#2A2D30" : "#FFFFFF";
-
-    root.style.setProperty("--pit-bg", bgColor);
-    root.style.setProperty("--pit-highlight", highlightColor);
-    root.style.setProperty("--pit-text", text);
-    root.style.setProperty("--pit-muted", muted);
-    root.style.setProperty("--pit-panel", panel);
-    root.style.setProperty("--pit-card", card);
-
-    document.body.style.backgroundColor = bgColor;
-    document.body.style.color = text;
-
-    localStorage.setItem("ballpit-bg", bgColor);
-    localStorage.setItem("ballpit-highlight", highlightColor);
-    localStorage.setItem("ballpit-text", textMode);
-  }, [bgColor, highlightColor, textMode]);
 
   const loadFavoritesAndFeed = async (uid: string) => {
     const { data: favRows } = await supabase
@@ -303,12 +263,6 @@ export default function Home() {
       ? "Write Satire"
       : `Write in ${section}`;
 
-  const resetTheme = () => {
-    setBgColor("#1E2022");
-    setHighlightColor("#F0A04B");
-    setTextMode("white");
-  };
-
   return (
     <main className="min-h-screen">
       <section className="relative overflow-hidden">
@@ -340,71 +294,12 @@ export default function Home() {
             </button>
           ))}
         </div>
-
-        {/* Studio color controls */}
-        <div className="pit-panel p-3 md:p-4 flex flex-wrap items-center gap-3 md:gap-5">
-          <span className="text-[10px] uppercase tracking-[0.2em] text-muted-pit">
-            Studio
-          </span>
-
-          <label className="flex items-center gap-2 text-xs">
-            <span className="text-muted-pit">Background</span>
-            <input
-              type="color"
-              value={bgColor}
-              onChange={(e) => setBgColor(e.target.value)}
-              title="Background color"
-            />
-          </label>
-
-          <label className="flex items-center gap-2 text-xs">
-            <span className="text-muted-pit">Highlight</span>
-            <input
-              type="color"
-              value={highlightColor}
-              onChange={(e) => setHighlightColor(e.target.value)}
-              title="Highlight color"
-            />
-          </label>
-
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-pit">Text</span>
-            <button
-              type="button"
-              onClick={() => setTextMode("white")}
-              className={`px-2.5 py-1 rounded-md btn-metal ${
-                textMode === "white" ? "ring-1 ring-[var(--pit-highlight)]" : ""
-              }`}
-            >
-              White
-            </button>
-            <button
-              type="button"
-              onClick={() => setTextMode("black")}
-              className={`px-2.5 py-1 rounded-md btn-metal ${
-                textMode === "black" ? "ring-1 ring-[var(--pit-highlight)]" : ""
-              }`}
-            >
-              Black
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={resetTheme}
-            className="ml-auto text-xs px-3 py-1.5 rounded-lg btn-metal"
-          >
-            Reset
-          </button>
-        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 pb-16 grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
           {loading ? (
-            <div className="pit-panel p-8 text-center text-muted-pit text-sm">
-              Loading articles...
-            </div>
+            <div className="pit-panel p-8 text-center text-muted-pit text-sm">Loading articles...</div>
           ) : filteredArticles.length === 0 ? (
             <div className="pit-panel p-8 text-center text-muted-pit text-sm">
               No articles in this section yet.
@@ -460,7 +355,9 @@ export default function Home() {
                   ) : (
                     <div
                       className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold"
-                      style={{ background: "color-mix(in srgb, var(--pit-highlight) 75%, black 25%)" }}
+                      style={{
+                        background: "color-mix(in srgb, var(--pit-highlight) 75%, black 25%)",
+                      }}
                     >
                       {initials}
                     </div>
