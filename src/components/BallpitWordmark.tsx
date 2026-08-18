@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 
 type Props = {
   href?: string;
@@ -12,12 +13,52 @@ const sizeClass = {
   lg: "text-2xl md:text-3xl",
 };
 
+function BasketballDot({ large }: { large?: boolean }) {
+  return (
+    <span
+      className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
+      style={{
+        top: large ? "-0.14em" : "-0.1em",
+        width: large ? "0.55em" : "0.48em",
+        height: large ? "0.55em" : "0.48em",
+      }}
+      aria-hidden
+    >
+      <svg viewBox="0 0 64 64" width="100%" height="100%">
+        <defs>
+          <radialGradient id="ballGrad" cx="34%" cy="30%" r="68%">
+            <stop offset="0%" stopColor="#F6B06A" />
+            <stop offset="45%" stopColor="#E06B2A" />
+            <stop offset="100%" stopColor="#8F2F0E" />
+          </radialGradient>
+        </defs>
+        <circle cx="32" cy="32" r="30" fill="url(#ballGrad)" />
+        <path
+          d="M32 2 C22 18 22 46 32 62 M32 2 C42 18 42 46 32 62 M2 32 H62"
+          fill="none"
+          stroke="#2A1810"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M8 18 C20 28 44 28 56 18 M8 46 C20 36 44 36 56 46"
+          fill="none"
+          stroke="#2A1810"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <ellipse cx="22" cy="18" rx="8" ry="5" fill="rgba(255,255,255,0.28)" />
+      </svg>
+    </span>
+  );
+}
+
 export default function BallpitWordmark({
   href = "/",
   size = "md",
   className = "",
 }: Props) {
-  const metal: React.CSSProperties = {
+  const metal: CSSProperties = {
     backgroundImage:
       "linear-gradient(180deg, #F4F6F7 0%, #D0D5DA 35%, #9AA3AB 70%, #6E777F 100%)",
     WebkitBackgroundClip: "text",
@@ -27,12 +68,12 @@ export default function BallpitWordmark({
       "drop-shadow(0 1px 0 rgba(255,255,255,0.2)) drop-shadow(0 2px 2px rgba(0,0,0,0.45))",
   };
 
-  const accentA: React.CSSProperties = {
+  const accentA: CSSProperties = {
     color: "#C4A574",
     filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.45))",
   };
 
-  const accentI: React.CSSProperties = {
+  const accentI: CSSProperties = {
     color: "#C4A574",
     filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.45))",
   };
@@ -49,17 +90,7 @@ export default function BallpitWordmark({
       <span style={metal}>llp</span>
       <span className="relative inline-block" style={accentI}>
         ı
-        <span
-          className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
-          style={{
-            top: size === "lg" ? "-0.08em" : "-0.04em",
-            fontSize: "0.38em",
-            lineHeight: 1,
-          }}
-          aria-hidden
-        >
-          🏀
-        </span>
+        <BasketballDot large={size === "lg"} />
       </span>
       <span style={metal}>t</span>
     </span>
@@ -67,7 +98,10 @@ export default function BallpitWordmark({
 
   if (href) {
     return (
-      <Link href={href} className="inline-flex items-center no-underline bg-transparent">
+      <Link
+        href={href}
+        className="inline-flex items-center no-underline bg-transparent"
+      >
         {mark}
       </Link>
     );
