@@ -13,6 +13,11 @@ function clamp10(n: number) {
   return Math.max(0, Math.min(10, n));
 }
 
+export function toTbp100(score10: number | null | undefined) {
+  if (score10 == null || !Number.isFinite(score10)) return null;
+  return Math.round(clamp10(score10) * 10);
+}
+
 export function computeTbpBreakdown(
   aiScore: number | null | undefined,
   body: string | undefined,
@@ -40,7 +45,18 @@ export function computeTbpBreakdown(
     index = parts.reduce((s, p) => s + p.value * (p.weight / weightSum), 0);
   }
 
-  return { truth, style, effort, community, index };
+  return {
+    truth,
+    style,
+    effort,
+    community,
+    index,
+    index100: toTbp100(index),
+    truth100: toTbp100(truth),
+    style100: toTbp100(style),
+    effort100: toTbp100(effort),
+    community100: toTbp100(community),
+  };
 }
 
 export default function TbpIndex({ aiScore, body, avgRating, ratingCount = 0 }: Props) {
@@ -51,12 +67,12 @@ export default function TbpIndex({ aiScore, body, avgRating, ratingCount = 0 }: 
   );
 
   const rows = [
-    { label: "Journalistic style", value: b.style, note: "40%" },
-    { label: "Truth telling", value: b.truth, note: "25%" },
-    { label: "Overall effort", value: b.effort, note: "15%" },
+    { label: "Journalistic style", value: b.style100, note: "40%" },
+    { label: "Truth telling", value: b.truth100, note: "25%" },
+    { label: "Overall effort", value: b.effort100, note: "15%" },
     {
       label: "Community stars",
-      value: b.community,
+      value: b.community100,
       note: ratingCount ? `20% · ${ratingCount} rating${ratingCount === 1 ? "" : "s"}` : "20% · none yet",
     },
   ];
@@ -79,9 +95,9 @@ export default function TbpIndex({ aiScore, body, avgRating, ratingCount = 0 }: 
         </div>
         <div className="flex items-end justify-between gap-2">
           <div className="text-2xl font-bold leading-none" style={{ color: "var(--pit-text)" }}>
-            {b.index != null ? b.index.toFixed(1) : "—"}
+            {b.index100 != null ? b.index100 : "—"}
           </div>
-          <div className="text-[10px] text-muted-pit">tap for breakdown</div>
+          <div className="text-[10px] text-muted-pit">/ 100 · tap for breakdown</div>
         </div>
       </button>
 
@@ -103,16 +119,14 @@ export default function TbpIndex({ aiScore, body, avgRating, ratingCount = 0 }: 
                   <div style={{ color: "var(--pit-text)" }}>{row.label}</div>
                   <div className="text-[10px] text-muted-pit">{row.note}</div>
                 </div>
-                <div className="font-semibold">
-                  {row.value != null ? row.value.toFixed(1) : "—"}
-                </div>
+                <div className="font-semibold">{row.value != null ? row.value : "—"}</div>
               </div>
             ))}
           </div>
           <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between">
             <span className="text-xs text-muted-pit">tBp Index</span>
             <span className="text-lg font-bold text-highlight-pit">
-              {b.index != null ? b.index.toFixed(1) : "—"}
+              {b.index100 != null ? `${b.index100} / 100` : "—"}
             </span>
           </div>
         </div>
