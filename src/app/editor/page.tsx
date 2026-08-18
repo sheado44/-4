@@ -21,6 +21,7 @@ function EditorContent() {
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [aiCredits, setAiCredits] = useState(0);
+  const [plan, setPlan] = useState<"free" | "press" | "desk">("free");
   const [userId, setUserId] = useState<string | null>(null);
   const [loggedInName, setLoggedInName] = useState<string | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
@@ -41,10 +42,12 @@ function EditorContent() {
     );
     const { data: profile } = await supabase
       .from("profiles")
-      .select("ai_credits")
+      .select("ai_credits, plan")
       .eq("id", user.id)
       .maybeSingle();
     setAiCredits(profile?.ai_credits ?? 0);
+    const p = String(profile?.plan || "free").toLowerCase();
+    setPlan(p === "desk" ? "desk" : p === "press" ? "press" : "free");
     setAuthLoading(false);
   };
 
@@ -101,13 +104,18 @@ function EditorContent() {
     return { ok: true, reason: "" };
   };
 
-  const generateWithXAI = async (prompt: string) => {
-    const encoded = encodeURIComponent(prompt.slice(0, 40) || "ballpit");
+  const thumbQuality = plan === "desk" ? "high" : plan === "press" ? "standard" : "none";
+
+  const generateImage = async (prompt: string, quality: "standard" | "high") => {
+    const encoded = encodeURIComponent(prompt.slice(0, 48) || "theBallpit");
+    const size = quality === "high" ? "1536x1024" : "1024x768";
     return {
       ok: true,
-      url: `https://placehold.co/1024x768/1f2937/f97316/png?text=${encoded}`,
+      url: `https://placehold.co/${size}/1f2937/f97316/png?text=${encoded}`,
       reviewNote:
-        "Placeholder image only. Connect xAI API for real generation. Failed reviews will not refund credits.",
+        quality === "high"
+          ? "Desk-quality placeholder. ChatGPT images will replace this when keys are live."
+          : "Press-quality placeholder. ChatGPT images will replace this when keys are live.",
     };
   };
 
@@ -123,11 +131,15 @@ function EditorContent() {
     return { ok: true, reason: "" };
   };
 
-  const handleGenerateAiImage = async (target: "inline" | "thumbnail") => {
+  const handleGenerateInline = async () => {
     setUploadStatus("");
     if (!userId) return;
     if (!aiPrompt.trim() || aiPrompt.trim().length < 8) {
       setUploadStatus("Write a clearer prompt (at least 8 characters).");
+      return;
+    }
+    if (plan === "free") {
+      setUploadStatus("Inline AI images are a Press / Desk tool.");
       return;
     }
 
@@ -146,20 +158,57 @@ function EditorContent() {
       return;
     }
 
-    const result = await generateWithXAI(aiPrompt.trim());
+    const result = await generateImage(aiPrompt.trim(), plan === "desk" ? "high" : "standard");
     if (!result.ok || !result.url) {
       setUploadStatus("Generation used 1 credit and failed. No refund.");
       setGenerating(false);
       return;
     }
 
-    if (target === "thumbnail") {
-      setThumbnailUrl(result.url);
-      setUploadStatus(`AI thumbnail set. 1 credit used. ${result.reviewNote}`);
-    } else {
-      insertAtCursor(`\n![img:${imagePlace}](${result.url})\n`);
-      setUploadStatus(`AI image inserted (${imagePlace}). 1 credit used. ${result.reviewNote}`);
+    insertAtCursor(`\n![img:${imagePlace}](${result.url})\n`);
+    setUploadStatus(`AI image inserted (${imagePlace}). 1 credit used. ${result.reviewNote}`);
+    setGenerating(false);
+  };
+
+  const handleGenerateThumbnailFromStory = async () => {
+    setUploadStatus("");
+    if (!userId) return;
+    if (!title.trim() || body.trim().split(/\s+/).length < 20) {
+      setUploadStatus("Write a title and at least a short draft first. The thumbnail is built from the story.");
+      return;
     }
+    if (plan === "free") {
+      setUploadStatus("Story thumbnails are a Press / Desk tool. Pit Pass stays on $0 AI.");
+      return;
+    }
+
+    const storyPrompt = `${title.trim()}. ${body.trim().slice(0, 280)}`;
+    setGenerating(true);
+    const spend = await spendAiCredit();
+    if (!spend.ok) {
+      setUploadStatus(spend.reason);
+      setGenerating(false);
+      return;
+    }
+
+    const review = await reviewImage(storyPrompt);
+    if (!review.ok) {
+      setUploadStatus(review.reason);
+      setGenerating(false);
+      return;
+    }
+
+    const result = await generateImage(storyPrompt, plan === "desk" ? "high" : "standard");
+    if (!result.ok || !result.url) {
+      setUploadStatus("Generation used 1 credit and failed. No refund.");
+      setGenerating(false);
+      return;
+    }
+
+    setThumbnailUrl(result.url);
+    setUploadStatus(
+      `Thumbnail built from the story (${plan === "desk" ? "Desk" : "Press"} quality). 1 credit used. ${result.reviewNote}`
+    );
     setGenerating(false);
   };
 
@@ -382,16 +431,6 @@ function EditorContent() {
             </div>
           </div>
 
-          <div className="mb-4 grid sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm text-gray-300 mb-1.5">Upload thumbnail</label>
-              <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, "thumbnail")} />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-300 mb-1.5">Upload inline image</label>
-              <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, "inline")} />
-            </div>
-          </div>
 
 
           <div className="mb-4 p-4 rounded-2xl border border-forge-800 bg-forge-900">
@@ -415,32 +454,34 @@ function EditorContent() {
             </div>
           </div>
           <div className="mb-4 p-4 rounded-2xl border border-forge-800 bg-forge-900">
-            <div className="text-sm font-medium mb-2">AI Image (xAI-ready)</div>
+            <div className="text-sm font-medium mb-2">Images</div>
+            <p className="text-xs text-gray-400 mb-3">
+              Thumbnail is generated from the title and draft — no prompt. Prompt is only for inline images.
+              Quality follows plan: Pit Pass none · Press standard · Desk high.
+            </p>
+            <button
+              type="button"
+              disabled={generating}
+              onClick={handleGenerateThumbnailFromStory}
+              className="px-3 py-2 rounded-lg bg-black/20 text-sm disabled:opacity-60 mb-4"
+            >
+              {generating ? "Generating..." : "Generate thumbnail from story (1 credit)"}
+            </button>
             <textarea
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="Describe the image for your story..."
+              placeholder="Prompt for an inline image only..."
               className="w-full min-h-[90px] bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm outline-none mb-3"
             />
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={generating}
-                onClick={() => handleGenerateAiImage("inline")}
-                className="px-3 py-2 rounded-lg bg-forge-accent text-white text-sm disabled:opacity-60"
-              >
-                {generating ? "Generating..." : "Generate inline (1 credit)"}
-              </button>
-              <button
-                type="button"
-                disabled={generating}
-                onClick={() => handleGenerateAiImage("thumbnail")}
-                className="px-3 py-2 rounded-lg bg-black/20 text-sm disabled:opacity-60"
-              >
-                Generate thumbnail (1 credit)
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mt-2">Failed reviews are not refunded.</p>
+            <button
+              type="button"
+              disabled={generating}
+              onClick={handleGenerateInline}
+              className="px-3 py-2 rounded-lg bg-forge-accent text-white text-sm disabled:opacity-60"
+            >
+              {generating ? "Generating..." : "Generate inline image (1 credit)"}
+            </button>
+            <p className="text-xs text-gray-400 mt-2">Failed reviews are not refunded. Uploads are off — AI only.</p>
           </div>
 
           {(uploading || uploadStatus) && (
