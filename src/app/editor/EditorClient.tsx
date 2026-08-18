@@ -10,8 +10,6 @@ type Classified = {
   subcategory: string;
 };
 
-// Temporary local classifier until live AI moderation is wired.
-// Replace this function later with your AI provider call.
 function classifyArticle(title: string, body: string): Classified {
   const text = `${title} ${body}`.toLowerCase();
 
@@ -46,13 +44,11 @@ function classifyArticle(title: string, body: string): Classified {
     }
   }
 
-  // Default branch if unclear
   return { section: "Pop Culture", subcategory: "General" };
 }
 
 export default function EditorClient() {
   const searchParams = useSearchParams();
-  // section query param ignored for classification — kept only so old links don't break
   void searchParams.get("section");
 
   const [checking, setChecking] = useState(true);
@@ -111,8 +107,7 @@ export default function EditorClient() {
       user.email?.split("@")[0] ||
       "User";
 
-    // Try with subcategory first; fall back if column not added yet
-    let insertPayload: Record<string, any> = {
+    const insertPayload: Record<string, unknown> = {
       title: title.trim(),
       body: body.trim(),
       section: result.section,
@@ -128,8 +123,11 @@ export default function EditorClient() {
       .single();
 
     if (error && String(error.message).toLowerCase().includes("subcategory")) {
-      delete insertPayload.subcategory;
-      const retry = await supabase.from("articles").insert(insertPayload).select("id").single();
+      const { subcategory: _removed, ...withoutSub } = insertPayload as {
+        subcategory?: string;
+        [key: string]: unknown;
+      };
+      const retry = await supabase.from("articles").insert(withoutSub).select("id").single();
       data = retry.data;
       error = retry.error;
     }
@@ -138,6 +136,11 @@ export default function EditorClient() {
 
     if (error) {
       setMessage(error.message);
+      return;
+    }
+
+    if (!data || !data.id) {
+      setMessage("Published, but no article id was returned.");
       return;
     }
 
