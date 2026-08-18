@@ -12,6 +12,7 @@ export default function AuthNav() {
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [avatarColor, setAvatarColor] = useState("#7c3aed");
+  const [avatarKey, setAvatarKey] = useState(0);
 
   const loadUser = async () => {
     const { data } = await supabase.auth.getUser();
@@ -40,6 +41,7 @@ export default function AuthNav() {
     );
     setAvatarUrl(profile?.avatar_url || "");
     setAvatarColor(profile?.avatar_color || "#7c3aed");
+    setAvatarKey(Date.now());
     setLoading(false);
   };
 
@@ -50,8 +52,14 @@ export default function AuthNav() {
       loadUser();
     });
 
+    const onRefresh = () => loadUser();
+    window.addEventListener("ballpit-wallet-updated", onRefresh);
+    window.addEventListener("ballpit-profile-updated", onRefresh);
+
     return () => {
       sub.subscription.unsubscribe();
+      window.removeEventListener("ballpit-wallet-updated", onRefresh);
+      window.removeEventListener("ballpit-profile-updated", onRefresh);
     };
   }, []);
 
@@ -80,15 +88,19 @@ export default function AuthNav() {
     );
   }
 
+  const src = avatarUrl
+    ? `${avatarUrl}${avatarUrl.includes("?") ? "&" : "?"}v=${avatarKey}`
+    : "";
+
   return (
     <div className="flex items-center gap-2 sm:gap-3 shrink-0">
       <Link href="/profile" className="flex items-center">
-        {avatarUrl ? (
+        {src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={avatarUrl}
+            src={src}
             alt={displayName}
-            className="w-8 h-8 rounded-full object-cover border border-white/10"
+            className="w-8 h-8 rounded-full object-cover border border-white/10 bg-black/20"
           />
         ) : (
           <div
