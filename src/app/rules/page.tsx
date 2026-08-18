@@ -10,9 +10,9 @@ export default function RulesPage() {
       </p>
       <h1 className="text-3xl font-extrabold mb-3">House rules</h1>
       <p className="text-sm text-muted-pit leading-relaxed mb-8">
-        theBallpit is a rough room. Insults and strong language are allowed. We
-        are not your HR department. We still remove a short list so the pit does
-        not become a crime scene.
+        theBallpit is a rough room. Insults and strong language are allowed.
+        theBallpit is not an HR department. A short list still gets removed so
+        the pit does not become a crime scene.
       </p>
 
       <section className="pit-panel p-5 mb-5">
@@ -32,7 +32,7 @@ export default function RulesPage() {
           <li>Sexual content involving minors — zero tolerance</li>
           <li>Non-consensual intimate images</li>
           <li>Doxxing / posting someone’s private contact info or home</li>
-          <li>Direct threats of violence we treat as real</li>
+          <li>Direct threats of violence treated as real</li>
           <li>Spam, scams, malware</li>
           <li>Impersonating theBallpit or stealing another user’s identity</li>
         </ul>
@@ -41,17 +41,26 @@ export default function RulesPage() {
       <section className="pit-panel p-5 mb-8">
         <h2 className="font-semibold mb-3">How this works</h2>
         <ul className="text-sm space-y-2 leading-relaxed" style={{ color: "var(--pit-text)" }}>
-          <li>Same rules for anon, free accounts, and paid tiers. Tools are paid. Speech is not.</li>
+          <li>
+            Same rules for anon, free accounts, and paid tiers. Tools are paid.
+            Speech is not.
+          </li>
           <li>Satire is fiction. It is not news. It still follows the removed list.</li>
-          <li>We may hide or desk-only an article for quality. That is not a speech ban.</li>
-          <li>We can add a “repeat harassment of a person on this site” rule later if we need it.</li>
+          <li>
+            An article may be hidden or desk-only for quality. That is not a
+            speech ban.
+          </li>
+          <li>
+            A “repeat harassment of a person on this site” rule can be added later
+            if needed.
+          </li>
         </ul>
       </section>
 
       <p className="text-xs text-muted-pit mb-6">
-        One line version: theBallpit is a rough room. Insults and strong language
-        are allowed. We remove illegal content, exploitation, doxxing, credible
-        threats, spam, and impersonation.
+        One line: theBallpit is a rough room. Insults and strong language are
+        allowed. theBallpit removes illegal content, exploitation, doxxing,
+        credible threats, spam, and impersonation.
       </p>
 
       <Link href="/" className="text-sm text-highlight-pit">
