@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import AuthNav from "@/app/AuthNav";
+import AuthNav from "@/components/AuthNav";
 import { supabase } from "@/lib/supabaseClient";
 
 type TextMode = "white" | "black";
@@ -86,7 +86,6 @@ export default function SiteHeader() {
     };
   }, []);
 
-  // close menu on outside click
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       if (!menuRef.current) return;
@@ -139,11 +138,12 @@ export default function SiteHeader() {
       />
 
       <div className="relative max-w-6xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between gap-3">
-        <Link href="/" className="flex items-center shrink-0 group">
+        <Link href="/" className="flex items-center shrink-0 group min-w-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/ballpit-wordmark.png"
-            alt="The Ballpit"
-            className="h-8 md:h-9 w-auto object-contain opacity-95 group-hover:opacity-100 transition"
+            src="/theballpit-wordmark.png"
+            alt="theBallpit"
+            className="h-8 md:h-10 w-auto max-w-[200px] md:max-w-[280px] object-contain object-left opacity-95 group-hover:opacity-100 transition"
             style={{ filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.4))" }}
           />
         </Link>
@@ -187,7 +187,10 @@ export default function SiteHeader() {
                     backdropFilter: "blur(12px)",
                   }}
                 >
-                  <div className="text-[10px] uppercase tracking-[0.18em] mb-3" style={{ color: "var(--pit-muted)" }}>
+                  <div
+                    className="text-[10px] uppercase tracking-[0.18em] mb-3"
+                    style={{ color: "var(--pit-muted)" }}
+                  >
                     Studio
                   </div>
 
