@@ -12,7 +12,6 @@ export default function AuthNav() {
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [avatarColor, setAvatarColor] = useState("#7c3aed");
-  const [points, setPoints] = useState(0);
 
   const loadUser = async () => {
     const { data } = await supabase.auth.getUser();
@@ -21,7 +20,6 @@ export default function AuthNav() {
       setLoggedIn(false);
       setDisplayName("");
       setAvatarUrl("");
-      setPoints(0);
       setLoading(false);
       return;
     }
@@ -30,7 +28,7 @@ export default function AuthNav() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name, avatar_url, avatar_color, points")
+      .select("display_name, avatar_url, avatar_color")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -42,7 +40,6 @@ export default function AuthNav() {
     );
     setAvatarUrl(profile?.avatar_url || "");
     setAvatarColor(profile?.avatar_color || "#7c3aed");
-    setPoints(Number(profile?.points ?? 0));
     setLoading(false);
   };
 
@@ -53,12 +50,8 @@ export default function AuthNav() {
       loadUser();
     });
 
-    const onWallet = () => loadUser();
-    window.addEventListener("ballpit-wallet-updated", onWallet);
-
     return () => {
       sub.subscription.unsubscribe();
-      window.removeEventListener("ballpit-wallet-updated", onWallet);
     };
   }, []);
 
@@ -89,13 +82,6 @@ export default function AuthNav() {
 
   return (
     <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-      <Link
-        href="/wallet"
-        className="text-xs px-2.5 py-1.5 rounded-lg border border-white/10 text-highlight-pit"
-        title="Wallet"
-      >
-        {points} pts
-      </Link>
       <Link href="/profile" className="flex items-center">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
