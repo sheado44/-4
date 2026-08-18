@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { formatTime } from "@/lib/time";
@@ -50,6 +50,7 @@ function ageFromBirthday(birthday: string | null | undefined): number | null {
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
   const [articles, setArticles] = useState<Article[]>([]);
+  const [authorAges, setAuthorAges] = useState<Record<string, number | null>>({});
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -68,6 +69,11 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [searchMessage, setSearchMessage] = useState("");
   const [searching, setSearching] = useState(false);
+
+  // Feed filter by publisher age
+  const [feedAgeMin, setFeedAgeMin] = useState("");
+  const [feedAgeMax, setFeedAgeMax] = useState("");
+  const [feedAgeEnabled, setFeedAgeEnabled] = useState(false);
 
   const loadFavoritesAndFeed = async (uid: string) => {
     const { data: favRows } = await supabase
@@ -153,7 +159,29 @@ export default function Home() {
         .from("articles")
         .select("id, title, section, body, created_at, user_id, author_name")
         .order("created_at", { ascending: false });
-      if (!error && data) setArticles(data);
+
+      if (!error && data) {
+        setArticles(data);
+
+        // Load publisher ages for feed filtering
+        const ids = Array.from(new Set(data.map((a) => a.user_id).filter(Boolean)));
+        if (ids.length > 0) {
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, birthday")
+            .in("id", ids);
+
+          const map: Record<string, number | null> = {};
+          (profiles || []).forEach((p) => {
+            map[p.id] = ageFromBirthday(p.birthday);
+          });
+          // authors with no profile row
+          ids.forEach((id) => {
+            if (!(id in map)) map[id] = null;
+          });
+          setAuthorAges(map);
+        }
+      }
 
       if (user) {
         const { data: profile } = await supabase
@@ -277,8 +305,23 @@ export default function Home() {
     await loadFavoritesAndFeed(userId);
   };
 
-  const filteredArticles =
-    section === "All" ? articles : articles.filter((a) => a.section === section);
+  const filteredArticles = useMemo(() => {
+    let list = section === "All" ? articles : articles.filter((a) => a.section === section);
+
+    if (feedAgeEnabled) {
+      const min = feedAgeMin ? Number(feedAgeMin) : null;
+      const max = feedAgeMax ? Number(feedAgeMax) : null;
+      list = list.filter((a) => {
+        const age = authorAges[a.user_id];
+        if (age === null || age === undefined) return false; // hide unknown ages when filter is on
+        if (min !== null && !Number.isNaN(min) && age < min) return false;
+        if (max !== null && !Number.isNaN(max) && age > max) return false;
+        return true;
+      });
+    }
+
+    return list;
+  }, [articles, section, feedAgeEnabled, feedAgeMin, feedAgeMax, authorAges]);
 
   const initials = displayName
     .split(" ")
@@ -330,6 +373,44 @@ export default function Home() {
             </button>
           ))}
         </div>
+
+        {/* Publisher age feed filter */}
+        <div className="pit-panel p-3 flex flex-wrap items-center gap-2 md:gap-3">
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-pit">
+            Publisher age
+          </span>
+          <button
+            type="button"
+            onClick={() => setFeedAgeEnabled((v) => !v)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-metal ${
+              feedAgeEnabled ? "ring-1 ring-[var(--pit-highlight)]" : ""
+            }`}
+          >
+            {feedAgeEnabled ? "On" : "Off"}
+          </button>
+          <input
+            value={feedAgeMin}
+            onChange={(e) => setFeedAgeMin(e.target.value)}
+            placeholder="Min"
+            inputMode="numeric"
+            disabled={!feedAgeEnabled}
+            className="w-16 rounded-lg px-2 py-1.5 text-xs outline-none disabled:opacity-40"
+          />
+          <span className="text-xs text-muted-pit">to</span>
+          <input
+            value={feedAgeMax}
+            onChange={(e) => setFeedAgeMax(e.target.value)}
+            placeholder="Max"
+            inputMode="numeric"
+            disabled={!feedAgeEnabled}
+            className="w-16 rounded-lg px-2 py-1.5 text-xs outline-none disabled:opacity-40"
+          />
+          {feedAgeEnabled && (
+            <span className="text-[11px] text-muted-pit">
+              Showing publishers in range · unknown ages hidden
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 pb-16 grid lg:grid-cols-3 gap-8">
@@ -338,7 +419,7 @@ export default function Home() {
             <div className="pit-panel p-8 text-center text-muted-pit text-sm">Loading articles...</div>
           ) : filteredArticles.length === 0 ? (
             <div className="pit-panel p-8 text-center text-muted-pit text-sm">
-              No articles in this section yet.
+              No articles match this filter.
             </div>
           ) : (
             filteredArticles.map((article) => (
@@ -348,6 +429,9 @@ export default function Home() {
                     {article.section}
                   </span>
                   <span>{formatTime(article.created_at)}</span>
+                  {authorAges[article.user_id] != null && (
+                    <span>Publisher age {authorAges[article.user_id]}</span>
+                  )}
                 </div>
 
                 <Link href={`/article/${article.id}`}>
@@ -379,7 +463,6 @@ export default function Home() {
         <aside className="space-y-5">
           {loggedIn ? (
             <>
-              {/* 1. Your desk */}
               <div className="pit-panel p-5">
                 <div className="flex items-center gap-3 mb-4">
                   {avatarUrl ? (
@@ -434,7 +517,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 2. Watchlist activity */}
               <div className="pit-panel p-5">
                 <h3 className="font-semibold mb-3">Watchlist activity</h3>
                 {watchFeed.length === 0 ? (
@@ -468,7 +550,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* 3. Favorites */}
               <div className="pit-panel p-5">
                 <h3 className="font-semibold mb-3">Favorites</h3>
                 {favorites.length === 0 ? (
@@ -489,7 +570,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* 4. Search users */}
               <div className="pit-panel p-5">
                 <h3 className="font-semibold mb-3">Search users</h3>
 
@@ -541,7 +621,10 @@ export default function Home() {
                       style={{ background: "rgba(0,0,0,0.12)" }}
                     >
                       <div className="min-w-0">
-                        <Link href={`/profile/${u.id}`} className="text-sm font-medium hover:opacity-80 block truncate">
+                        <Link
+                          href={`/profile/${u.id}`}
+                          className="text-sm font-medium hover:opacity-80 block truncate"
+                        >
                           {u.display_name}
                         </Link>
                         <div className="text-[11px] text-muted-pit truncate">
