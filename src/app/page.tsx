@@ -48,8 +48,6 @@ const GENERATIONS: { id: Generation; label: string; start: number; end: number }
   { id: "Gen Alpha", label: "Gen Alpha", start: 2013, end: 2030 },
 ];
 
-const ALL_GEN_IDS = GENERATIONS.map((g) => g.id);
-
 function ageFromBirthday(birthday: string | null | undefined): number | null {
   if (!birthday) return null;
   const d = new Date(birthday);
@@ -86,14 +84,12 @@ export default function Home() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [watchFeed, setWatchFeed] = useState<WatchItem[]>([]);
 
-  // Find users
   const [finderFavoritesOnly, setFinderFavoritesOnly] = useState(false);
   const [finderGens, setFinderGens] = useState<Generation[]>([]);
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [searchMessage, setSearchMessage] = useState("");
   const [searching, setSearching] = useState(false);
 
-  // Feed filters
   const [filterOpen, setFilterOpen] = useState(false);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [feedGens, setFeedGens] = useState<Generation[]>([]);
@@ -115,11 +111,6 @@ export default function Home() {
   const toggleFinderGen = (g: Generation) => {
     setFinderGens((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
   };
-
-  const selectAllFeedGens = () => setFeedGens([...ALL_GEN_IDS]);
-  const clearFeedGens = () => setFeedGens([]);
-  const selectAllFinderGens = () => setFinderGens([...ALL_GEN_IDS]);
-  const clearFinderGens = () => setFinderGens([]);
 
   const loadFavoritesAndFeed = async (uid: string) => {
     const { data: favRows } = await supabase
@@ -289,7 +280,7 @@ export default function Home() {
           generation: generationFromBirthday(u.birthday),
         }))
         .filter((u) => {
-          if (finderGens.length === 0) return true; // no gen filter = all gens
+          if (finderGens.length === 0) return true;
           return u.generation !== null && finderGens.includes(u.generation);
         });
 
@@ -478,22 +469,13 @@ export default function Home() {
 
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs text-muted-pit">Generation</div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={selectAllFeedGens}
-                        className="text-[11px] text-highlight-pit hover:opacity-80"
-                      >
-                        Select all
-                      </button>
-                      <button
-                        type="button"
-                        onClick={clearFeedGens}
-                        className="text-[11px] text-muted-pit hover:opacity-80"
-                      >
-                        Clear
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFeedGens([])}
+                      className="text-[11px] text-muted-pit hover:opacity-80"
+                    >
+                      Clear
+                    </button>
                   </div>
 
                   <div className="flex flex-wrap gap-1.5 mb-3">
@@ -693,22 +675,13 @@ export default function Home() {
 
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs text-muted-pit">Generation</div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={selectAllFinderGens}
-                      className="text-[11px] text-highlight-pit hover:opacity-80"
-                    >
-                      Select all
-                    </button>
-                    <button
-                      type="button"
-                      onClick={clearFinderGens}
-                      className="text-[11px] text-muted-pit hover:opacity-80"
-                    >
-                      Clear
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFinderGens([])}
+                    className="text-[11px] text-muted-pit hover:opacity-80"
+                  >
+                    Clear
+                  </button>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 mb-3">
