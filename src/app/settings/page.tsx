@@ -2,115 +2,58 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-function calcAge(birthday: string): number | null {
-  if (!birthday) return null;
-  const birth = new Date(birthday);
-  if (Number.isNaN(birth.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age -= 1;
-  return age;
-}
-
-const PRESET_COLORS = [
-  "#2563eb",
-  "#f97316",
-  "#16a34a",
-  "#db2777",
-  "#7c3aed",
-  "#0891b2",
-  "#ca8a04",
-  "#dc2626",
-];
+const MAX_AI_ATTEMPTS = 3;
 
 const SKINS = [
-  { id: "none", label: "Solid color" },
-  { id: "leopard", label: "Leopard" },
-  { id: "zebra", label: "Zebra" },
-  { id: "camo", label: "Camo" },
-  { id: "galaxy", label: "Galaxy" },
-  { id: "carbon", label: "Carbon" },
-];
+  { id: "solid", label: "Solid color", price: 0 },
+  { id: "leopard", label: "Leopard", price: 100 },
+  { id: "zebra", label: "Zebra", price: 100 },
+  { id: "camo", label: "Camo", price: 100 },
+  { id: "galaxy", label: "Galaxy", price: 100 },
+  { id: "carbon", label: "Carbon", price: 100 },
+] as const;
 
-function parseOwned(owned: string | null | undefined) {
-  return Array.from(
-    new Set(
-      (owned || "none")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-    )
-  );
-}
+type SkinId = (typeof SKINS)[number]["id"];
 
-function skinStyle(skin: string, color: string): React.CSSProperties {
-  switch (skin) {
-    case "leopard":
-      return {
-        backgroundColor: "#c2a36b",
-        backgroundImage:
-          "radial-gradient(circle at 20% 30%, #5b3a1a 0 8%, transparent 9%), radial-gradient(circle at 70% 40%, #5b3a1a 0 10%, transparent 11%), radial-gradient(circle at 40% 75%, #5b3a1a 0 7%, transparent 8%)",
-      };
-    case "zebra":
-      return {
-        backgroundImage:
-          "repeating-linear-gradient(45deg, #111 0 8px, #f5f5f5 8px 16px)",
-      };
-    case "camo":
-      return {
-        backgroundColor: "#4b5320",
-        backgroundImage:
-          "radial-gradient(circle at 30% 30%, #2f3b1c 0 20%, transparent 21%), radial-gradient(circle at 70% 60%, #6b8e23 0 18%, transparent 19%), radial-gradient(circle at 50% 80%, #3d4c1f 0 16%, transparent 17%)",
-      };
-    case "galaxy":
-      return {
-        backgroundImage:
-          "radial-gradient(circle at 20% 30%, #fff 0 1px, transparent 2px), radial-gradient(circle at 70% 40%, #fff 0 1px, transparent 2px), radial-gradient(circle at 40% 70%, #a78bfa 0 12%, transparent 13%), linear-gradient(135deg, #0f172a, #312e81)",
-      };
-    case "carbon":
-      return {
-        backgroundColor: "#1f2937",
-        backgroundImage:
-          "linear-gradient(45deg, #111 25%, transparent 25%), linear-gradient(-45deg, #111 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #111 75%), linear-gradient(-45deg, transparent 75%, #111 75%)",
-        backgroundSize: "8px 8px",
-      };
-    default:
-      return { background: color };
-  }
+function buildPreviewUrl(prompt: string, attempt: number) {
+  const seed = `${prompt.trim().toLowerCase()}::attempt-${attempt}`;
+  return `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(seed)}&size=256`;
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [link, setLink] = useState("");
   const [sex, setSex] = useState("");
   const [birthday, setBirthday] = useState("");
   const [location, setLocation] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [commentAvatarColor, setCommentAvatarColor] = useState("#2563eb");
-  const [commentAvatarSkin, setCommentAvatarSkin] = useState("none");
-  const [ownedSkins, setOwnedSkins] = useState<string[]>(["none"]);
   const [points, setPoints] = useState(0);
   const [aiCredits, setAiCredits] = useState(0);
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarColor, setAvatarColor] = useState("#7c3aed");
+  const [avatarSkin, setAvatarSkin] = useState<SkinId>("solid");
+  const [ownedSkins, setOwnedSkins] = useState<string[]>(["solid"]);
+
   const [aiPrompt, setAiPrompt] = useState("");
+  const [aiAttempts, setAiAttempts] = useState(0);
+  const [aiCandidates, setAiCandidates] = useState<string[]>([]);
+  const [pendingAvatar, setPendingAvatar] = useState<string>("");
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [buyingSkin, setBuyingSkin] = useState<string | null>(null);
-  const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
+    const boot = async () => {
       const { data } = await supabase.auth.getUser();
       const user = data.user;
       if (!user) {
-        setUserId(null);
-        setLoading(false);
+        router.replace("/login");
         return;
       }
       setUserId(user.id);
@@ -118,411 +61,383 @@ export default function SettingsPage() {
       const { data: profile } = await supabase
         .from("profiles")
         .select(
-          "display_name, bio, link, sex, birthday, location, avatar_url, comment_avatar_color, comment_avatar_skin, owned_skins, ai_credits, points"
+          "display_name, bio, link, sex, birthday, location, points, ai_credits, avatar_url, avatar_color, avatar_skin, owned_skins"
         )
         .eq("id", user.id)
         .maybeSingle();
 
-      setDisplayName(profile?.display_name || user.user_metadata?.display_name || "");
-      setBio(profile?.bio || "");
-      setLink(profile?.link || "");
-      setSex(profile?.sex || "");
-      setBirthday(profile?.birthday || "");
-      setLocation(profile?.location || "");
-      setAvatarUrl(profile?.avatar_url || "");
-      setCommentAvatarColor(profile?.comment_avatar_color || "#2563eb");
-      setCommentAvatarSkin(profile?.comment_avatar_skin || "none");
-      setOwnedSkins(parseOwned(profile?.owned_skins));
-      setAiCredits(profile?.ai_credits ?? 0);
-      setPoints(profile?.points ?? 0);
+      if (profile) {
+        setDisplayName(profile.display_name || "");
+        setBio(profile.bio || "");
+        setLink(profile.link || "");
+        setSex(profile.sex || "");
+        setBirthday(profile.birthday || "");
+        setLocation(profile.location || "");
+        setPoints(profile.points ?? 0);
+        setAiCredits(profile.ai_credits ?? 0);
+        setAvatarUrl(profile.avatar_url || "");
+        setAvatarColor(profile.avatar_color || "#7c3aed");
+        setAvatarSkin((profile.avatar_skin as SkinId) || "solid");
+        setOwnedSkins(
+          Array.isArray(profile.owned_skins) && profile.owned_skins.length
+            ? profile.owned_skins
+            : ["solid"]
+        );
+      }
+
       setLoading(false);
     };
-    load();
-  }, []);
+    boot();
+  }, [router]);
+
+  const generateAiAvatar = async () => {
+    setMessage("");
+    const text = aiPrompt.trim();
+    if (!text) {
+      setMessage("Describe how you look first.");
+      return;
+    }
+    if (aiAttempts >= MAX_AI_ATTEMPTS) {
+      setMessage("You’ve used all 3 attempts. Choose one below, then Save Profile.");
+      return;
+    }
+    if (aiCredits < 1) {
+      setMessage("Not enough AI credits.");
+      return;
+    }
+    if (!userId) return;
+
+    const nextAttempt = aiAttempts + 1;
+    const url = buildPreviewUrl(text, nextAttempt);
+
+    // spend 1 credit immediately
+    const { error: creditError } = await supabase
+      .from("profiles")
+      .update({ ai_credits: aiCredits - 1 })
+      .eq("id", userId);
+
+    if (creditError) {
+      setMessage(creditError.message);
+      return;
+    }
+
+    setAiCredits((c) => c - 1);
+    setAiAttempts(nextAttempt);
+    setAiCandidates((prev) => [...prev, url]);
+    setPendingAvatar(url);
+    setMessage(
+      `Attempt ${nextAttempt}/${MAX_AI_ATTEMPTS} generated. Click it to select, then Save Profile.`
+    );
+  };
+
+  const buySkin = async (skinId: SkinId, price: number) => {
+    if (!userId) return;
+    if (ownedSkins.includes(skinId)) {
+      setAvatarSkin(skinId);
+      setMessage(`Equipped ${skinId}. Save Profile to keep it.`);
+      return;
+    }
+    if (points < price) {
+      setMessage("Not enough points.");
+      return;
+    }
+
+    const nextPoints = points - price;
+    const nextOwned = [...ownedSkins, skinId];
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        points: nextPoints,
+        owned_skins: nextOwned,
+        avatar_skin: skinId,
+      })
+      .eq("id", userId);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setPoints(nextPoints);
+    setOwnedSkins(nextOwned);
+    setAvatarSkin(skinId);
+    setMessage(`Bought and equipped ${skinId}.`);
+    window.dispatchEvent(new Event("ballpit-wallet-updated"));
+  };
 
   const saveProfile = async () => {
     if (!userId) return;
     setSaving(true);
     setMessage("");
-    const age = calcAge(birthday);
-    const { error } = await supabase.from("profiles").upsert({
-      id: userId,
-      display_name: displayName.trim(),
-      bio: bio.trim(),
-      link: link.trim(),
-      sex: sex.trim(),
-      birthday: birthday || null,
-      age,
-      location: location.trim(),
-      avatar_url: avatarUrl || null,
-      comment_avatar_color: commentAvatarColor,
-      comment_avatar_skin: commentAvatarSkin,
-      owned_skins: ownedSkins.join(","),
-      updated_at: new Date().toISOString(),
-    });
-    if (error) setMessage(error.message);
-    else {
-      setMessage("Profile saved.");
-      window.dispatchEvent(new Event("ballpit-wallet-updated"));
+
+    if (!displayName.trim()) {
+      setMessage("Display name is required.");
+      setSaving(false);
+      return;
     }
+    if (!birthday) {
+      setMessage("Birthday is required.");
+      setSaving(false);
+      return;
+    }
+
+    const finalAvatar = pendingAvatar || avatarUrl;
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        display_name: displayName.trim(),
+        bio: bio.trim() || null,
+        link: link.trim() || null,
+        sex: sex || null,
+        birthday,
+        location: location.trim() || null,
+        avatar_url: finalAvatar || null,
+        avatar_color: avatarColor,
+        avatar_skin: avatarSkin,
+        owned_skins: ownedSkins,
+      })
+      .eq("id", userId);
+
     setSaving(false);
-  };
-
-  const buySkin = async (skinId: string, label: string) => {
-    if (!userId) return;
-    if (ownedSkins.includes(skinId)) return;
-    if (points < 100) {
-      setMessage("Need 100 points to buy this skin.");
-      return;
-    }
-
-    const ok = window.confirm(`Spend 100 points to buy ${label}?`);
-    if (!ok) return;
-
-    setBuyingSkin(skinId);
-    setMessage("");
-
-    try {
-      const newPoints = points - 100;
-      const newOwned = Array.from(new Set([...ownedSkins, skinId]));
-
-      const { error: ledgerError } = await supabase.from("points_ledger").insert({
-        user_id: userId,
-        points: -100,
-        reason: `Redeemed: ${label} Skin`,
-      });
-      if (ledgerError) throw new Error(ledgerError.message);
-
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({
-          points: newPoints,
-          owned_skins: newOwned.join(","),
-          comment_avatar_skin: skinId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", userId);
-      if (updateError) throw new Error(updateError.message);
-
-      setPoints(newPoints);
-      setOwnedSkins(newOwned);
-      setCommentAvatarSkin(skinId);
-      setMessage(`Bought ${label} for 100 pts and equipped it.`);
-      window.dispatchEvent(new Event("ballpit-wallet-updated"));
-    } catch (err: any) {
-      setMessage(err?.message || "Purchase failed.");
-    } finally {
-      setBuyingSkin(null);
-    }
-  };
-
-  const uploadAvatarFile = async (file: File) => {
-    if (!userId) return;
-    if (!file.type.startsWith("image/")) {
-      setMessage("Avatar must be an image.");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setMessage("Avatar must be under 5MB.");
-      return;
-    }
-
-    setUploading(true);
-    setMessage("");
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `avatars/${userId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage
-      .from("article-images")
-      .upload(path, file, { upsert: true });
 
     if (error) {
-      setMessage(`Upload failed: ${error.message}`);
-      setUploading(false);
+      setMessage(error.message);
       return;
     }
 
-    const { data } = supabase.storage.from("article-images").getPublicUrl(path);
-    setAvatarUrl(data.publicUrl);
-    await supabase.from("profiles").upsert({
-      id: userId,
-      avatar_url: data.publicUrl,
-      updated_at: new Date().toISOString(),
-    });
-    setMessage("Profile picture saved.");
-    setUploading(false);
-  };
-
-  const generateAiAvatar = async () => {
-    if (!userId) return;
-    if (aiCredits < 1) {
-      setMessage("No AI credits left.");
-      return;
-    }
-    if (!aiPrompt.trim() || aiPrompt.trim().length < 8) {
-      setMessage("Write a clearer avatar prompt.");
-      return;
-    }
-
-    const nextCredits = aiCredits - 1;
-    const { error: creditError } = await supabase
-      .from("profiles")
-      .update({ ai_credits: nextCredits, updated_at: new Date().toISOString() })
-      .eq("id", userId);
-    if (creditError) {
-      setMessage(creditError.message);
-      return;
-    }
-    setAiCredits(nextCredits);
-
-    const encoded = encodeURIComponent(aiPrompt.slice(0, 40));
-    const url = `https://placehold.co/256x256/1f2937/f97316/png?text=${encoded}`;
-    setAvatarUrl(url);
-    await supabase.from("profiles").upsert({
-      id: userId,
-      avatar_url: url,
-      updated_at: new Date().toISOString(),
-    });
-    setMessage("AI avatar saved (placeholder provider). 1 credit used.");
+    setAvatarUrl(finalAvatar);
+    setPendingAvatar("");
+    setMessage("Profile saved.");
     window.dispatchEvent(new Event("ballpit-wallet-updated"));
   };
 
   if (loading) {
     return (
-      <main className="max-w-2xl mx-auto px-4 py-10">
-        <p className="text-gray-300">Loading settings...</p>
+      <main className="max-w-2xl mx-auto px-4 py-16 text-center text-muted-pit">
+        Loading settings...
       </main>
     );
   }
 
-  if (!userId) {
-    return (
-      <main className="max-w-2xl mx-auto px-4 py-10 text-center">
-        <h1 className="text-2xl font-bold mb-3">Settings</h1>
-        <Link href="/login" className="text-forge-accent">
-          Log in / Sign up
-        </Link>
-      </main>
-    );
-  }
-
-  const initials = (displayName || "U")
-    .split(" ")
-    .map((p) => p[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const previewSrc = pendingAvatar || avatarUrl;
 
   return (
     <main className="max-w-2xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold mb-2">Edit Profile</h1>
-      <p className="text-sm text-gray-300 mb-6">Points available: {points}</p>
+      <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--pit-text)" }}>
+        Edit Profile
+      </h1>
+      <p className="text-sm text-muted-pit mb-6">
+        Points available: {points} · AI credits: {aiCredits}
+      </p>
 
-      <div className="flex items-center gap-4 mb-6">
-        {avatarUrl ? (
+      <div className="flex items-center gap-3 mb-6">
+        {previewSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={avatarUrl}
+            src={previewSrc}
             alt="Avatar"
-            className="w-20 h-20 rounded-full object-cover border border-forge-800"
+            className="w-16 h-16 rounded-full object-cover border border-white/10"
           />
         ) : (
-          <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold">
-            {initials}
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center font-bold"
+            style={{ background: avatarColor }}
+          >
+            {(displayName || "U").slice(0, 1).toUpperCase()}
           </div>
         )}
-        <div
-          className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold border border-white/10"
-          style={skinStyle(commentAvatarSkin, commentAvatarColor)}
-        >
-          {initials}
+        <div className="text-sm text-muted-pit">
+          {pendingAvatar ? "New AI avatar selected (save to keep)" : "Current avatar"}
         </div>
       </div>
 
-      <div className="space-y-4 mb-6">
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={async (e) => {
-            e.preventDefault();
-            setDragOver(false);
-            const file = e.dataTransfer.files?.[0];
-            if (file) await uploadAvatarFile(file);
-          }}
-          className={`rounded-2xl border border-dashed p-5 text-center ${
-            dragOver ? "border-forge-accent bg-forge-accent/10" : "border-forge-800 bg-forge-900"
-          }`}
+      <div className="pit-panel p-4 mb-4 space-y-3">
+        <div className="text-sm font-medium" style={{ color: "var(--pit-text)" }}>
+          Generate AI profile photo
+        </div>
+        <p className="text-xs text-muted-pit">
+          No uploads. Describe how you look. Up to 3 attempts this session. Each generate uses 1 AI
+          credit. Choose one, then Save Profile.
+        </p>
+        <textarea
+          value={aiPrompt}
+          onChange={(e) => setAiPrompt(e.target.value)}
+          rows={3}
+          className="w-full rounded-xl px-3 py-2 text-sm"
+          placeholder="What do you look like?"
+        />
+        <button
+          type="button"
+          onClick={generateAiAvatar}
+          disabled={aiAttempts >= MAX_AI_ATTEMPTS || aiCredits < 1}
+          className="btn-write px-4 py-2 rounded-xl text-sm disabled:opacity-50"
         >
-          <p className="text-sm text-gray-200 mb-2">
-            {uploading ? "Uploading..." : "Drag & drop profile photo"}
-          </p>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (file) await uploadAvatarFile(file);
-            }}
-          />
-        </div>
+          Generate profile photo (1 credit) · {MAX_AI_ATTEMPTS - aiAttempts} left
+        </button>
 
-        <div className="p-4 rounded-xl border border-forge-800 bg-forge-900">
-          <div className="text-sm font-medium mb-2">Comment / post avatar color</div>
-          <input
-            type="color"
-            value={commentAvatarColor}
-            onChange={(e) => setCommentAvatarColor(e.target.value)}
-            className="w-12 h-10 bg-transparent cursor-pointer mb-3"
-          />
-          <div className="flex flex-wrap gap-2">
-            {PRESET_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCommentAvatarColor(c)}
-                className="w-7 h-7 rounded-full border border-white/20"
-                style={{ background: c }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="p-4 rounded-xl border border-forge-800 bg-forge-900">
-          <div className="text-sm font-medium mb-2">Equip / buy avatar skins</div>
-          <p className="text-xs text-gray-400 mb-3">
-            Owned skins can be equipped. Locked skins can be bought for 100 pts.
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {SKINS.map((skin) => {
-              const owned = ownedSkins.includes(skin.id) || skin.id === "none";
-              const active = commentAvatarSkin === skin.id;
+        {aiCandidates.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 pt-2">
+            {aiCandidates.map((url, idx) => {
+              const active = pendingAvatar === url;
               return (
-                <div
-                  key={skin.id}
-                  className={`rounded-xl border p-3 text-left text-sm ${
-                    active ? "border-forge-accent bg-forge-accent/10" : "border-forge-800"
-                  }`}
+                <button
+                  key={`${url}-${idx}`}
+                  type="button"
+                  onClick={() => setPendingAvatar(url)}
+                  className="rounded-xl border p-2"
+                  style={{
+                    borderColor: active
+                      ? "color-mix(in srgb, var(--pit-highlight) 60%, transparent)"
+                      : "rgba(255,255,255,0.1)",
+                    background: active
+                      ? "color-mix(in srgb, var(--pit-highlight) 14%, transparent)"
+                      : "rgba(0,0,0,0.15)",
+                  }}
                 >
-                  <div
-                    className="w-8 h-8 rounded-full mb-2 border border-white/10"
-                    style={skinStyle(skin.id, commentAvatarColor)}
-                  />
-                  <div className="font-medium mb-2">{skin.label}</div>
-                  {owned ? (
-                    <button
-                      type="button"
-                      onClick={() => setCommentAvatarSkin(skin.id)}
-                      className="text-xs px-2 py-1 rounded-lg bg-black/20 hover:bg-black/30"
-                    >
-                      {active ? "Equipped" : "Equip"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={points < 100 || buyingSkin === skin.id}
-                      onClick={() => buySkin(skin.id, skin.label)}
-                      className="text-xs px-2 py-1 rounded-lg bg-forge-accent text-white disabled:opacity-50"
-                    >
-                      {buyingSkin === skin.id
-                        ? "Buying..."
-                        : points < 100
-                        ? "Need 100 pts"
-                        : "Buy 100 pts"}
-                    </button>
-                  )}
-                </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={`Attempt ${idx + 1}`} className="w-full rounded-lg" />
+                  <div className="text-[10px] text-center mt-1 text-muted-pit">
+                    {active ? "Selected" : `Try ${idx + 1}`}
+                  </div>
+                </button>
               );
             })}
           </div>
-        </div>
+        )}
+      </div>
 
-        <div className="p-4 rounded-xl border border-forge-800 bg-forge-900">
-          <label className="block text-sm text-gray-300 mb-1">Generate AI profile photo</label>
-          <input
-            value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
-            placeholder="Describe your profile photo..."
-            className="w-full bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm mb-2 outline-none"
-          />
-          <button
-            type="button"
-            onClick={generateAiAvatar}
-            className="px-3 py-2 rounded-lg bg-forge-accent text-white text-sm"
-          >
-            Generate profile photo (1 credit)
-          </button>
+      <div className="pit-panel p-4 mb-4">
+        <div className="text-sm mb-2" style={{ color: "var(--pit-text)" }}>
+          Comment / post avatar color
         </div>
+        <input
+          type="color"
+          value={avatarColor}
+          onChange={(e) => setAvatarColor(e.target.value)}
+          className="w-12 h-10 rounded cursor-pointer"
+        />
+      </div>
 
+      <div className="pit-panel p-4 mb-4">
+        <div className="text-sm mb-2" style={{ color: "var(--pit-text)" }}>
+          Equip / buy avatar skins
+        </div>
+        <p className="text-xs text-muted-pit mb-3">
+          Owned skins can be equipped. Locked skins cost 100 pts.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {SKINS.map((skin) => {
+            const owned = ownedSkins.includes(skin.id);
+            const equipped = avatarSkin === skin.id;
+            return (
+              <div
+                key={skin.id}
+                className="rounded-xl border border-white/10 p-3"
+                style={{
+                  background: equipped
+                    ? "color-mix(in srgb, var(--pit-highlight) 12%, transparent)"
+                    : "rgba(0,0,0,0.15)",
+                }}
+              >
+                <div className="text-sm font-medium mb-2" style={{ color: "var(--pit-text)" }}>
+                  {skin.label}
+                </div>
+                {owned ? (
+                  <button
+                    type="button"
+                    onClick={() => setAvatarSkin(skin.id)}
+                    className="text-xs px-2 py-1 rounded-lg btn-metal"
+                  >
+                    {equipped ? "Equipped" : "Equip"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => buySkin(skin.id, skin.price)}
+                    className="text-xs px-2 py-1 rounded-lg btn-write"
+                  >
+                    Buy {skin.price} pts
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-3 mb-4">
         <div>
-          <label className="block text-sm text-gray-300 mb-1">Display name</label>
+          <label className="text-xs text-muted-pit block mb-1">Display name *</label>
           <input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
+            className="w-full rounded-xl px-3 py-2 text-sm"
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-300 mb-1">Bio</label>
+          <label className="text-xs text-muted-pit block mb-1">Bio</label>
           <textarea
             value={bio}
             onChange={(e) => setBio(e.target.value)}
-            className="w-full min-h-[90px] bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
+            rows={3}
+            className="w-full rounded-xl px-3 py-2 text-sm"
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-300 mb-1">Link</label>
+          <label className="text-xs text-muted-pit block mb-1">Link</label>
           <input
             value={link}
             onChange={(e) => setLink(e.target.value)}
-            className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
+            className="w-full rounded-xl px-3 py-2 text-sm"
           />
         </div>
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Sex</label>
+            <label className="text-xs text-muted-pit block mb-1">Sex</label>
             <input
               value={sex}
               onChange={(e) => setSex(e.target.value)}
-              className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
+              className="w-full rounded-xl px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Birthday</label>
+            <label className="text-xs text-muted-pit block mb-1">Birthday *</label>
             <input
               type="date"
               value={birthday}
               onChange={(e) => setBirthday(e.target.value)}
-              className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
+              className="w-full rounded-xl px-3 py-2 text-sm"
             />
           </div>
         </div>
         <div>
-          <label className="block text-sm text-gray-300 mb-1">Location</label>
+          <label className="text-xs text-muted-pit block mb-1">Location</label>
           <input
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
+            className="w-full rounded-xl px-3 py-2 text-sm"
           />
         </div>
       </div>
 
       <button
+        type="button"
         onClick={saveProfile}
-        disabled={saving || uploading}
-        className="px-6 py-2.5 rounded-xl bg-forge-accent text-white text-sm font-medium disabled:opacity-60"
+        disabled={saving}
+        className="btn-write px-5 py-2.5 rounded-xl text-sm disabled:opacity-60"
       >
         {saving ? "Saving..." : "Save Profile"}
       </button>
 
-      {message && <p className="mt-4 text-sm text-yellow-200">{message}</p>}
+      {message && <p className="text-sm text-yellow-500 mt-3">{message}</p>}
 
-      <div className="mt-8 flex gap-4">
-        <Link href="/wallet" className="text-sm text-gray-300 hover:text-white">
+      <div className="mt-6 flex gap-4 text-sm">
+        <Link href="/wallet" className="text-muted-pit hover:opacity-100">
           Wallet
         </Link>
-        <Link href="/profile" className="text-sm text-gray-300 hover:text-white">
+        <Link href="/profile" className="text-muted-pit hover:opacity-100">
           Profile
         </Link>
       </div>
