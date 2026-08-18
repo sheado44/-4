@@ -10,6 +10,11 @@ type Classified = {
   subcategory: string;
 };
 
+type GateResult = {
+  status: "published" | "author_only";
+  reason: string;
+};
+
 function classifyArticle(title: string, body: string): Classified {
   const text = `${title} ${body}`.toLowerCase();
 
@@ -47,6 +52,43 @@ function classifyArticle(title: string, body: string): Classified {
   return { section: "Pop Culture", subcategory: "General" };
 }
 
+// Low floor gate — later replace with real AI review
+function qualityGate(title: string, body: string): GateResult {
+  const t = title.trim();
+  const b = body.trim();
+  const chars = b.length;
+  const words = b.split(/\s+/).filter(Boolean).length;
+
+  if (t.length < 8) {
+    return {
+      status: "author_only",
+      reason: "Headline too short for the public feed.",
+    };
+  }
+
+  if (chars < 400 || words < 70) {
+    return {
+      status: "author_only",
+      reason: "Body is too short for the public feed. Kept on your author desk only.",
+    };
+  }
+
+  // ultra-thin repeated junk
+  const uniqueRatio =
+    new Set(b.toLowerCase().split(/\s+/).filter(Boolean)).size / Math.max(words, 1);
+  if (uniqueRatio < 0.35 && words < 120) {
+    return {
+      status: "author_only",
+      reason: "Content looks too thin/repetitive for the public feed.",
+    };
+  }
+
+  return {
+    status: "published",
+    reason: "Cleared the public-feed quality floor.",
+  };
+}
+
 export default function EditorClient() {
   const searchParams = useSearchParams();
   void searchParams.get("section");
@@ -59,6 +101,7 @@ export default function EditorClient() {
   const [message, setMessage] = useState("");
   const [publishedId, setPublishedId] = useState<string | null>(null);
   const [classified, setClassified] = useState<Classified | null>(null);
+  const [gate, setGate] = useState<GateResult | null>(null);
 
   useEffect(() => {
     const boot = async () => {
@@ -78,6 +121,7 @@ export default function EditorClient() {
     setMessage("");
     setPublishedId(null);
     setClassified(null);
+    setGate(null);
 
     const { data: auth } = await supabase.auth.getUser();
     const user = auth.user;
@@ -93,7 +137,9 @@ export default function EditorClient() {
     setPublishing(true);
 
     const result = classifyArticle(title.trim(), body.trim());
+    const gateResult = qualityGate(title.trim(), body.trim());
     setClassified(result);
+    setGate(gateResult);
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -112,6 +158,7 @@ export default function EditorClient() {
       body: body.trim(),
       section: result.section,
       subcategory: result.subcategory,
+      status: gateResult.status,
       user_id: user.id,
       author_name: authorName,
     };
@@ -122,12 +169,20 @@ export default function EditorClient() {
       .select("id")
       .single();
 
-    if (error && String(error.message).toLowerCase().includes("subcategory")) {
-      const { subcategory: _removed, ...withoutSub } = insertPayload as {
-        subcategory?: string;
-        [key: string]: unknown;
+    // tolerate missing optional columns on older schemas
+    if (error) {
+      const msg = String(error.message).toLowerCase();
+      const fallback: Record<string, unknown> = {
+        title: title.trim(),
+        body: body.trim(),
+        section: result.section,
+        user_id: user.id,
+        author_name: authorName,
       };
-      const retry = await supabase.from("articles").insert(withoutSub).select("id").single();
+      if (!msg.includes("status")) fallback.status = gateResult.status;
+      if (!msg.includes("subcategory")) fallback.subcategory = result.subcategory;
+
+      const retry = await supabase.from("articles").insert(fallback).select("id").single();
       data = retry.data;
       error = retry.error;
     }
@@ -140,14 +195,22 @@ export default function EditorClient() {
     }
 
     if (!data || !data.id) {
-      setMessage("Published, but no article id was returned.");
+      setMessage("Saved, but no article id was returned.");
       return;
     }
 
     setPublishedId(data.id);
-    setMessage(
-      `Published successfully · filed under ${result.section} / ${result.subcategory}`
-    );
+
+    if (gateResult.status === "published") {
+      setMessage(
+        `Published to public feed · ${result.section} / ${result.subcategory}. ${gateResult.reason}`
+      );
+    } else {
+      setMessage(
+        `Saved to your author desk only (not public). ${gateResult.reason}`
+      );
+    }
+
     setTitle("");
     setBody("");
   };
@@ -167,7 +230,7 @@ export default function EditorClient() {
           Editors only
         </h1>
         <p className="text-muted-pit mb-6">
-          You need a The Ballpit account to write articles, upload media, and use AI tools.
+          You need a theBallpit account to write articles, upload media, and use AI tools.
         </p>
         <Link href="/login" className="btn-write inline-block px-6 py-2.5 rounded-xl text-sm">
           Log in / Sign up
@@ -179,11 +242,11 @@ export default function EditorClient() {
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
       <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--pit-text)" }}>
-        Write on The Ballpit
+        Write on theBallpit
       </h1>
       <p className="text-sm text-muted-pit mb-6">
-        You submit the story. AI places it in Sports or Pop Culture and assigns a subcategory
-        (NFL, MLB, TV, Film, Music, and more).
+        Submit the story. AI files Sports vs Pop Culture. A quality floor decides if it goes to the
+        public feed or stays on your author desk only.
       </p>
 
       <div className="pit-panel p-5 space-y-4">
@@ -206,6 +269,9 @@ export default function EditorClient() {
             className="w-full rounded-xl px-3 py-2 text-sm"
             placeholder="Write your story..."
           />
+          <p className="text-[11px] text-muted-pit mt-1">
+            Public feed needs real substance (about 70+ words). Short posts stay author-only.
+          </p>
         </div>
 
         <button
@@ -214,7 +280,7 @@ export default function EditorClient() {
           disabled={publishing}
           className="btn-write px-5 py-2.5 rounded-xl text-sm disabled:opacity-60"
         >
-          {publishing ? "Classifying & publishing..." : "Publish"}
+          {publishing ? "Scanning & saving..." : "Publish"}
         </button>
 
         {classified && (
@@ -225,7 +291,25 @@ export default function EditorClient() {
               background: "color-mix(in srgb, var(--pit-highlight) 12%, transparent)",
             }}
           >
-            AI filing: <strong>{classified.section}</strong> · {classified.subcategory}
+            Filing: <strong>{classified.section}</strong> · {classified.subcategory}
+          </div>
+        )}
+
+        {gate && (
+          <div
+            className="rounded-xl px-3 py-2 text-sm border"
+            style={{
+              borderColor:
+                gate.status === "published"
+                  ? "color-mix(in srgb, #22c55e 45%, transparent)"
+                  : "color-mix(in srgb, #eab308 45%, transparent)",
+              background:
+                gate.status === "published"
+                  ? "color-mix(in srgb, #22c55e 12%, transparent)"
+                  : "color-mix(in srgb, #eab308 12%, transparent)",
+            }}
+          >
+            {gate.status === "published" ? "Public feed" : "Author desk only"} · {gate.reason}
           </div>
         )}
 
@@ -234,7 +318,7 @@ export default function EditorClient() {
             {message}{" "}
             {publishedId && (
               <Link href={`/article/${publishedId}`} className="text-highlight-pit underline">
-                View article
+                View
               </Link>
             )}
           </p>
