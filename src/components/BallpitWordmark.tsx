@@ -58,24 +58,26 @@ export default function BallpitWordmark({
   size = "md",
   className = "",
 }: Props) {
+  // Brushed aluminum (matches silver body letters)
   const metal: CSSProperties = {
     backgroundImage:
-      "linear-gradient(180deg, #F4F6F7 0%, #D0D5DA 35%, #9AA3AB 70%, #6E777F 100%)",
+      "linear-gradient(180deg, #F7F8F9 0%, #D5 recapDADF 28%, #A8B0B8 62%, #6E777F 100%)",
     WebkitBackgroundClip: "text",
     backgroundClip: "text",
     color: "transparent",
     filter:
-      "drop-shadow(0 1px 0 rgba(255,255,255,0.2)) drop-shadow(0 2px 2px rgba(0,0,0,0.45))",
+      "drop-shadow(0 1px 0 rgba(255,255,255,0.25)) drop-shadow(0 2px 2px rgba(0,0,0,0.5))",
   };
 
-  const accentA: CSSProperties = {
-    color: "#C4A574",
-    filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.45))",
-  };
-
-  const accentI: CSSProperties = {
-    color: "#C4A574",
-    filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.45))",
+  // Polished bronze / copper (closer to your hero image a / i)
+  const bronze: CSSProperties = {
+    backgroundImage:
+      "linear-gradient(165deg, #F0D0A0 0%, #D4A05A 18%, #B87333 42%, #8B5A2B 68%, #5C3A1E 100%)",
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    color: "transparent",
+    filter:
+      "drop-shadow(0 1px 0 rgba(255,220,170,0.35)) drop-shadow(0 2px 2px rgba(40,18,6,0.55))",
   };
 
   const mark = (
@@ -86,9 +88,9 @@ export default function BallpitWordmark({
     >
       <span style={metal}>the</span>
       <span style={metal}>B</span>
-      <span style={accentA}>a</span>
+      <span style={bronze}>a</span>
       <span style={metal}>llp</span>
-      <span className="relative inline-block" style={accentI}>
+      <span className="relative inline-block" style={bronze}>
         ı
         <BasketballDot large={size === "lg"} />
       </span>
