@@ -68,6 +68,45 @@ function generationFromBirthday(birthday: string | null | undefined): Generation
   return hit ? hit.id : null;
 }
 
+function GenChip({
+  label,
+  active,
+  filtering,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  filtering: boolean;
+  onClick: () => void;
+}) {
+  // filtering = at least one gen selected overall
+  // active = this gen is included
+  // filtered out = filtering && !active → strikethrough
+  const filteredOut = filtering && !active;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="px-2.5 py-1 rounded-lg text-xs font-medium transition border"
+      style={{
+        borderColor: active
+          ? "color-mix(in srgb, var(--pit-highlight) 70%, transparent)"
+          : "rgba(255,255,255,0.12)",
+        background: active
+          ? "color-mix(in srgb, var(--pit-highlight) 22%, transparent)"
+          : "rgba(255,255,255,0.04)",
+        color: filteredOut ? "var(--pit-muted)" : "var(--pit-text)",
+        textDecoration: filteredOut ? "line-through" : "none",
+        opacity: filteredOut ? 0.55 : 1,
+        boxShadow: active ? "0 0 0 1px color-mix(in srgb, var(--pit-highlight) 35%, transparent)" : "none",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
   const [articles, setArticles] = useState<Article[]>([]);
@@ -402,6 +441,9 @@ export default function Home() {
     setFeedGens([]);
   };
 
+  const feedFiltering = feedGens.length > 0;
+  const finderFiltering = finderGens.length > 0;
+
   return (
     <main className="min-h-screen">
       <section className="relative overflow-hidden">
@@ -480,21 +522,18 @@ export default function Home() {
 
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {GENERATIONS.map((g) => (
-                      <button
+                      <GenChip
                         key={g.id}
-                        type="button"
+                        label={g.label}
+                        active={feedGens.includes(g.id)}
+                        filtering={feedFiltering}
                         onClick={() => toggleFeedGen(g.id)}
-                        className={`px-2.5 py-1 rounded-lg text-xs btn-metal ${
-                          feedGens.includes(g.id) ? "ring-1 ring-[var(--pit-highlight)]" : ""
-                        }`}
-                      >
-                        {g.label}
-                      </button>
+                      />
                     ))}
                   </div>
 
                   <p className="text-[11px] text-muted-pit mb-3">
-                    Click any mix of generations. Empty = all generations.
+                    Selected stay on. Others get crossed out and hidden from the feed.
                   </p>
 
                   <button
@@ -686,24 +725,21 @@ export default function Home() {
 
                 <div className="flex flex-wrap gap-1.5 mb-3">
                   {GENERATIONS.map((g) => (
-                    <button
+                    <GenChip
                       key={g.id}
-                      type="button"
+                      label={g.label}
+                      active={finderGens.includes(g.id)}
+                      filtering={finderFiltering}
                       onClick={() => toggleFinderGen(g.id)}
-                      className={`px-2.5 py-1 rounded-lg text-xs btn-metal ${
-                        finderGens.includes(g.id) ? "ring-1 ring-[var(--pit-highlight)]" : ""
-                      }`}
-                    >
-                      {g.label}
-                    </button>
+                    />
                   ))}
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setFinderFavoritesOnly((v) => !v)}
-                  className={`w-full mb-3 px-3 py-2 rounded-xl text-sm font-medium transition btn-metal ${
-                    finderFavoritesOnly ? "ring-1 ring-[var(--pit-highlight)]" : ""
+                  className={`w-full mb-3 px-3 py-2 rounded-xl text-sm font-medium transition border ${
+                    finderFavoritesOnly ? "btn-write border-transparent" : "btn-metal"
                   }`}
                 >
                   {finderFavoritesOnly ? "Favorites only · On" : "Favorites only · Off"}
