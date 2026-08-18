@@ -141,8 +141,6 @@ export default function SettingsPage() {
     }
 
     setGenerating(true);
-
-    // Avatar generation is always free (signup + every 30 days)
     const nextAttempt = aiAttempts + 1;
     const url = buildPreviewUrl(text, nextAttempt);
     setAiAttempts(nextAttempt);
@@ -250,6 +248,7 @@ export default function SettingsPage() {
     setPendingAvatar("");
     setMessage("Profile saved.");
     window.dispatchEvent(new Event("ballpit-wallet-updated"));
+    window.dispatchEvent(new Event("ballpit-profile-updated"));
   };
 
   if (loading) {
