@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 const MAX_AI_ATTEMPTS = 3;
+const AVATAR_COOLDOWN_DAYS = 30;
 
 const SKINS = [
   { id: "solid", label: "Solid color", price: 0 },
@@ -21,6 +22,13 @@ type SkinId = (typeof SKINS)[number]["id"];
 function buildPreviewUrl(prompt: string, attempt: number) {
   const seed = `${prompt.trim().toLowerCase()}::attempt-${attempt}::${Date.now()}`;
   return `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(seed)}&size=256`;
+}
+
+function daysSince(iso: string | null) {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return null;
+  return (Date.now() - t) / (1000 * 60 * 60 * 24);
 }
 
 export default function SettingsPage() {
@@ -42,12 +50,29 @@ export default function SettingsPage() {
   const [avatarColor, setAvatarColor] = useState("#7c3aed");
   const [avatarSkin, setAvatarSkin] = useState<SkinId>("solid");
   const [ownedSkins, setOwnedSkins] = useState<string[]>(["solid"]);
+  const [avatarUpdatedAt, setAvatarUpdatedAt] = useState<string | null>(null);
+  const [avatarSetupDone, setAvatarSetupDone] = useState(false);
 
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiAttempts, setAiAttempts] = useState(0);
   const [aiCandidates, setAiCandidates] = useState<string[]>([]);
   const [pendingAvatar, setPendingAvatar] = useState<string>("");
   const [message, setMessage] = useState("");
+
+  const avatarAllowed = useMemo(() => {
+    if (!avatarSetupDone && !avatarUrl) return true;
+    if (!avatarUpdatedAt) return true;
+    const d = daysSince(avatarUpdatedAt);
+    if (d == null) return true;
+    return d >= AVATAR_COOLDOWN_DAYS;
+  }, [avatarSetupDone, avatarUrl, avatarUpdatedAt]);
+
+  const daysUntilAvatar = useMemo(() => {
+    if (avatarAllowed) return 0;
+    const d = daysSince(avatarUpdatedAt);
+    if (d == null) return 0;
+    return Math.ceil(AVATAR_COOLDOWN_DAYS - d);
+  }, [avatarAllowed, avatarUpdatedAt]);
 
   useEffect(() => {
     const boot = async () => {
@@ -59,7 +84,6 @@ export default function SettingsPage() {
       }
       setUserId(user.id);
 
-      // select * avoids hard failures if some optional columns differ
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("*")
@@ -87,6 +111,8 @@ export default function SettingsPage() {
             ? profile.owned_skins
             : ["solid"]
         );
+        setAvatarUpdatedAt(profile.avatar_updated_at || null);
+        setAvatarSetupDone(Boolean(profile.avatar_setup_done));
       }
 
       setLoading(false);
@@ -96,6 +122,10 @@ export default function SettingsPage() {
 
   const generateAiAvatar = async () => {
     setMessage("");
+    if (!avatarAllowed) {
+      setMessage(`Avatar can be updated again in about ${daysUntilAvatar} day(s).`);
+      return;
+    }
     const text = aiPrompt.trim();
     if (!text) {
       setMessage("Describe how you look first.");
@@ -112,29 +142,9 @@ export default function SettingsPage() {
 
     setGenerating(true);
 
-    // Placeholder generator works even at 0 credits so you can test the flow.
-    // When real image AI is connected, enforce credits strictly here.
-    let nextCredits = aiCredits;
-    if (aiCredits >= 1) {
-      const { error: creditError } = await supabase
-        .from("profiles")
-        .update({ ai_credits: aiCredits - 1 })
-        .eq("id", userId);
-
-      if (creditError) {
-        setGenerating(false);
-        setMessage(creditError.message);
-        return;
-      }
-      nextCredits = aiCredits - 1;
-      setAiCredits(nextCredits);
-    } else {
-      setMessage("AI credits are 0 — using free placeholder preview (not real image AI).");
-    }
-
+    // Avatar generation is always free (signup + every 30 days)
     const nextAttempt = aiAttempts + 1;
     const url = buildPreviewUrl(text, nextAttempt);
-
     setAiAttempts(nextAttempt);
     setAiCandidates((prev) => [...prev, url]);
     setPendingAvatar(url);
@@ -197,22 +207,33 @@ export default function SettingsPage() {
     }
 
     const finalAvatar = pendingAvatar || avatarUrl;
+    const avatarChanged = Boolean(pendingAvatar) && pendingAvatar !== avatarUrl;
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        display_name: displayName.trim(),
-        bio: bio.trim() || null,
-        link: link.trim() || null,
-        sex: sex || null,
-        birthday,
-        location: location.trim() || null,
-        avatar_url: finalAvatar || null,
-        avatar_color: avatarColor,
-        avatar_skin: avatarSkin,
-        owned_skins: ownedSkins,
-      })
-      .eq("id", userId);
+    if (avatarChanged && !avatarAllowed) {
+      setMessage(`Avatar can be updated again in about ${daysUntilAvatar} day(s).`);
+      setSaving(false);
+      return;
+    }
+
+    const payload: Record<string, unknown> = {
+      display_name: displayName.trim(),
+      bio: bio.trim() || null,
+      link: link.trim() || null,
+      sex: sex || null,
+      birthday,
+      location: location.trim() || null,
+      avatar_url: finalAvatar || null,
+      avatar_color: avatarColor,
+      avatar_skin: avatarSkin,
+      owned_skins: ownedSkins,
+    };
+
+    if (avatarChanged) {
+      payload.avatar_updated_at = new Date().toISOString();
+      payload.avatar_setup_done = true;
+    }
+
+    const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
 
     setSaving(false);
 
@@ -222,6 +243,10 @@ export default function SettingsPage() {
     }
 
     setAvatarUrl(finalAvatar);
+    if (avatarChanged) {
+      setAvatarUpdatedAt(new Date().toISOString());
+      setAvatarSetupDone(true);
+    }
     setPendingAvatar("");
     setMessage("Profile saved.");
     window.dispatchEvent(new Event("ballpit-wallet-updated"));
@@ -272,25 +297,33 @@ export default function SettingsPage() {
           Generate AI profile photo
         </div>
         <p className="text-xs text-muted-pit">
-          No uploads. Describe how you look. Up to 3 attempts. Placeholder previews work now; real
-          image AI comes later. Choose one, then Save Profile.
+          Free on signup (3 tries). Free update about once every {AVATAR_COOLDOWN_DAYS} days. No AI
+          credits used for avatars.
         </p>
+
+        {!avatarAllowed && (
+          <p className="text-xs text-yellow-500">
+            Avatar locked. Next free change in about {daysUntilAvatar} day(s).
+          </p>
+        )}
+
         <textarea
           value={aiPrompt}
           onChange={(e) => setAiPrompt(e.target.value)}
           rows={3}
           className="w-full rounded-xl px-3 py-2 text-sm"
           placeholder="What do you look like?"
+          disabled={!avatarAllowed}
         />
         <button
           type="button"
           onClick={generateAiAvatar}
-          disabled={generating || aiAttempts >= MAX_AI_ATTEMPTS}
+          disabled={generating || !avatarAllowed || aiAttempts >= MAX_AI_ATTEMPTS}
           className="btn-write px-4 py-2 rounded-xl text-sm disabled:opacity-50"
         >
           {generating
             ? "Generating..."
-            : `Generate profile photo · ${MAX_AI_ATTEMPTS - aiAttempts} left`}
+            : `Generate free avatar · ${MAX_AI_ATTEMPTS - aiAttempts} left`}
         </button>
 
         {aiCandidates.length > 0 && (
