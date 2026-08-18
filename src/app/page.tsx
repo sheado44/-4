@@ -33,8 +33,6 @@ type SearchUser = {
   id: string;
   display_name: string;
   location: string | null;
-  age: number | null;
-  generation: Generation | null;
 };
 
 type Generation = "Silent" | "Boomer" | "Gen X" | "Millennial" | "Gen Z" | "Gen Alpha";
@@ -47,17 +45,6 @@ const GENERATIONS: { id: Generation; label: string; start: number; end: number }
   { id: "Gen Z", label: "Gen Z", start: 1997, end: 2012 },
   { id: "Gen Alpha", label: "Gen Alpha", start: 2013, end: 2030 },
 ];
-
-function ageFromBirthday(birthday: string | null | undefined): number | null {
-  if (!birthday) return null;
-  const d = new Date(birthday);
-  if (Number.isNaN(d.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
-  return age;
-}
 
 function generationFromBirthday(birthday: string | null | undefined): Generation | null {
   if (!birthday) return null;
@@ -79,9 +66,6 @@ function GenChip({
   filtering: boolean;
   onClick: () => void;
 }) {
-  // filtering = at least one gen selected overall
-  // active = this gen is included
-  // filtered out = filtering && !active → strikethrough
   const filteredOut = filtering && !active;
 
   return (
@@ -99,7 +83,9 @@ function GenChip({
         color: filteredOut ? "var(--pit-muted)" : "var(--pit-text)",
         textDecoration: filteredOut ? "line-through" : "none",
         opacity: filteredOut ? 0.55 : 1,
-        boxShadow: active ? "0 0 0 1px color-mix(in srgb, var(--pit-highlight) 35%, transparent)" : "none",
+        boxShadow: active
+          ? "0 0 0 1px color-mix(in srgb, var(--pit-highlight) 35%, transparent)"
+          : "none",
       }}
     >
       {label}
@@ -123,12 +109,16 @@ export default function Home() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [watchFeed, setWatchFeed] = useState<WatchItem[]>([]);
 
-  const [finderFavoritesOnly, setFinderFavoritesOnly] = useState(false);
-  const [finderGens, setFinderGens] = useState<Generation[]>([]);
-  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  // Find panel
+  const [userNameQuery, setUserNameQuery] = useState("");
+  const [userLocationQuery, setUserLocationQuery] = useState("");
+  const [topicQuery, setTopicQuery] = useState("");
+  const [searchUsers, setSearchUsers] = useState<SearchUser[]>([]);
+  const [topicArticles, setTopicArticles] = useState<Article[]>([]);
   const [searchMessage, setSearchMessage] = useState("");
   const [searching, setSearching] = useState(false);
 
+  // Feed filters
   const [filterOpen, setFilterOpen] = useState(false);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [feedGens, setFeedGens] = useState<Generation[]>([]);
@@ -145,10 +135,6 @@ export default function Home() {
 
   const toggleFeedGen = (g: Generation) => {
     setFeedGens((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
-  };
-
-  const toggleFinderGen = (g: Generation) => {
-    setFinderGens((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
   };
 
   const loadFavoritesAndFeed = async (uid: string) => {
@@ -303,37 +289,58 @@ export default function Home() {
     load();
   }, []);
 
-  const handleFindUsers = async () => {
+  const handleSearch = async () => {
     if (!userId) return;
     setSearchMessage("");
-    setSearchResults([]);
+    setSearchUsers([]);
+    setTopicArticles([]);
     setSearching(true);
 
-    const mapRows = (data: any[]) =>
-      (data || [])
-        .map((u) => ({
-          id: u.id,
-          display_name: u.display_name || "User",
-          location: u.location || null,
-          age: ageFromBirthday(u.birthday),
-          generation: generationFromBirthday(u.birthday),
-        }))
-        .filter((u) => {
-          if (finderGens.length === 0) return true;
-          return u.generation !== null && finderGens.includes(u.generation);
-        });
+    const nameQ = userNameQuery.trim();
+    const locQ = userLocationQuery.trim();
+    const topicQ = topicQuery.trim();
 
-    if (finderFavoritesOnly) {
-      if (favorites.length === 0) {
-        setSearchMessage("No favorites yet.");
+    if (!nameQ && !locQ && !topicQ) {
+      setSearchMessage("Enter a display name, location, or article topic.");
+      setSearching(false);
+      return;
+    }
+
+    // Users by display name + location
+    if (nameQ || locQ) {
+      let query = supabase
+        .from("profiles")
+        .select("id, display_name, location")
+        .neq("id", userId)
+        .limit(30);
+
+      if (nameQ) query = query.ilike("display_name", `%${nameQ}%`);
+      if (locQ) query = query.ilike("location", `%${locQ}%`);
+
+      const { data, error } = await query;
+      if (error) {
+        setSearchMessage(error.message);
         setSearching(false);
         return;
       }
-      const ids = favorites.map((f) => f.favorite_user_id);
+
+      setSearchUsers(
+        (data || []).map((u) => ({
+          id: u.id,
+          display_name: u.display_name || "User",
+          location: u.location || null,
+        }))
+      );
+    }
+
+    // Articles by topic (title or body)
+    if (topicQ) {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, display_name, location, birthday")
-        .in("id", ids);
+        .from("articles")
+        .select("id, title, section, body, created_at, user_id, author_name")
+        .or(`title.ilike.%${topicQ}%,body.ilike.%${topicQ}%`)
+        .order("created_at", { ascending: false })
+        .limit(20);
 
       if (error) {
         setSearchMessage(error.message);
@@ -341,28 +348,9 @@ export default function Home() {
         return;
       }
 
-      const rows = mapRows(data || []);
-      setSearchResults(rows);
-      if (rows.length === 0) setSearchMessage("No matches in favorites.");
-      setSearching(false);
-      return;
+      setTopicArticles(data || []);
     }
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, display_name, location, birthday")
-      .neq("id", userId)
-      .limit(120);
-
-    if (error) {
-      setSearchMessage(error.message);
-      setSearching(false);
-      return;
-    }
-
-    const rows = mapRows(data || []).slice(0, 20);
-    setSearchResults(rows);
-    if (rows.length === 0) setSearchMessage("No users match those generations.");
     setSearching(false);
   };
 
@@ -442,7 +430,6 @@ export default function Home() {
   };
 
   const feedFiltering = feedGens.length > 0;
-  const finderFiltering = finderGens.length > 0;
 
   return (
     <main className="min-h-screen">
@@ -710,81 +697,98 @@ export default function Home() {
               </div>
 
               <div className="pit-panel p-5">
-                <h3 className="font-semibold mb-3">Find users</h3>
+                <h3 className="font-semibold mb-3">Find</h3>
 
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs text-muted-pit">Generation</div>
+                <div className="space-y-2 mb-3">
+                  <input
+                    value={userNameQuery}
+                    onChange={(e) => setUserNameQuery(e.target.value)}
+                    placeholder="User display name"
+                    className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+                  />
+                  <input
+                    value={userLocationQuery}
+                    onChange={(e) => setUserLocationQuery(e.target.value)}
+                    placeholder="User location"
+                    className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+                  />
+                  <input
+                    value={topicQuery}
+                    onChange={(e) => setTopicQuery(e.target.value)}
+                    placeholder="Article topic"
+                    className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+                  />
                   <button
                     type="button"
-                    onClick={() => setFinderGens([])}
-                    className="text-[11px] text-muted-pit hover:opacity-80"
+                    onClick={handleSearch}
+                    disabled={searching}
+                    className="btn-write w-full px-3 py-2.5 rounded-xl text-sm disabled:opacity-60"
                   >
-                    Clear
+                    {searching ? "Searching..." : "Search"}
                   </button>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {GENERATIONS.map((g) => (
-                    <GenChip
-                      key={g.id}
-                      label={g.label}
-                      active={finderGens.includes(g.id)}
-                      filtering={finderFiltering}
-                      onClick={() => toggleFinderGen(g.id)}
-                    />
-                  ))}
-                </div>
+                {searchMessage && <p className="text-xs text-yellow-500 mb-2">{searchMessage}</p>}
 
-                <button
-                  type="button"
-                  onClick={() => setFinderFavoritesOnly((v) => !v)}
-                  className={`w-full mb-3 px-3 py-2 rounded-xl text-sm font-medium transition border ${
-                    finderFavoritesOnly ? "btn-write border-transparent" : "btn-metal"
-                  }`}
-                >
-                  {finderFavoritesOnly ? "Favorites only · On" : "Favorites only · Off"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleFindUsers}
-                  disabled={searching}
-                  className="btn-write w-full px-3 py-2.5 rounded-xl text-sm disabled:opacity-60"
-                >
-                  {searching ? "Finding..." : "Find users"}
-                </button>
-
-                {searchMessage && <p className="text-xs text-yellow-500 mt-2">{searchMessage}</p>}
-
-                <div className="space-y-2 mt-3">
-                  {searchResults.map((u) => (
-                    <div
-                      key={u.id}
-                      className="flex items-center justify-between gap-2 rounded-lg border border-white/5 px-3 py-2"
-                      style={{ background: "rgba(0,0,0,0.12)" }}
-                    >
-                      <div className="min-w-0">
-                        <Link
-                          href={`/profile/${u.id}`}
-                          className="text-sm font-medium hover:opacity-80 block truncate"
-                        >
-                          {u.display_name}
-                        </Link>
-                        <div className="text-[11px] text-muted-pit truncate">
-                          {[u.generation, u.location].filter(Boolean).join(" · ") || "No details"}
-                        </div>
-                      </div>
-                      {!favoriteIds.has(u.id) && (
-                        <button
-                          onClick={() => addFavorite(u.id, u.display_name)}
-                          className="text-xs px-2 py-1 rounded-lg btn-write shrink-0"
-                        >
-                          Add
-                        </button>
-                      )}
+                {searchUsers.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit mb-2">
+                      Users
                     </div>
-                  ))}
-                </div>
+                    <div className="space-y-2">
+                      {searchUsers.map((u) => (
+                        <div
+                          key={u.id}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-white/5 px-3 py-2"
+                          style={{ background: "rgba(0,0,0,0.12)" }}
+                        >
+                          <div className="min-w-0">
+                            <Link
+                              href={`/profile/${u.id}`}
+                              className="text-sm font-medium hover:opacity-80 block truncate"
+                            >
+                              {u.display_name}
+                            </Link>
+                            <div className="text-[11px] text-muted-pit truncate">
+                              {u.location || "No location"}
+                            </div>
+                          </div>
+                          {!favoriteIds.has(u.id) && (
+                            <button
+                              onClick={() => addFavorite(u.id, u.display_name)}
+                              className="text-xs px-2 py-1 rounded-lg btn-write shrink-0"
+                            >
+                              Add
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {topicArticles.length > 0 && (
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit mb-2">
+                      Articles
+                    </div>
+                    <div className="space-y-2">
+                      {topicArticles.map((a) => (
+                        <Link
+                          key={a.id}
+                          href={`/article/${a.id}`}
+                          className="block rounded-lg border border-white/5 px-3 py-2"
+                          style={{ background: "rgba(0,0,0,0.12)" }}
+                        >
+                          <div className="text-sm font-medium truncate">{a.title}</div>
+                          <div className="text-[11px] text-muted-pit truncate">
+                            {a.section} · {a.author_name || "Unknown"} · {formatTime(a.created_at)}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           ) : (
