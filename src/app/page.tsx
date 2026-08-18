@@ -34,7 +34,19 @@ type SearchUser = {
   display_name: string;
   location: string | null;
   age: number | null;
+  generation: Generation | null;
 };
+
+type Generation = "Silent" | "Boomer" | "Gen X" | "Millennial" | "Gen Z" | "Gen Alpha";
+
+const GENERATIONS: { id: Generation; label: string; start: number; end: number }[] = [
+  { id: "Silent", label: "Silent", start: 1928, end: 1945 },
+  { id: "Boomer", label: "Boomer", start: 1946, end: 1964 },
+  { id: "Gen X", label: "Gen X", start: 1965, end: 1980 },
+  { id: "Millennial", label: "Millennial", start: 1981, end: 1996 },
+  { id: "Gen Z", label: "Gen Z", start: 1997, end: 2012 },
+  { id: "Gen Alpha", label: "Gen Alpha", start: 2013, end: 2030 },
+];
 
 function ageFromBirthday(birthday: string | null | undefined): number | null {
   if (!birthday) return null;
@@ -47,10 +59,20 @@ function ageFromBirthday(birthday: string | null | undefined): number | null {
   return age;
 }
 
+function generationFromBirthday(birthday: string | null | undefined): Generation | null {
+  if (!birthday) return null;
+  const d = new Date(birthday);
+  if (Number.isNaN(d.getTime())) return null;
+  const year = d.getFullYear();
+  const hit = GENERATIONS.find((g) => year >= g.start && year <= g.end);
+  return hit ? hit.id : null;
+}
+
 export default function Home() {
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
   const [articles, setArticles] = useState<Article[]>([]);
   const [authorAges, setAuthorAges] = useState<Record<string, number | null>>({});
+  const [authorGens, setAuthorGens] = useState<Record<string, Generation | null>>({});
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -63,10 +85,11 @@ export default function Home() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [watchFeed, setWatchFeed] = useState<WatchItem[]>([]);
 
-  // Dynamic user finder
+  // Find users
   const [finderMinAge, setFinderMinAge] = useState(18);
   const [finderMaxAge, setFinderMaxAge] = useState(65);
   const [finderFavoritesOnly, setFinderFavoritesOnly] = useState(false);
+  const [finderGens, setFinderGens] = useState<Generation[]>([]);
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [searchMessage, setSearchMessage] = useState("");
   const [searching, setSearching] = useState(false);
@@ -77,6 +100,7 @@ export default function Home() {
   const [feedAgeEnabled, setFeedAgeEnabled] = useState(false);
   const [feedAgeMin, setFeedAgeMin] = useState("");
   const [feedAgeMax, setFeedAgeMax] = useState("");
+  const [feedGens, setFeedGens] = useState<Generation[]>([]);
   const filterRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -87,6 +111,14 @@ export default function Home() {
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
+
+  const toggleFeedGen = (g: Generation) => {
+    setFeedGens((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
+  };
+
+  const toggleFinderGen = (g: Generation) => {
+    setFinderGens((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
+  };
 
   const loadFavoritesAndFeed = async (uid: string) => {
     const { data: favRows } = await supabase
@@ -183,14 +215,18 @@ export default function Home() {
             .select("id, birthday")
             .in("id", ids);
 
-          const map: Record<string, number | null> = {};
+          const ageMap: Record<string, number | null> = {};
+          const genMap: Record<string, Generation | null> = {};
           (profiles || []).forEach((p) => {
-            map[p.id] = ageFromBirthday(p.birthday);
+            ageMap[p.id] = ageFromBirthday(p.birthday);
+            genMap[p.id] = generationFromBirthday(p.birthday);
           });
           ids.forEach((id) => {
-            if (!(id in map)) map[id] = null;
+            if (!(id in ageMap)) ageMap[id] = null;
+            if (!(id in genMap)) genMap[id] = null;
           });
-          setAuthorAges(map);
+          setAuthorAges(ageMap);
+          setAuthorGens(genMap);
         }
       }
 
@@ -246,8 +282,26 @@ export default function Home() {
     setSearchResults([]);
     setSearching(true);
 
-    let min = Math.min(finderMinAge, finderMaxAge);
-    let max = Math.max(finderMinAge, finderMaxAge);
+    const min = Math.min(finderMinAge, finderMaxAge);
+    const max = Math.max(finderMinAge, finderMaxAge);
+
+    const mapRows = (data: any[]) =>
+      (data || [])
+        .map((u) => ({
+          id: u.id,
+          display_name: u.display_name || "User",
+          location: u.location || null,
+          age: ageFromBirthday(u.birthday),
+          generation: generationFromBirthday(u.birthday),
+        }))
+        .filter((u) => {
+          if (u.age === null) return false;
+          if (u.age < min || u.age > max) return false;
+          if (finderGens.length > 0 && (!u.generation || !finderGens.includes(u.generation))) {
+            return false;
+          }
+          return true;
+        });
 
     if (finderFavoritesOnly) {
       if (favorites.length === 0) {
@@ -255,7 +309,6 @@ export default function Home() {
         setSearching(false);
         return;
       }
-
       const ids = favorites.map((f) => f.favorite_user_id);
       const { data, error } = await supabase
         .from("profiles")
@@ -268,27 +321,18 @@ export default function Home() {
         return;
       }
 
-      const rows = (data || [])
-        .map((u) => ({
-          id: u.id,
-          display_name: u.display_name || "User",
-          location: u.location || null,
-          age: ageFromBirthday(u.birthday),
-        }))
-        .filter((u) => u.age !== null && u.age! >= min && u.age! <= max);
-
+      const rows = mapRows(data || []);
       setSearchResults(rows);
-      if (rows.length === 0) setSearchMessage("No favorites in that age range.");
+      if (rows.length === 0) setSearchMessage("No matches in favorites.");
       setSearching(false);
       return;
     }
 
-    // Broad fetch then filter by age client-side (birthday math)
     const { data, error } = await supabase
       .from("profiles")
       .select("id, display_name, location, birthday")
       .neq("id", userId)
-      .limit(100);
+      .limit(120);
 
     if (error) {
       setSearchMessage(error.message);
@@ -296,22 +340,12 @@ export default function Home() {
       return;
     }
 
-    const rows = (data || [])
-      .map((u) => ({
-        id: u.id,
-        display_name: u.display_name || "User",
-        location: u.location || null,
-        age: ageFromBirthday(u.birthday),
-      }))
-      .filter((u) => u.age !== null && u.age! >= min && u.age! <= max)
-      .slice(0, 20);
-
+    const rows = mapRows(data || []).slice(0, 20);
     setSearchResults(rows);
-    if (rows.length === 0) setSearchMessage("No users in that age range.");
+    if (rows.length === 0) setSearchMessage("No users match those filters.");
     setSearching(false);
   };
 
-  // Keep min/max ordered while sliding
   const onMinAge = (v: number) => {
     setFinderMinAge(v);
     if (v > finderMaxAge) setFinderMaxAge(v);
@@ -352,8 +386,9 @@ export default function Home() {
     let n = 0;
     if (onlyFavorites) n += 1;
     if (feedAgeEnabled) n += 1;
+    if (feedGens.length > 0) n += 1;
     return n;
-  }, [onlyFavorites, feedAgeEnabled]);
+  }, [onlyFavorites, feedAgeEnabled, feedGens]);
 
   const filteredArticles = useMemo(() => {
     let list = section === "All" ? articles : articles.filter((a) => a.section === section);
@@ -374,6 +409,13 @@ export default function Home() {
       });
     }
 
+    if (loggedIn && feedGens.length > 0) {
+      list = list.filter((a) => {
+        const gen = authorGens[a.user_id];
+        return gen !== null && feedGens.includes(gen);
+      });
+    }
+
     return list;
   }, [
     articles,
@@ -385,6 +427,8 @@ export default function Home() {
     feedAgeMin,
     feedAgeMax,
     authorAges,
+    feedGens,
+    authorGens,
   ]);
 
   const initials = displayName
@@ -411,6 +455,7 @@ export default function Home() {
     setFeedAgeEnabled(false);
     setFeedAgeMin("");
     setFeedAgeMax("");
+    setFeedGens([]);
   };
 
   return (
@@ -458,7 +503,7 @@ export default function Home() {
 
               {filterOpen && (
                 <div
-                  className="absolute left-0 md:left-auto mt-2 w-72 rounded-xl border border-white/10 p-4 shadow-2xl z-40"
+                  className="absolute left-0 md:left-auto mt-2 w-80 rounded-xl border border-white/10 p-4 shadow-2xl z-40"
                   style={{
                     background: "color-mix(in srgb, var(--pit-panel) 94%, black 6%)",
                     backdropFilter: "blur(12px)",
@@ -488,7 +533,7 @@ export default function Home() {
                     />
                   </label>
 
-                  <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="grid grid-cols-2 gap-2 mb-4">
                     <input
                       value={feedAgeMin}
                       onChange={(e) => setFeedAgeMin(e.target.value)}
@@ -507,8 +552,24 @@ export default function Home() {
                     />
                   </div>
 
+                  <div className="text-xs text-muted-pit mb-2">Generation</div>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {GENERATIONS.map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => toggleFeedGen(g.id)}
+                        className={`px-2.5 py-1 rounded-lg text-xs btn-metal ${
+                          feedGens.includes(g.id) ? "ring-1 ring-[var(--pit-highlight)]" : ""
+                        }`}
+                      >
+                        {g.label}
+                      </button>
+                    ))}
+                  </div>
+
                   <p className="text-[11px] text-muted-pit mb-3">
-                    Filters combine. Age filter hides publishers with no birthday.
+                    From birthday year · Boomer 46–64 · Gen X 65–80 · Millennial 81–96 · Gen Z 97–12
                   </p>
 
                   <button
@@ -536,13 +597,18 @@ export default function Home() {
           ) : (
             filteredArticles.map((article) => (
               <article key={article.id} className="metal-card p-5 transition-all duration-200">
-                <div className="flex items-center gap-2 text-xs text-muted-pit mb-2">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-pit mb-2">
                   <span className="bg-highlight-soft px-2 py-0.5 rounded-md font-semibold">
                     {article.section}
                   </span>
                   <span>{formatTime(article.created_at)}</span>
+                  {authorGens[article.user_id] && (
+                    <span className="px-2 py-0.5 rounded-md border border-white/10">
+                      {authorGens[article.user_id]}
+                    </span>
+                  )}
                   {authorAges[article.user_id] != null && (
-                    <span>Publisher age {authorAges[article.user_id]}</span>
+                    <span>Age {authorAges[article.user_id]}</span>
                   )}
                 </div>
 
@@ -682,7 +748,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Dynamic user finder */}
               <div className="pit-panel p-5">
                 <h3 className="font-semibold mb-3">Find users</h3>
 
@@ -709,6 +774,22 @@ export default function Home() {
                     onChange={(e) => onMaxAge(Number(e.target.value))}
                     className="w-full"
                   />
+                </div>
+
+                <div className="text-xs text-muted-pit mb-2">Generation</div>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {GENERATIONS.map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => toggleFinderGen(g.id)}
+                      className={`px-2.5 py-1 rounded-lg text-xs btn-metal ${
+                        finderGens.includes(g.id) ? "ring-1 ring-[var(--pit-highlight)]" : ""
+                      }`}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
                 </div>
 
                 <button
@@ -747,9 +828,13 @@ export default function Home() {
                           {u.display_name}
                         </Link>
                         <div className="text-[11px] text-muted-pit truncate">
-                          {[u.location, u.age !== null ? `Age ${u.age}` : null]
+                          {[
+                            u.generation,
+                            u.age !== null ? `Age ${u.age}` : null,
+                            u.location,
+                          ]
                             .filter(Boolean)
-                            .join(" · ") || "No location/age"}
+                            .join(" · ") || "No details"}
                         </div>
                       </div>
                       {!favoriteIds.has(u.id) && (
