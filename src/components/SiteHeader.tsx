@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AuthNav from "@/app/AuthNav";
 import { supabase } from "@/lib/supabaseClient";
@@ -39,6 +39,8 @@ export default function SiteHeader() {
   const [bgColor, setBgColor] = useState("#1E2022");
   const [highlightColor, setHighlightColor] = useState("#F0A04B");
   const [textMode, setTextMode] = useState<TextMode>("white");
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const boot = async () => {
@@ -65,6 +67,7 @@ export default function SiteHeader() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       const isIn = Boolean(session?.user);
       setLoggedIn(isIn);
+      setOpen(false);
       if (!isIn) {
         applyDefaultSteel();
       } else {
@@ -83,6 +86,16 @@ export default function SiteHeader() {
     };
   }, []);
 
+  // close menu on outside click
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+
   const onBg = (value: string) => {
     setBgColor(value);
     applyTheme(value, highlightColor, textMode);
@@ -97,6 +110,13 @@ export default function SiteHeader() {
     const next: TextMode = textMode === "white" ? "black" : "white";
     setTextMode(next);
     applyTheme(bgColor, highlightColor, next);
+  };
+
+  const resetTheme = () => {
+    setBgColor("#1E2022");
+    setHighlightColor("#F0A04B");
+    setTextMode("white");
+    applyTheme("#1E2022", "#F0A04B", "white");
   };
 
   return (
@@ -147,35 +167,80 @@ export default function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2 md:gap-3">
-          {/* Studio tiles — logged in only */}
           {loggedIn && (
-            <div className="flex items-center gap-1.5 mr-1">
-              <input
-                type="color"
-                value={bgColor}
-                onChange={(e) => onBg(e.target.value)}
-                title="Background"
-                className="w-7 h-7 p-0 border border-white/20 rounded-md cursor-pointer bg-transparent"
-              />
-              <input
-                type="color"
-                value={highlightColor}
-                onChange={(e) => onHighlight(e.target.value)}
-                title="Highlight"
-                className="w-7 h-7 p-0 border border-white/20 rounded-md cursor-pointer bg-transparent"
-              />
+            <div className="relative" ref={menuRef}>
               <button
                 type="button"
-                onClick={toggleBW}
-                title="Toggle black / white text"
-                className="h-7 min-w-7 px-1.5 rounded-md text-[10px] font-bold tracking-wide border border-white/20"
+                onClick={() => setOpen((v) => !v)}
+                className="h-8 w-8 rounded-full border border-white/20 overflow-hidden shadow-sm"
+                title="Studio"
                 style={{
-                  background: textMode === "white" ? "#111" : "#f3f4f6",
-                  color: textMode === "white" ? "#fff" : "#111",
+                  background: `linear-gradient(135deg, ${bgColor} 50%, ${highlightColor} 50%)`,
                 }}
-              >
-                BW
-              </button>
+              />
+
+              {open && (
+                <div
+                  className="absolute right-0 mt-2 w-52 rounded-xl border border-white/10 p-3 shadow-2xl z-50"
+                  style={{
+                    background: "color-mix(in srgb, var(--pit-panel) 94%, black 6%)",
+                    backdropFilter: "blur(12px)",
+                  }}
+                >
+                  <div className="text-[10px] uppercase tracking-[0.18em] mb-3" style={{ color: "var(--pit-muted)" }}>
+                    Studio
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <span className="text-xs" style={{ color: "var(--pit-muted)" }}>
+                      Background
+                    </span>
+                    <input
+                      type="color"
+                      value={bgColor}
+                      onChange={(e) => onBg(e.target.value)}
+                      className="w-9 h-8 p-0 border border-white/15 rounded-md cursor-pointer bg-transparent"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <span className="text-xs" style={{ color: "var(--pit-muted)" }}>
+                      Highlight
+                    </span>
+                    <input
+                      type="color"
+                      value={highlightColor}
+                      onChange={(e) => onHighlight(e.target.value)}
+                      className="w-9 h-8 p-0 border border-white/15 rounded-md cursor-pointer bg-transparent"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <span className="text-xs" style={{ color: "var(--pit-muted)" }}>
+                      Text
+                    </span>
+                    <button
+                      type="button"
+                      onClick={toggleBW}
+                      className="h-8 min-w-12 px-2 rounded-md text-xs font-bold border border-white/15"
+                      style={{
+                        background: textMode === "white" ? "#111" : "#f3f4f6",
+                        color: textMode === "white" ? "#fff" : "#111",
+                      }}
+                    >
+                      BW
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={resetTheme}
+                    className="w-full mt-1 text-xs px-3 py-2 rounded-lg btn-metal"
+                  >
+                    Reset steel
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
