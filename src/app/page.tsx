@@ -602,6 +602,43 @@ function Home() {
 
   const [selectedLeagues, setSelectedLeagues] = useState<LeagueId[]>(DEFAULT_LEAGUES);
 
+  type WidgetId = "desk" | "scores" | "trending" | "watch" | "find";
+  const DEFAULT_WIDGETS: WidgetId[] = ["desk", "scores", "trending", "watch", "find"];
+  const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>(DEFAULT_WIDGETS);
+  const [arrangeOpen, setArrangeOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("ballpit-widget-order");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as WidgetId[];
+      const allowed = DEFAULT_WIDGETS;
+      const next = parsed.filter((id) => allowed.includes(id));
+      allowed.forEach((id) => {
+        if (!next.includes(id)) next.push(id);
+      });
+      setWidgetOrder(next);
+    } catch {
+      /* keep default */
+    }
+  }, []);
+
+  const moveWidget = (id: WidgetId, dir: -1 | 1) => {
+    setWidgetOrder((prev) => {
+      const i = prev.indexOf(id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      const tmp = next[i];
+      next[i] = next[j];
+      next[j] = tmp;
+      localStorage.setItem("ballpit-widget-order", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const widgetPos = (id: WidgetId) => widgetOrder.indexOf(id);
+
   useEffect(() => {
     const s = searchParams.get("section");
     if (s === "Sports" || s === "Pop Culture" || s === "Satire") setSection(s);
@@ -1203,8 +1240,8 @@ function Home() {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto px-4 pb-16 grid lg:grid-cols-3 gap-8 pt-2">
-        <div className="lg:col-span-2 space-y-4">
+      <div className="max-w-6xl mx-auto px-4 pb-16 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 pt-2">
+        <div className="lg:col-span-2 space-y-4 min-w-0 order-1">
           {loading ? (
             <div className="pit-panel p-8 text-center text-muted-pit text-sm">Loading articles...</div>
           ) : filteredArticles.length === 0 ? (
@@ -1336,10 +1373,50 @@ function Home() {
           )}
         </div>
 
-        <aside className="space-y-5">
+        <aside className="flex flex-col gap-4 lg:gap-5 min-w-0 order-2 lg:sticky lg:top-20 lg:self-start">
           {loggedIn ? (
             <>
-              <div className="pit-panel p-5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit">Desk widgets</div>
+                <button
+                  type="button"
+                  onClick={() => setArrangeOpen((v) => !v)}
+                  className="text-xs px-3 py-1.5 rounded-lg btn-metal"
+                >
+                  {arrangeOpen ? "Done" : "Arrange"}
+                </button>
+              </div>
+              {arrangeOpen && (
+                <div className="pit-panel p-3 space-y-2">
+                  {widgetOrder.map((id, i) => (
+                    <div key={id} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="capitalize">{id === "watch" ? "Watchlist" : id}</span>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          disabled={i === 0}
+                          onClick={() => moveWidget(id, -1)}
+                          className="px-3 py-1 rounded-md btn-metal disabled:opacity-30"
+                        >
+                          Up
+                        </button>
+                        <button
+                          type="button"
+                          disabled={i === widgetOrder.length - 1}
+                          onClick={() => moveWidget(id, 1)}
+                          className="px-3 py-1 rounded-md btn-metal disabled:opacity-30"
+                        >
+                          Down
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-muted-pit">
+                    Order is saved on this device. On phones, widgets stack under the feed.
+                  </p>
+                </div>
+              )}
+              <div className="pit-panel p-5" style={{ order: widgetPos("desk") }}>
                 <div className="flex items-center gap-3 mb-4">
                   {avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -1396,14 +1473,18 @@ function Home() {
                 </div>
               </div>
 
+              <div style={{ order: widgetPos("scores") }}>
               <ScoresDeskWidget
                 selectedLeagues={selectedLeagues}
                 setSelectedLeagues={setSelectedLeagues}
               />
+              </div>
 
+              <div style={{ order: widgetPos("trending") }}>
               <TrendingIrlWidget articles={articles} />
+              </div>
 
-              <div className="pit-panel p-5">
+              <div className="pit-panel p-5" style={{ order: widgetPos("watch") }}>
                 <h3 className="font-semibold mb-3">Watchlist activity</h3>
                 {watchFeed.length === 0 ? (
                   <p className="text-sm text-muted-pit">
@@ -1436,7 +1517,7 @@ function Home() {
                 )}
               </div>
 
-              <div className="pit-panel p-5">
+              <div className="pit-panel p-5" style={{ order: widgetPos("find") }}>
                 <h3 className="font-semibold mb-3">Find</h3>
 
                 <div className="space-y-2 mb-3">
