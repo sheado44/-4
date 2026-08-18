@@ -109,7 +109,6 @@ export default function Home() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [watchFeed, setWatchFeed] = useState<WatchItem[]>([]);
 
-  // Find panel
   const [userNameQuery, setUserNameQuery] = useState("");
   const [userLocationQuery, setUserLocationQuery] = useState("");
   const [topicQuery, setTopicQuery] = useState("");
@@ -118,7 +117,6 @@ export default function Home() {
   const [searchMessage, setSearchMessage] = useState("");
   const [searching, setSearching] = useState(false);
 
-  // Feed filters
   const [filterOpen, setFilterOpen] = useState(false);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [feedGens, setFeedGens] = useState<Generation[]>([]);
@@ -306,7 +304,6 @@ export default function Home() {
       return;
     }
 
-    // Users by display name + location
     if (nameQ || locQ) {
       let query = supabase
         .from("profiles")
@@ -333,7 +330,6 @@ export default function Home() {
       );
     }
 
-    // Articles by topic (title or body)
     if (topicQ) {
       const { data, error } = await supabase
         .from("articles")
@@ -633,12 +629,15 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex gap-3 text-sm">
+                <div className="mt-4 flex flex-wrap gap-3 text-sm">
                   <Link href="/profile" className="text-highlight-pit hover:opacity-80">
                     Profile
                   </Link>
                   <Link href="/wallet" className="text-muted-pit hover:opacity-100">
                     Wallet
+                  </Link>
+                  <Link href="/favorites" className="text-muted-pit hover:opacity-100">
+                    Manage favorites
                   </Link>
                 </div>
               </div>
@@ -670,26 +669,6 @@ export default function Home() {
                           <span className="font-medium">{item.actor_name}</span>{" "}
                           <span className="text-muted-pit">{item.summary}</span>
                         </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="pit-panel p-5">
-                <h3 className="font-semibold mb-3">Favorites</h3>
-                {favorites.length === 0 ? (
-                  <p className="text-sm text-muted-pit">No favorites yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {favorites.map((f) => (
-                      <Link
-                        key={f.favorite_user_id}
-                        href={`/profile/${f.favorite_user_id}`}
-                        className="block rounded-lg border border-white/5 px-3 py-2 text-sm"
-                        style={{ background: "rgba(0,0,0,0.12)" }}
-                      >
-                        {f.display_name}
                       </Link>
                     ))}
                   </div>
