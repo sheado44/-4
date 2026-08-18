@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { formatTime } from "@/lib/time";
@@ -70,10 +70,22 @@ export default function Home() {
   const [searchMessage, setSearchMessage] = useState("");
   const [searching, setSearching] = useState(false);
 
-  // Feed filter by publisher age
+  // Feed filters (logged-in only)
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [feedAgeEnabled, setFeedAgeEnabled] = useState(false);
   const [feedAgeMin, setFeedAgeMin] = useState("");
   const [feedAgeMax, setFeedAgeMax] = useState("");
-  const [feedAgeEnabled, setFeedAgeEnabled] = useState(false);
+  const filterRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (!filterRef.current) return;
+      if (!filterRef.current.contains(e.target as Node)) setFilterOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
 
   const loadFavoritesAndFeed = async (uid: string) => {
     const { data: favRows } = await supabase
@@ -163,7 +175,6 @@ export default function Home() {
       if (!error && data) {
         setArticles(data);
 
-        // Load publisher ages for feed filtering
         const ids = Array.from(new Set(data.map((a) => a.user_id).filter(Boolean)));
         if (ids.length > 0) {
           const { data: profiles } = await supabase
@@ -175,7 +186,6 @@ export default function Home() {
           (profiles || []).forEach((p) => {
             map[p.id] = ageFromBirthday(p.birthday);
           });
-          // authors with no profile row
           ids.forEach((id) => {
             if (!(id in map)) map[id] = null;
           });
@@ -305,15 +315,31 @@ export default function Home() {
     await loadFavoritesAndFeed(userId);
   };
 
+  const favoriteIds = useMemo(
+    () => new Set(favorites.map((f) => f.favorite_user_id)),
+    [favorites]
+  );
+
+  const activeFilterCount = useMemo(() => {
+    let n = 0;
+    if (onlyFavorites) n += 1;
+    if (feedAgeEnabled) n += 1;
+    return n;
+  }, [onlyFavorites, feedAgeEnabled]);
+
   const filteredArticles = useMemo(() => {
     let list = section === "All" ? articles : articles.filter((a) => a.section === section);
 
-    if (feedAgeEnabled) {
+    if (loggedIn && onlyFavorites) {
+      list = list.filter((a) => favoriteIds.has(a.user_id));
+    }
+
+    if (loggedIn && feedAgeEnabled) {
       const min = feedAgeMin ? Number(feedAgeMin) : null;
       const max = feedAgeMax ? Number(feedAgeMax) : null;
       list = list.filter((a) => {
         const age = authorAges[a.user_id];
-        if (age === null || age === undefined) return false; // hide unknown ages when filter is on
+        if (age === null || age === undefined) return false;
         if (min !== null && !Number.isNaN(min) && age < min) return false;
         if (max !== null && !Number.isNaN(max) && age > max) return false;
         return true;
@@ -321,7 +347,17 @@ export default function Home() {
     }
 
     return list;
-  }, [articles, section, feedAgeEnabled, feedAgeMin, feedAgeMax, authorAges]);
+  }, [
+    articles,
+    section,
+    loggedIn,
+    onlyFavorites,
+    favoriteIds,
+    feedAgeEnabled,
+    feedAgeMin,
+    feedAgeMax,
+    authorAges,
+  ]);
 
   const initials = displayName
     .split(" ")
@@ -342,6 +378,13 @@ export default function Home() {
       ? "Write Satire"
       : `Write in ${section}`;
 
+  const clearFilters = () => {
+    setOnlyFavorites(false);
+    setFeedAgeEnabled(false);
+    setFeedAgeMin("");
+    setFeedAgeMax("");
+  };
+
   return (
     <main className="min-h-screen">
       <section className="relative overflow-hidden">
@@ -360,7 +403,7 @@ export default function Home() {
       </section>
 
       <div className="max-w-6xl mx-auto px-4 mb-6">
-        <div className="flex flex-wrap gap-2 mb-4 justify-center md:justify-start">
+        <div className="flex flex-wrap gap-2 mb-4 justify-center md:justify-start items-center">
           {(["All", "Sports", "Pop Culture", "Satire"] as const).map((item) => (
             <button
               key={item}
@@ -372,43 +415,85 @@ export default function Home() {
               {item}
             </button>
           ))}
-        </div>
 
-        {/* Publisher age feed filter */}
-        <div className="pit-panel p-3 flex flex-wrap items-center gap-2 md:gap-3">
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-pit">
-            Publisher age
-          </span>
-          <button
-            type="button"
-            onClick={() => setFeedAgeEnabled((v) => !v)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium btn-metal ${
-              feedAgeEnabled ? "ring-1 ring-[var(--pit-highlight)]" : ""
-            }`}
-          >
-            {feedAgeEnabled ? "On" : "Off"}
-          </button>
-          <input
-            value={feedAgeMin}
-            onChange={(e) => setFeedAgeMin(e.target.value)}
-            placeholder="Min"
-            inputMode="numeric"
-            disabled={!feedAgeEnabled}
-            className="w-16 rounded-lg px-2 py-1.5 text-xs outline-none disabled:opacity-40"
-          />
-          <span className="text-xs text-muted-pit">to</span>
-          <input
-            value={feedAgeMax}
-            onChange={(e) => setFeedAgeMax(e.target.value)}
-            placeholder="Max"
-            inputMode="numeric"
-            disabled={!feedAgeEnabled}
-            className="w-16 rounded-lg px-2 py-1.5 text-xs outline-none disabled:opacity-40"
-          />
-          {feedAgeEnabled && (
-            <span className="text-[11px] text-muted-pit">
-              Showing publishers in range · unknown ages hidden
-            </span>
+          {/* Filter options — logged in only */}
+          {loggedIn && (
+            <div className="relative" ref={filterRef}>
+              <button
+                type="button"
+                onClick={() => setFilterOpen((v) => !v)}
+                className={`px-4 py-2 rounded-full text-sm font-medium btn-metal ${
+                  activeFilterCount > 0 ? "ring-1 ring-[var(--pit-highlight)]" : ""
+                }`}
+              >
+                Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ""}
+              </button>
+
+              {filterOpen && (
+                <div
+                  className="absolute left-0 md:left-auto mt-2 w-72 rounded-xl border border-white/10 p-4 shadow-2xl z-40"
+                  style={{
+                    background: "color-mix(in srgb, var(--pit-panel) 94%, black 6%)",
+                    backdropFilter: "blur(12px)",
+                  }}
+                >
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit mb-3">
+                    Feed filters
+                  </div>
+
+                  <label className="flex items-center justify-between gap-3 mb-4 text-sm cursor-pointer">
+                    <span>Only favorites</span>
+                    <input
+                      type="checkbox"
+                      checked={onlyFavorites}
+                      onChange={(e) => setOnlyFavorites(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between gap-3 mb-3 text-sm cursor-pointer">
+                    <span>Publisher age range</span>
+                    <input
+                      type="checkbox"
+                      checked={feedAgeEnabled}
+                      onChange={(e) => setFeedAgeEnabled(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <input
+                      value={feedAgeMin}
+                      onChange={(e) => setFeedAgeMin(e.target.value)}
+                      placeholder="Min age"
+                      inputMode="numeric"
+                      disabled={!feedAgeEnabled}
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none disabled:opacity-40"
+                    />
+                    <input
+                      value={feedAgeMax}
+                      onChange={(e) => setFeedAgeMax(e.target.value)}
+                      placeholder="Max age"
+                      inputMode="numeric"
+                      disabled={!feedAgeEnabled}
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none disabled:opacity-40"
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-muted-pit mb-3">
+                    Filters combine. Age filter hides publishers with no birthday.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="w-full text-xs px-3 py-2 rounded-lg btn-metal"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
