@@ -59,6 +59,12 @@ type ScoreItem = {
   headline: string;
 };
 
+type StandingRow = {
+  rank: number;
+  team: string;
+  record: string;
+};
+
 type TrendTopic = {
   id: string;
   label: string;
@@ -142,7 +148,58 @@ const STUB_SCORES: ScoreItem[] = [
   },
 ];
 
-// News/trends-style topics (option C). Swap this list for live RSS/news trends later.
+const STUB_STANDINGS: Record<LeagueId, StandingRow[]> = {
+  NFL: [
+    { rank: 1, team: "Kansas City", record: "11-3" },
+    { rank: 2, team: "Buffalo", record: "10-4" },
+    { rank: 3, team: "Baltimore", record: "10-4" },
+    { rank: 4, team: "Detroit", record: "9-5" },
+    { rank: 5, team: "Philadelphia", record: "9-5" },
+  ],
+  NBA: [
+    { rank: 1, team: "Boston", record: "42-12" },
+    { rank: 2, team: "OKC", record: "40-14" },
+    { rank: 3, team: "Denver", record: "38-16" },
+    { rank: 4, team: "Minnesota", record: "36-18" },
+    { rank: 5, team: "New York", record: "35-19" },
+  ],
+  MLB: [
+    { rank: 1, team: "Yankees", record: "78-48" },
+    { rank: 2, team: "Orioles", record: "75-51" },
+    { rank: 3, team: "Guardians", record: "72-54" },
+    { rank: 4, team: "Astros", record: "71-55" },
+    { rank: 5, team: "Dodgers", record: "70-56" },
+  ],
+  NHL: [
+    { rank: 1, team: "Panthers", record: "38-14-5" },
+    { rank: 2, team: "Canucks", record: "36-16-6" },
+    { rank: 3, team: "Hurricanes", record: "35-17-5" },
+    { rank: 4, team: "Bruins", record: "34-18-6" },
+    { rank: 5, team: "Oilers", record: "33-19-6" },
+  ],
+  CFB: [
+    { rank: 1, team: "Georgia", record: "11-1" },
+    { rank: 2, team: "Ohio State", record: "11-1" },
+    { rank: 3, team: "Texas", record: "10-2" },
+    { rank: 4, team: "Oregon", record: "10-2" },
+    { rank: 5, team: "Alabama", record: "10-2" },
+  ],
+  CBB: [
+    { rank: 1, team: "UConn", record: "22-2" },
+    { rank: 2, team: "Purdue", record: "21-3" },
+    { rank: 3, team: "Houston", record: "20-4" },
+    { rank: 4, team: "Arizona", record: "20-4" },
+    { rank: 5, team: "Tennessee", record: "19-5" },
+  ],
+  Golf: [
+    { rank: 1, team: "Player A", record: "-12" },
+    { rank: 2, team: "Player B", record: "-10" },
+    { rank: 3, team: "Player C", record: "-9" },
+    { rank: 4, team: "Player D", record: "-8" },
+    { rank: 5, team: "Player E", record: "-7" },
+  ],
+};
+
 const TREND_TOPICS: TrendTopic[] = [
   {
     id: "t1",
@@ -246,11 +303,13 @@ function ScoresDeskWidget({
 }) {
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [editOpen, setEditOpen] = useState(false);
+  const [mode, setMode] = useState<"scores" | "standings">("scores");
 
   const activeLeagues = selectedLeagues.length ? selectedLeagues : DEFAULT_LEAGUES;
   const safeIndex = Math.min(carouselIndex, Math.max(activeLeagues.length - 1, 0));
   const currentLeague = activeLeagues[safeIndex] || DEFAULT_LEAGUES[0];
   const leagueScores = STUB_SCORES.filter((s) => s.league === currentLeague);
+  const leagueStandings = STUB_STANDINGS[currentLeague] || [];
 
   useEffect(() => {
     if (carouselIndex > activeLeagues.length - 1) setCarouselIndex(0);
@@ -276,7 +335,7 @@ function ScoresDeskWidget({
   return (
     <div className="pit-panel p-5">
       <div className="flex items-center justify-between gap-2 mb-3">
-        <h3 className="font-semibold">Scores</h3>
+        <h3 className="font-semibold">Scores & Standings</h3>
         <button
           type="button"
           onClick={() => setEditOpen((v) => !v)}
@@ -312,6 +371,27 @@ function ScoresDeskWidget({
           })}
         </div>
       )}
+
+      <div className="flex gap-2 mb-3">
+        <button
+          type="button"
+          onClick={() => setMode("scores")}
+          className={`flex-1 text-xs px-2 py-1.5 rounded-lg border ${
+            mode === "scores" ? "btn-write border-transparent" : "btn-metal"
+          }`}
+        >
+          Scores
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("standings")}
+          className={`flex-1 text-xs px-2 py-1.5 rounded-lg border ${
+            mode === "standings" ? "btn-write border-transparent" : "btn-metal"
+          }`}
+        >
+          Standings
+        </button>
+      </div>
 
       <div className="flex items-center justify-between mb-3">
         <button
@@ -351,39 +431,63 @@ function ScoresDeskWidget({
         ))}
       </div>
 
-      <div className="space-y-2">
-        {leagueScores.length === 0 ? (
-          <p className="text-sm text-muted-pit">No games in this league right now.</p>
-        ) : (
-          leagueScores.map((game) => (
-            <div
-              key={game.id}
-              className="rounded-xl border border-white/5 px-3 py-2"
-              style={{ background: "rgba(0,0,0,0.12)" }}
-            >
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-sm font-semibold" style={{ color: "var(--pit-text)" }}>
-                  {game.scoreLine}
-                </span>
-                <span
-                  className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded"
-                  style={{
-                    background:
-                      game.status === "Live" ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.08)",
-                    color: game.status === "Live" ? "#fca5a5" : "var(--pit-muted)",
-                  }}
-                >
-                  {game.status}
-                </span>
+      {mode === "scores" ? (
+        <div className="space-y-2">
+          {leagueScores.length === 0 ? (
+            <p className="text-sm text-muted-pit">No games in this league right now.</p>
+          ) : (
+            leagueScores.map((game) => (
+              <div
+                key={game.id}
+                className="rounded-xl border border-white/5 px-3 py-2"
+                style={{ background: "rgba(0,0,0,0.12)" }}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-sm font-semibold" style={{ color: "var(--pit-text)" }}>
+                    {game.scoreLine}
+                  </span>
+                  <span
+                    className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded"
+                    style={{
+                      background:
+                        game.status === "Live" ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.08)",
+                      color: game.status === "Live" ? "#fca5a5" : "var(--pit-muted)",
+                    }}
+                  >
+                    {game.status}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-pit leading-snug">{game.headline}</p>
               </div>
-              <p className="text-xs text-muted-pit leading-snug">{game.headline}</p>
-            </div>
-          ))
-        )}
-      </div>
+            ))
+          )}
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {leagueStandings.length === 0 ? (
+            <p className="text-sm text-muted-pit">No standings available.</p>
+          ) : (
+            leagueStandings.map((row) => (
+              <div
+                key={`${currentLeague}-${row.rank}-${row.team}`}
+                className="flex items-center justify-between gap-2 rounded-lg border border-white/5 px-3 py-1.5"
+                style={{ background: "rgba(0,0,0,0.12)" }}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs text-muted-pit w-4">{row.rank}</span>
+                  <span className="text-sm font-medium truncate" style={{ color: "var(--pit-text)" }}>
+                    {row.team}
+                  </span>
+                </div>
+                <span className="text-xs font-semibold text-highlight-pit shrink-0">{row.record}</span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
       <p className="text-[10px] text-muted-pit mt-3">
-        Sample scores for layout. Live feed comes when a sports data provider is connected.
+        Sample scores & standings for layout. Live data comes when a sports provider is connected.
       </p>
     </div>
   );
