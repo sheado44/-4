@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AuthNav from "@/components/AuthNav";
+import BallpitWordmark from "@/components/BallpitWordmark";
 import { supabase } from "@/lib/supabaseClient";
 
 type TextMode = "white" | "black";
@@ -138,15 +139,9 @@ export default function SiteHeader() {
       />
 
       <div className="relative max-w-6xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between gap-3">
-        <Link href="/" className="flex items-center shrink-0 group min-w-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/theballpit-wordmark.png"
-            alt="theBallpit"
-            className="h-8 md:h-10 w-auto max-w-[200px] md:max-w-[280px] object-contain object-left opacity-95 group-hover:opacity-100 transition"
-            style={{ filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.4))" }}
-          />
-        </Link>
+        <div className="flex items-center shrink-0 min-w-0">
+          <BallpitWordmark size="md" />
+        </div>
 
         <nav className="hidden md:flex items-center gap-1 text-sm">
           {[
