@@ -18,6 +18,11 @@ export function toTbp100(score10: number | null | undefined) {
   return Math.round(clamp10(score10) * 10);
 }
 
+function weighted(score100: number | null, weight: number) {
+  if (score100 == null) return 0;
+  return Math.round(score100 * weight * 10) / 10;
+}
+
 export function computeTbpBreakdown(
   aiScore: number | null | undefined,
   body: string | undefined,
@@ -30,32 +35,39 @@ export function computeTbpBreakdown(
   const style = base != null ? clamp10(base - 0.3) : null;
   const effort =
     base != null ? clamp10(base * 0.7 + Math.min(3, words / 250)) : null;
-
   const community = avgRating != null ? clamp10(avgRating * 2) : null;
 
-  const parts: { key: string; value: number; weight: number }[] = [];
-  if (style != null) parts.push({ key: "style", value: style, weight: 0.4 });
-  if (truth != null) parts.push({ key: "truth", value: truth, weight: 0.25 });
-  if (effort != null) parts.push({ key: "effort", value: effort, weight: 0.15 });
-  if (community != null) parts.push({ key: "community", value: community, weight: 0.2 });
+  const truth100 = toTbp100(truth);
+  const style100 = toTbp100(style);
+  const effort100 = toTbp100(effort);
+  const community100 = toTbp100(community);
 
-  let index: number | null = null;
-  if (parts.length > 0) {
-    const weightSum = parts.reduce((s, p) => s + p.weight, 0);
-    index = parts.reduce((s, p) => s + p.value * (p.weight / weightSum), 0);
-  }
+  const stylePts = weighted(style100, 0.4);
+  const truthPts = weighted(truth100, 0.25);
+  const effortPts = weighted(effort100, 0.15);
+  const communityPts = weighted(community100, 0.2);
+
+  const hasAny =
+    style100 != null || truth100 != null || effort100 != null || community100 != null;
+  const index100 = hasAny
+    ? Math.round((stylePts + truthPts + effortPts + communityPts) * 10) / 10
+    : null;
 
   return {
     truth,
     style,
     effort,
     community,
-    index,
-    index100: toTbp100(index),
-    truth100: toTbp100(truth),
-    style100: toTbp100(style),
-    effort100: toTbp100(effort),
-    community100: toTbp100(community),
+    index: index100 != null ? index100 / 10 : null,
+    index100,
+    truth100,
+    style100,
+    effort100,
+    community100,
+    stylePts,
+    truthPts,
+    effortPts,
+    communityPts,
   };
 }
 
@@ -67,13 +79,31 @@ export default function TbpIndex({ aiScore, body, avgRating, ratingCount = 0 }: 
   );
 
   const rows = [
-    { label: "Journalistic style", value: b.style100, note: "40%" },
-    { label: "Truth telling", value: b.truth100, note: "25%" },
-    { label: "Overall effort", value: b.effort100, note: "15%" },
+    {
+      label: "Journalistic style",
+      score: b.style100,
+      pts: b.stylePts,
+      note: "40% of that score",
+    },
+    {
+      label: "Truth telling",
+      score: b.truth100,
+      pts: b.truthPts,
+      note: "25% of that score",
+    },
+    {
+      label: "Overall effort",
+      score: b.effort100,
+      pts: b.effortPts,
+      note: "15% of that score",
+    },
     {
       label: "Community stars",
-      value: b.community100,
-      note: ratingCount ? `20% · ${ratingCount} rating${ratingCount === 1 ? "" : "s"}` : "20% · none yet",
+      score: b.community100,
+      pts: b.communityPts,
+      note: ratingCount
+        ? `20% of that score · ${ratingCount} rating${ratingCount === 1 ? "" : "s"}`
+        : "20% of that score · none yet",
     },
   ];
 
@@ -119,12 +149,19 @@ export default function TbpIndex({ aiScore, body, avgRating, ratingCount = 0 }: 
                   <div style={{ color: "var(--pit-text)" }}>{row.label}</div>
                   <div className="text-[10px] text-muted-pit">{row.note}</div>
                 </div>
-                <div className="font-semibold">{row.value != null ? row.value : "—"}</div>
+                <div className="text-right">
+                  <div className="font-semibold">
+                    {row.score != null ? `${row.pts}` : "—"}
+                  </div>
+                  <div className="text-[10px] text-muted-pit">
+                    {row.score != null ? `${row.score} × weight` : "no data"}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
           <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between">
-            <span className="text-xs text-muted-pit">tBp Index</span>
+            <span className="text-xs text-muted-pit">Sum of weighted parts</span>
             <span className="text-lg font-bold text-highlight-pit">
               {b.index100 != null ? `${b.index100} / 100` : "—"}
             </span>
