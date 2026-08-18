@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -565,7 +565,7 @@ function TrendingIrlWidget({ articles }: { articles: Article[] }) {
   );
 }
 
-export default function Home() {
+function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [section, setSection] = useState<"All" | "Sports" | "Pop Culture" | "Satire">("All");
@@ -1522,5 +1522,21 @@ export default function Home() {
         </aside>
       </div>
     </main>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen">
+          <div className="max-w-6xl mx-auto px-4 py-10 text-sm text-muted-pit">
+            Loading theBallpit...
+          </div>
+        </main>
+      }
+    >
+      <Home />
+    </Suspense>
   );
 }
