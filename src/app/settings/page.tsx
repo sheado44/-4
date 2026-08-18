@@ -19,7 +19,7 @@ const SKINS = [
 type SkinId = (typeof SKINS)[number]["id"];
 
 function buildPreviewUrl(prompt: string, attempt: number) {
-  const seed = `${prompt.trim().toLowerCase()}::attempt-${attempt}`;
+  const seed = `${prompt.trim().toLowerCase()}::attempt-${attempt}::${Date.now()}`;
   return `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(seed)}&size=256`;
 }
 
@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   const [displayName, setDisplayName] = useState("");
@@ -58,23 +59,26 @@ export default function SettingsPage() {
       }
       setUserId(user.id);
 
-      const { data: profile } = await supabase
+      // select * avoids hard failures if some optional columns differ
+      const { data: profile, error } = await supabase
         .from("profiles")
-        .select(
-          "display_name, bio, link, sex, birthday, location, points, ai_credits, avatar_url, avatar_color, avatar_skin, owned_skins"
-        )
+        .select("*")
         .eq("id", user.id)
         .maybeSingle();
+
+      if (error) {
+        setMessage(`Profile load error: ${error.message}`);
+      }
 
       if (profile) {
         setDisplayName(profile.display_name || "");
         setBio(profile.bio || "");
-        setLink(profile.link || "");
+        setLink(profile.link || profile.bio_link || "");
         setSex(profile.sex || "");
         setBirthday(profile.birthday || "");
         setLocation(profile.location || "");
-        setPoints(profile.points ?? 0);
-        setAiCredits(profile.ai_credits ?? 0);
+        setPoints(Number(profile.points ?? 0));
+        setAiCredits(Number(profile.ai_credits ?? 0));
         setAvatarUrl(profile.avatar_url || "");
         setAvatarColor(profile.avatar_color || "#7c3aed");
         setAvatarSkin((profile.avatar_skin as SkinId) || "solid");
@@ -101,32 +105,42 @@ export default function SettingsPage() {
       setMessage("You’ve used all 3 attempts. Choose one below, then Save Profile.");
       return;
     }
-    if (aiCredits < 1) {
-      setMessage("Not enough AI credits.");
+    if (!userId) {
+      setMessage("Not logged in.");
       return;
     }
-    if (!userId) return;
+
+    setGenerating(true);
+
+    // Placeholder generator works even at 0 credits so you can test the flow.
+    // When real image AI is connected, enforce credits strictly here.
+    let nextCredits = aiCredits;
+    if (aiCredits >= 1) {
+      const { error: creditError } = await supabase
+        .from("profiles")
+        .update({ ai_credits: aiCredits - 1 })
+        .eq("id", userId);
+
+      if (creditError) {
+        setGenerating(false);
+        setMessage(creditError.message);
+        return;
+      }
+      nextCredits = aiCredits - 1;
+      setAiCredits(nextCredits);
+    } else {
+      setMessage("AI credits are 0 — using free placeholder preview (not real image AI).");
+    }
 
     const nextAttempt = aiAttempts + 1;
     const url = buildPreviewUrl(text, nextAttempt);
 
-    // spend 1 credit immediately
-    const { error: creditError } = await supabase
-      .from("profiles")
-      .update({ ai_credits: aiCredits - 1 })
-      .eq("id", userId);
-
-    if (creditError) {
-      setMessage(creditError.message);
-      return;
-    }
-
-    setAiCredits((c) => c - 1);
     setAiAttempts(nextAttempt);
     setAiCandidates((prev) => [...prev, url]);
     setPendingAvatar(url);
+    setGenerating(false);
     setMessage(
-      `Attempt ${nextAttempt}/${MAX_AI_ATTEMPTS} generated. Click it to select, then Save Profile.`
+      `Attempt ${nextAttempt}/${MAX_AI_ATTEMPTS} ready. Click it to select, then Save Profile.`
     );
   };
 
@@ -238,12 +252,12 @@ export default function SettingsPage() {
           <img
             src={previewSrc}
             alt="Avatar"
-            className="w-16 h-16 rounded-full object-cover border border-white/10"
+            className="w-16 h-16 rounded-full object-cover border border-white/10 bg-black/20"
           />
         ) : (
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center font-bold"
-            style={{ background: avatarColor }}
+            style={{ background: avatarColor, color: "#fff" }}
           >
             {(displayName || "U").slice(0, 1).toUpperCase()}
           </div>
@@ -258,8 +272,8 @@ export default function SettingsPage() {
           Generate AI profile photo
         </div>
         <p className="text-xs text-muted-pit">
-          No uploads. Describe how you look. Up to 3 attempts this session. Each generate uses 1 AI
-          credit. Choose one, then Save Profile.
+          No uploads. Describe how you look. Up to 3 attempts. Placeholder previews work now; real
+          image AI comes later. Choose one, then Save Profile.
         </p>
         <textarea
           value={aiPrompt}
@@ -271,10 +285,12 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={generateAiAvatar}
-          disabled={aiAttempts >= MAX_AI_ATTEMPTS || aiCredits < 1}
+          disabled={generating || aiAttempts >= MAX_AI_ATTEMPTS}
           className="btn-write px-4 py-2 rounded-xl text-sm disabled:opacity-50"
         >
-          Generate profile photo (1 credit) · {MAX_AI_ATTEMPTS - aiAttempts} left
+          {generating
+            ? "Generating..."
+            : `Generate profile photo · ${MAX_AI_ATTEMPTS - aiAttempts} left`}
         </button>
 
         {aiCandidates.length > 0 && (
@@ -297,7 +313,7 @@ export default function SettingsPage() {
                   }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt={`Attempt ${idx + 1}`} className="w-full rounded-lg" />
+                  <img src={url} alt={`Attempt ${idx + 1}`} className="w-full rounded-lg bg-black/20" />
                   <div className="text-[10px] text-center mt-1 text-muted-pit">
                     {active ? "Selected" : `Try ${idx + 1}`}
                   </div>
