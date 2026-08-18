@@ -11,6 +11,7 @@ function EditorContent() {
   const [section, setSection] = useState("Sports");
   const [body, setBody] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [imagePlace, setImagePlace] = useState<"top" | "middle" | "bottom" | "left" | "right" | "split">("top");
   const [aiPrompt, setAiPrompt] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
   const [message, setMessage] = useState("");
@@ -156,8 +157,8 @@ function EditorContent() {
       setThumbnailUrl(result.url);
       setUploadStatus(`AI thumbnail set. 1 credit used. ${result.reviewNote}`);
     } else {
-      insertAtCursor(`\n![AI image](${result.url})\n`);
-      setUploadStatus(`AI image inserted. 1 credit used. ${result.reviewNote}`);
+      insertAtCursor(`\n![img:${imagePlace}](${result.url})\n`);
+      setUploadStatus(`AI image inserted (${imagePlace}). 1 credit used. ${result.reviewNote}`);
     }
     setGenerating(false);
   };
@@ -201,8 +202,8 @@ function EditorContent() {
       setThumbnailUrl(url);
       setUploadStatus("Thumbnail uploaded.");
     } else {
-      insertAtCursor(`\n![image](${url})\n`);
-      setUploadStatus("Inline image uploaded.");
+      insertAtCursor(`\n![img:${imagePlace}](${url})\n`);
+      setUploadStatus(`Inline image uploaded (${imagePlace}).`);
     }
     setUploading(false);
   };
@@ -249,7 +250,7 @@ function EditorContent() {
 
       const authorName = loggedInName || "Anonymous";
       const finalBody = thumbnailUrl.trim()
-        ? `![thumbnail](${thumbnailUrl.trim()})\n\n${body.trim()}`
+        ? `![img:${imagePlace}](${thumbnailUrl.trim()})\n\n${body.trim()}`
         : body.trim();
 
       const { data, error } = await supabase
@@ -298,7 +299,22 @@ function EditorContent() {
     .replace(/\*(.*?)\*/gim, "<em>$1</em>")
     .replace(
       /!\[(.*?)\]\((.*?)\)/gim,
-      '<img alt="$1" src="$2" class="max-w-full rounded-xl my-3" />'
+      function (_, alt, src) {
+        const place = (alt.match(/img:(\w+)/) || [])[1] || "middle";
+        const cls =
+          place === "left"
+            ? "w-full md:w-[42%] md:float-left md:mr-4 mb-3 rounded-xl"
+            : place === "right"
+            ? "w-full md:w-[42%] md:float-right md:ml-4 mb-3 rounded-xl"
+            : place === "top"
+            ? "w-full max-h-72 object-cover rounded-xl mb-4"
+            : place === "bottom"
+            ? "w-full max-h-72 object-cover rounded-xl mt-4"
+            : place === "split"
+            ? "w-full md:w-[48%] inline-block md:mr-[2%] mb-3 rounded-xl align-top"
+            : "w-2/3 mx-auto block rounded-xl my-4";
+        return '<img alt="" src="' + src + '" class="' + cls + '" />';
+      }
     )
     .replace(
       /\[(.*?)\]\((.*?)\)/gim,
@@ -377,6 +393,27 @@ function EditorContent() {
             </div>
           </div>
 
+
+          <div className="mb-4 p-4 rounded-2xl border border-forge-800 bg-forge-900">
+            <div className="text-sm font-medium mb-2">Image placement</div>
+            <p className="text-xs text-gray-400 mb-3">
+              Applies to the next image you generate or insert, and to the thumbnail.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {(["top", "middle", "bottom", "left", "right", "split"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setImagePlace(p)}
+                  className={`px-3 py-1.5 rounded-lg text-sm capitalize ${
+                    imagePlace === p ? "bg-forge-accent text-white" : "bg-black/20"
+                  }`}
+                >
+                  {p === "left" ? "left side" : p === "right" ? "right side" : p === "split" ? "split pair" : p}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="mb-4 p-4 rounded-2xl border border-forge-800 bg-forge-900">
             <div className="text-sm font-medium mb-2">AI Image (xAI-ready)</div>
             <textarea
