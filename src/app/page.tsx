@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { formatTime } from "@/lib/time";
-import TbpIndex from "@/components/TbpIndex";
+import TbpIndex, { computeTbpBreakdown } from "@/components/TbpIndex";
 
 type Article = {
   id: string;
@@ -597,6 +597,7 @@ function Home() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [feedGens, setFeedGens] = useState<Generation[]>([]);
+  const [minTbp, setMinTbp] = useState(0);
   const filterRef = useRef<HTMLDivElement | null>(null);
 
   const [selectedLeagues, setSelectedLeagues] = useState<LeagueId[]>(DEFAULT_LEAGUES);
@@ -983,8 +984,9 @@ function Home() {
     let n = 0;
     if (onlyFavorites) n += 1;
     if (feedGens.length > 0) n += 1;
+    if (minTbp > 0) n += 1;
     return n;
-  }, [onlyFavorites, feedGens]);
+  }, [onlyFavorites, feedGens, minTbp]);
 
   const filteredArticles = useMemo(() => {
     // Public feeds never show author_only
@@ -1007,8 +1009,16 @@ function Home() {
       });
     }
 
+    if (minTbp > 0) {
+      list = list.filter((a) => {
+        const stats = statsById[a.id];
+        const b = computeTbpBreakdown(a.ai_score, a.body, stats?.avgRating ?? null);
+        return (b.index100 ?? 0) >= minTbp;
+      });
+    }
+
     return list;
-  }, [articles, section, loggedIn, onlyFavorites, favoriteIds, feedGens, authorGens]);
+  }, [articles, section, loggedIn, onlyFavorites, favoriteIds, feedGens, authorGens, minTbp, statsById]);
 
   const initials = displayName
     .split(" ")
@@ -1032,6 +1042,7 @@ function Home() {
   const clearFilters = () => {
     setOnlyFavorites(false);
     setFeedGens([]);
+    setMinTbp(0);
   };
 
   const feedFiltering = feedGens.length > 0;
@@ -1070,8 +1081,7 @@ function Home() {
             </button>
           ))}
 
-          {loggedIn && (
-            <div className="relative" ref={filterRef}>
+          <div className="relative" ref={filterRef}>
               <button
                 type="button"
                 onClick={() => setFilterOpen((v) => !v)}
@@ -1094,6 +1104,26 @@ function Home() {
                     Feed filters
                   </div>
 
+
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-xs text-muted-pit">Min tBp Index</div>
+                      <div className="text-xs font-semibold">{minTbp > 0 ? minTbp : "Any"}</div>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={minTbp}
+                      onChange={(e) => setMinTbp(Number(e.target.value))}
+                      className="w-full accent-[var(--pit-highlight)]"
+                    />
+                    <p className="text-[11px] text-muted-pit mt-1">
+                      Hide pieces below this score (1–100). 0 shows everything.
+                    </p>
+                  </div>
+                  {loggedIn && (
                   <label className="flex items-center justify-between gap-3 mb-4 text-sm cursor-pointer">
                     <span>Only favorites</span>
                     <input
@@ -1103,7 +1133,10 @@ function Home() {
                       className="h-4 w-4"
                     />
                   </label>
+                  )}
 
+                  {loggedIn && (
+                  <>
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs text-muted-pit">Generation</div>
                     <button
@@ -1130,6 +1163,8 @@ function Home() {
                   <p className="text-[11px] text-muted-pit mb-3">
                     Selected stay on. Others get crossed out and hidden from the feed.
                   </p>
+                  </>
+                  )}
 
                   <button
                     type="button"
@@ -1141,7 +1176,6 @@ function Home() {
                 </div>
               )}
             </div>
-          )}
         </div>
       </div>
 
