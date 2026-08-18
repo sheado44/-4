@@ -14,6 +14,7 @@ type Article = {
   created_at: string;
   user_id: string;
   author_name: string | null;
+  status?: string | null;
 };
 
 type Comment = {
@@ -157,7 +158,7 @@ export default function ArticlePage() {
 
     const { data: articleData, error: articleError } = await supabase
       .from("articles")
-      .select("id, title, section, body, created_at, user_id, author_name")
+      .select("id, title, section, body, created_at, user_id, author_name, status")
       .eq("id", id)
       .single();
 
@@ -456,6 +457,17 @@ export default function ArticlePage() {
   const isSatire = article.section === "Satire";
   const author = article.author_name || "Unknown author";
   const isOwnArticle = Boolean(userId && article.user_id === userId);
+  const deskOnly = article.status === "author_only";
+  if (deskOnly && !isOwnArticle) {
+    return (
+      <main className="max-w-3xl mx-auto px-4 py-10">
+        <p className="text-gray-200 mb-4">This piece is on the author&apos;s desk only.</p>
+        <Link href="/" className="text-forge-accent text-sm">
+          ← Back home
+        </Link>
+      </main>
+    );
+  }
   const topLevel = comments.filter((c) => !c.parent_id);
   const repliesByParent: Record<string, Comment[]> = {};
   comments.forEach((c) => {
@@ -561,6 +573,15 @@ export default function ArticlePage() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
+      {deskOnly && isOwnArticle && (
+        <div className="mb-6 rounded-xl border border-white/10 px-4 py-3 text-sm" style={{ background: "rgba(0,0,0,0.25)" }}>
+          <div className="font-semibold mb-1">On your desk only</div>
+          <p className="text-xs text-gray-300 leading-relaxed">
+            Same article page as a public piece — title, body, comments — but it is not
+            in the public feed. Only you can open this link.
+          </p>
+        </div>
+      )}
       {isSatire && (
         <div className="sticky top-14 z-40 -mx-4 px-4 mb-6">
           <div className="bg-purple-600 text-white text-center text-sm font-semibold py-2 rounded-xl shadow-lg">
