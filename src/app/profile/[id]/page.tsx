@@ -59,6 +59,7 @@ export default function PublicProfilePage() {
   const id = params?.id as string;
 
   const [displayName, setDisplayName] = useState("User");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [bio, setBio] = useState("");
   const [link, setLink] = useState("");
   const [sex, setSex] = useState("");
@@ -82,7 +83,7 @@ export default function PublicProfilePage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, bio, link, sex, age, location, updated_at")
+        .select("display_name, bio, link, sex, age, location, updated_at, avatar_url")
         .eq("id", id)
         .maybeSingle();
 
@@ -101,7 +102,6 @@ export default function PublicProfilePage() {
       }));
       setArticles(mappedArticles);
 
-      // Interactive comment log only for registered viewers
       if (viewer?.id) {
         const { data: commentData } = await supabase
           .from("comments")
@@ -166,6 +166,7 @@ export default function PublicProfilePage() {
       if (profile?.display_name) setDisplayName(profile.display_name);
       else if (articleData?.[0]?.author_name) setDisplayName(articleData[0].author_name);
 
+      setAvatarUrl(profile?.avatar_url || "");
       setBio(profile?.bio || "");
       setLink(profile?.link || "");
       setSex(profile?.sex || "");
@@ -190,7 +191,7 @@ export default function PublicProfilePage() {
   if (loading) {
     return (
       <main className="max-w-4xl mx-auto px-4 py-10">
-        <p className="text-gray-300">Loading profile...</p>
+        <p className="text-muted-pit">Loading profile...</p>
       </main>
     );
   }
@@ -198,24 +199,37 @@ export default function PublicProfilePage() {
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
       <div className="flex flex-col items-center text-center mb-10">
-        <div className="w-40 h-40 md:w-48 md:h-48 rounded-full bg-blue-600 flex items-center justify-center text-5xl md:text-6xl font-bold mb-5 border-4 border-forge-800 shadow-lg">
-          {initials}
-        </div>
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt={displayName}
+            className="w-40 h-40 md:w-48 md:h-48 rounded-full object-cover mb-5 border-4 border-white/10 shadow-lg bg-black/20"
+          />
+        ) : (
+          <div className="w-40 h-40 md:w-48 md:h-48 rounded-full flex items-center justify-center text-5xl md:text-6xl font-bold mb-5 border-4 border-white/10 shadow-lg bg-blue-600">
+            {initials}
+          </div>
+        )}
 
         <h1 className="text-3xl md:text-4xl font-bold mb-2">{displayName}</h1>
 
         {details.length > 0 && (
-          <p className="text-sm text-gray-300 mb-3">{details.join(" · ")}</p>
+          <p className="text-sm text-muted-pit mb-3">{details.join(" · ")}</p>
         )}
 
-        {bio && <p className="text-gray-100 text-sm max-w-xl mb-3">{bio}</p>}
+        {bio && (
+          <p className="text-sm max-w-xl mb-3" style={{ color: "var(--pit-text)" }}>
+            {bio}
+          </p>
+        )}
 
         {link && (
           <a
             href={link.startsWith("http") ? link : `https://${link}`}
             target="_blank"
             rel="noreferrer"
-            className="text-sm text-forge-accent hover:text-orange-300 mb-3"
+            className="text-sm text-highlight-pit hover:opacity-80 mb-3"
           >
             {link}
           </a>
@@ -234,13 +248,13 @@ export default function PublicProfilePage() {
         )}
       </div>
 
-      <div className="flex gap-6 border-b border-forge-800 mb-6 text-sm font-medium overflow-x-auto justify-center md:justify-start">
+      <div className="flex gap-6 border-b border-white/10 mb-6 text-sm font-medium overflow-x-auto justify-center md:justify-start">
         <button
           onClick={() => setActiveTab("articles")}
           className={`pb-3 whitespace-nowrap transition ${
             activeTab === "articles"
-              ? "border-b-2 border-forge-accent text-forge-accent"
-              : "text-gray-300 hover:text-white"
+              ? "border-b-2 border-[var(--pit-highlight)] text-highlight-pit"
+              : "text-muted-pit"
           }`}
         >
           Articles
@@ -251,8 +265,8 @@ export default function PublicProfilePage() {
             onClick={() => setActiveTab("comments")}
             className={`pb-3 whitespace-nowrap transition ${
               activeTab === "comments"
-                ? "border-b-2 border-forge-accent text-forge-accent"
-                : "text-gray-300 hover:text-white"
+                ? "border-b-2 border-[var(--pit-highlight)] text-highlight-pit"
+                : "text-muted-pit"
             }`}
           >
             Comments
@@ -262,18 +276,16 @@ export default function PublicProfilePage() {
         <button
           onClick={() => setActiveTab("satire")}
           className={`pb-3 whitespace-nowrap transition ${
-            activeTab === "satire"
-              ? "border-b-2 border-purple-300 text-purple-200"
-              : "text-gray-300 hover:text-white"
+            activeTab === "satire" ? "border-b-2 border-purple-300 text-purple-200" : "text-muted-pit"
           }`}
         >
           Satire
         </button>
       </div>
 
-      {activeTab === "articles" && (
-        articles.length === 0 ? (
-          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-8 text-center text-gray-300 text-sm">
+      {activeTab === "articles" &&
+        (articles.length === 0 ? (
+          <div className="pit-panel rounded-2xl p-8 text-center text-sm text-muted-pit">
             No articles yet.
           </div>
         ) : (
@@ -282,26 +294,25 @@ export default function PublicProfilePage() {
               <Link
                 key={article.id}
                 href={`/article/${article.id}`}
-                className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
+                className="block pit-panel rounded-xl p-5 hover:opacity-95 transition"
               >
-                <div className="flex items-center gap-2 text-xs text-gray-300 mb-1">
-                  <span className="text-forge-accent font-medium">{article.section}</span>
+                <div className="flex items-center gap-2 text-xs text-muted-pit mb-1">
+                  <span className="text-highlight-pit font-medium">{article.section}</span>
                   <span>•</span>
                   <span title={formatTimeFull(article.created_at)}>
                     {formatTime(article.created_at)}
                   </span>
                 </div>
                 <h3 className="text-lg font-bold mb-2">{article.title}</h3>
-                <p className="text-gray-300 text-sm line-clamp-3">{article.body}</p>
+                <p className="text-muted-pit text-sm line-clamp-3">{article.body}</p>
               </Link>
             ))}
           </div>
-        )
-      )}
+        ))}
 
-      {activeTab === "comments" && viewerId && (
-        comments.length === 0 ? (
-          <div className="bg-forge-900 border border-forge-800 rounded-2xl p-8 text-center text-gray-300 text-sm">
+      {activeTab === "comments" && viewerId &&
+        (comments.length === 0 ? (
+          <div className="pit-panel rounded-2xl p-8 text-center text-sm text-muted-pit">
             No comments yet.
           </div>
         ) : (
@@ -310,30 +321,29 @@ export default function PublicProfilePage() {
               <Link
                 key={comment.id}
                 href={`/article/${comment.article_id}`}
-                className="block bg-forge-900 border border-forge-800 rounded-xl p-5 hover:border-forge-700 transition"
+                className="block pit-panel rounded-xl p-5 hover:opacity-95 transition"
               >
-                <div className="text-xs text-gray-300 mb-2">
-                  On <span className="text-white">{comment.article_title}</span>
+                <div className="text-xs text-muted-pit mb-2">
+                  On <span style={{ color: "var(--pit-text)" }}>{comment.article_title}</span>
                   {" · "}
                   <span title={formatTimeFull(comment.created_at)}>
                     {formatTime(comment.created_at)}
                   </span>
                 </div>
-                <p className="text-gray-100 text-sm leading-relaxed">{comment.body}</p>
+                <p className="text-sm leading-relaxed">{comment.body}</p>
               </Link>
             ))}
           </div>
-        )
-      )}
+        ))}
 
       {activeTab === "satire" && (
-        <div className="bg-forge-900 border border-purple-500/20 rounded-2xl p-8 text-center text-gray-300 text-sm">
+        <div className="pit-panel rounded-2xl p-8 text-center text-sm text-muted-pit border border-purple-500/20">
           No satire yet.
         </div>
       )}
 
       {updatedAt && (
-        <div className="mt-10 pt-6 border-t border-forge-800 text-center text-xs text-gray-300">
+        <div className="mt-10 pt-6 border-t border-white/10 text-center text-xs text-muted-pit">
           <span title={formatTimeFull(updatedAt)}>
             Profile updated {formatTime(updatedAt)}
           </span>
