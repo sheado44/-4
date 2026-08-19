@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import ComputeButton from "@/components/ComputeButton";
 
 function EditorContent() {
   const searchParams = useSearchParams();
@@ -459,28 +460,28 @@ function EditorContent() {
               Thumbnail is generated from the title and draft — no prompt. Prompt is only for inline images.
               Quality follows plan: Pit Pass none · Press standard · Desk high.
             </p>
-            <button
-              type="button"
-              disabled={generating}
-              onClick={handleGenerateThumbnailFromStory}
-              className="px-3 py-2 rounded-lg bg-black/20 text-sm disabled:opacity-60 mb-4"
-            >
-              {generating ? "Generating..." : "Generate thumbnail from story (1 credit)"}
-            </button>
+            <div className="mb-4">
+              <ComputeButton
+                cost={1}
+                label="Generate thumbnail from story"
+                busy={generating}
+                disabled={plan === "free"}
+                onConfirm={handleGenerateThumbnailFromStory}
+              />
+            </div>
             <textarea
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
               placeholder="Prompt for an inline image only..."
               className="w-full min-h-[90px] bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm outline-none mb-3"
             />
-            <button
-              type="button"
-              disabled={generating}
-              onClick={handleGenerateInline}
-              className="px-3 py-2 rounded-lg bg-forge-accent text-white text-sm disabled:opacity-60"
-            >
-              {generating ? "Generating..." : "Generate inline image (1 credit)"}
-            </button>
+            <ComputeButton
+              cost={1}
+              label="Generate inline image"
+              busy={generating}
+              disabled={plan === "free"}
+              onConfirm={handleGenerateInline}
+            />
             <p className="text-xs text-gray-400 mt-2">Failed reviews are not refunded. Uploads are off — AI only.</p>
           </div>
 
@@ -562,3 +563,4 @@ export default function EditorPage() {
     </Suspense>
   );
 }
+
