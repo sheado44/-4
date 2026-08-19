@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import FantasyRailWidget from "@/components/FantasyRailWidget";
+import TrashPitMark from "@/components/TrashPitMark";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { formatTime } from "@/lib/time";
@@ -744,11 +745,11 @@ function Home() {
 
   const writeHref =
     section === "Satire"
-      ? "/fan-fiction"
+      ? "/trashpit"
       : `/editor?section=${encodeURIComponent(section === "All" ? "Sports" : section)}`;
 
   const writeLabel =
-    section === "All" ? "Write an article" : section === "Satire" ? "Write Satire" : `Write in ${section}`;
+    section === "All" ? "Write an article" : section === "Satire" ? "Write trashPit" : `Write in ${section}`;
 
   const clearFilters = () => {
     setOnlyFavorites(false);
@@ -765,8 +766,9 @@ function Home() {
           <div className="metal-card overflow-hidden">
             <img src="/ballpit-hero.png" alt="theBallpit" className="w-full h-auto object-cover max-h-[360px] md:max-h-[420px]" />
           </div>
-          <p className="text-center text-xs md:text-sm tracking-[0.22em] uppercase text-muted-pit mt-4 mb-4">
-            Sports · Pop Culture · Satire
+          <p className="text-center text-xs md:text-sm text-muted-pit mt-4 mb-4 flex items-center justify-center gap-2">
+            <span className="tracking-[0.22em] uppercase">Sports · Pop Culture ·</span>
+            <TrashPitMark size="nav" />
           </p>
         </div>
       </section>
@@ -784,7 +786,7 @@ function Home() {
                 section === item ? "btn-write border-transparent" : "btn-metal"
               }`}
             >
-              {item}
+              {item === "Satire" ? <TrashPitMark size="nav" /> : item}
             </button>
           ))}
 
@@ -880,8 +882,11 @@ function Home() {
           }}
         >
           <div className="max-w-6xl mx-auto px-4 py-3">
-            <div className="text-sm font-bold tracking-wide mb-1" style={{ color: "#FFE6C7" }}>
-              SATIRE
+            <div className="flex items-baseline gap-2 mb-1">
+              <TrashPitMark size="nav" />
+              <span className="text-sm font-bold tracking-wide" style={{ color: "#FFE6C7" }}>
+                SATIRE
+              </span>
             </div>
             <p className="text-xs leading-relaxed" style={{ color: "rgba(255,230,199,0.92)" }}>
               This section contains satirical, exaggerated, and fictional content created for
@@ -925,7 +930,7 @@ function Home() {
                     </Link>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-pit mb-2">
-                        <span className="bg-highlight-soft px-2 py-0.5 rounded-md font-semibold">{article.section}</span>
+                        <span className="bg-highlight-soft px-2 py-0.5 rounded-md font-semibold">{article.section === "Satire" ? "trashPit" : article.section}</span>
                         <span>{formatTime(article.created_at)}</span>
                       </div>
                       <Link href={`/article/${article.id}`}>
@@ -1192,3 +1197,4 @@ export default function Page() {
     </Suspense>
   );
 }
+
