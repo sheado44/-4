@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { spendAiCredits } from "@/lib/aiCredits";
+import ComputeButton from "@/components/ComputeButton";
 
 type Kind = "article" | "comment";
 
@@ -109,14 +110,12 @@ export default function ResearchTake({
 
   return (
     <div className="mt-3">
-      <button
-        type="button"
-        onClick={run}
-        disabled={busy}
-        className="btn-metal px-3 py-1.5 rounded-lg text-xs disabled:opacity-50"
-      >
-        {busy ? "Researching..." : `Research this take · ${cost}`}
-      </button>
+      <ComputeButton
+        cost={cost}
+        label="Research this take"
+        busy={busy}
+        onConfirm={run}
+      />
       {message && <p className="text-xs text-yellow-500 mt-2">{message}</p>}
       {out && (
         <pre className="mt-3 text-sm whitespace-pre-wrap font-sans leading-relaxed pit-panel p-3">
@@ -126,3 +125,4 @@ export default function ResearchTake({
     </div>
   );
 }
+
