@@ -70,7 +70,7 @@ body {
     var(--pit-highlight),
     color-mix(in srgb, var(--pit-highlight) 75%, black 25%)
   );
-  color: #1a120c;
+  color: #14110d;
   font-weight: 700;
   border: 1px solid color-mix(in srgb, var(--pit-highlight) 40%, white 30%);
   box-shadow:
@@ -84,10 +84,17 @@ body {
 }
 
 .btn-metal {
-  background: linear-gradient(180deg, #32363a 0%, #26292c 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--pit-text);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, #3f4449 0%, #1f2225 100%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #f8fafc;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+html.pit-light .btn-metal {
+  background: linear-gradient(180deg, #2b2f33 0%, #141618 100%);
+  border: 1px solid #111;
+  color: #ffffff;
 }
 
 .btn-metal:hover {
