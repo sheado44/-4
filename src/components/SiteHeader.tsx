@@ -51,6 +51,8 @@ export default function SiteHeader() {
   const [layoutOpen, setLayoutOpen] = useState(false);
   const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>([]);
   const [widgetOn, setWidgetOn] = useState<Record<WidgetId, boolean>>({} as Record<WidgetId, boolean>);
+  const [dragId, setDragId] = useState<WidgetId | null>(null);
+  const [overId, setOverId] = useState<WidgetId | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const layoutRef = useRef<HTMLDivElement | null>(null);
 
@@ -256,7 +258,6 @@ export default function SiteHeader() {
             </div>
           )}
 
-
           {loggedIn && (
             <div className="relative" ref={layoutRef}>
               <button
@@ -271,72 +272,88 @@ export default function SiteHeader() {
               </button>
               {layoutOpen && (
                 <div
-                  className="absolute right-0 mt-2 w-64 rounded-xl border border-white/10 p-3 shadow-2xl z-50"
+                  className="absolute right-0 mt-2 w-72 rounded-xl border border-white/10 p-3 shadow-2xl z-50"
                   style={{
                     background: "color-mix(in srgb, var(--pit-panel) 94%, black 6%)",
                     backdropFilter: "blur(12px)",
                   }}
                 >
-                  <div className="text-[10px] uppercase tracking-[0.18em] mb-3" style={{ color: "var(--pit-muted)" }}>
+                  <div className="text-[10px] uppercase tracking-[0.18em] mb-1" style={{ color: "var(--pit-muted)" }}>
                     Layout
                   </div>
-                  {WIDGET_CATALOG.map((w) => (
-                    <label key={w.id} className="flex items-center justify-between gap-2 text-sm mb-2">
-                      <span>{w.label}</span>
-                      <input
-                        type="checkbox"
-                        checked={!!widgetOn[w.id]}
-                        onChange={() => {
-                          const next = { ...widgetOn, [w.id]: !widgetOn[w.id] };
-                          setWidgetOn(next);
-                          saveWidgetLayout(widgetOrder, next);
-                        }}
-                        className="h-4 w-4"
-                      />
-                    </label>
-                  ))}
-                  <div className="text-[10px] uppercase tracking-[0.16em] mt-3 mb-2" style={{ color: "var(--pit-muted)" }}>
-                    Order
+                  <p className="text-[11px] text-muted-pit mb-3">
+                    Check to show. Drag the handle to reorder.
+                  </p>
+                  <div className="space-y-1">
+                    {widgetOrder.map((id) => {
+                      const label = WIDGET_CATALOG.find((w) => w.id === id)?.label || id;
+                      const on = !!widgetOn[id];
+                      return (
+                        <div
+                          key={id}
+                          draggable
+                          onDragStart={() => setDragId(id)}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            if (overId !== id) setOverId(id);
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (!dragId || dragId === id) {
+                              setDragId(null);
+                              setOverId(null);
+                              return;
+                            }
+                            const next = widgetOrder.filter((x) => x !== dragId);
+                            next.splice(next.indexOf(id), 0, dragId);
+                            setWidgetOrder(next);
+                            saveWidgetLayout(next, widgetOn);
+                            setDragId(null);
+                            setOverId(null);
+                          }}
+                          onDragEnd={() => {
+                            setDragId(null);
+                            setOverId(null);
+                          }}
+                          className="flex items-center gap-2 rounded-lg px-2 py-1.5"
+                          style={{
+                            opacity: dragId === id ? 0.45 : 1,
+                            outline:
+                              overId === id && dragId && dragId !== id
+                                ? "1px solid var(--pit-highlight)"
+                                : "1px solid transparent",
+                            background: on ? "rgba(255,255,255,0.04)" : "transparent",
+                          }}
+                        >
+                          <span
+                            className="cursor-grab active:cursor-grabbing text-muted-pit select-none text-sm leading-none px-0.5"
+                            title="Drag to reorder"
+                          >
+                            ⋮⋮
+                          </span>
+                          <span
+                            className="flex-1 text-sm select-none"
+                            style={{
+                              color: on ? "var(--pit-text)" : "var(--pit-muted)",
+                            }}
+                          >
+                            {label}
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={() => {
+                              const next = { ...widgetOn, [id]: !on };
+                              setWidgetOn(next);
+                              saveWidgetLayout(widgetOrder, next);
+                            }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            className="h-4 w-4"
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
-                  {widgetOrder.filter((id) => widgetOn[id]).map((id, i, arr) => (
-                    <div key={id} className="flex items-center justify-between gap-2 text-sm mb-1">
-                      <span>{WIDGET_CATALOG.find((w) => w.id === id)?.label || id}</span>
-                      <div className="flex gap-1">
-                        <button
-                          type="button"
-                          disabled={i === 0}
-                          className="px-2 py-0.5 rounded btn-metal text-xs disabled:opacity-30"
-                          onClick={() => {
-                            const vis = widgetOrder.filter((x) => widgetOn[x]);
-                            const a = widgetOrder.indexOf(vis[i]);
-                            const b = widgetOrder.indexOf(vis[i - 1]);
-                            const next = [...widgetOrder];
-                            [next[a], next[b]] = [next[b], next[a]];
-                            setWidgetOrder(next);
-                            saveWidgetLayout(next, widgetOn);
-                          }}
-                        >
-                          Up
-                        </button>
-                        <button
-                          type="button"
-                          disabled={i === arr.length - 1}
-                          className="px-2 py-0.5 rounded btn-metal text-xs disabled:opacity-30"
-                          onClick={() => {
-                            const vis = widgetOrder.filter((x) => widgetOn[x]);
-                            const a = widgetOrder.indexOf(vis[i]);
-                            const b = widgetOrder.indexOf(vis[i + 1]);
-                            const next = [...widgetOrder];
-                            [next[a], next[b]] = [next[b], next[a]];
-                            setWidgetOrder(next);
-                            saveWidgetLayout(next, widgetOn);
-                          }}
-                        >
-                          Down
-                        </button>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
             </div>
