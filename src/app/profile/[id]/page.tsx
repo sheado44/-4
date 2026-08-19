@@ -72,6 +72,12 @@ export default function PublicProfilePage() {
   const [relationship, setRelationship] = useState<Relationship | null>(null);
   const [viewerId, setViewerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [plan, setPlan] = useState("free");
+  const [acceptingSponsors, setAcceptingSponsors] = useState(false);
+  const [giftTier, setGiftTier] = useState<"press" | "desk">("desk");
+  const [giftLength, setGiftLength] = useState<"month" | "ongoing">("month");
+  const [giftMessage, setGiftMessage] = useState("");
+  const [gifting, setGifting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -83,7 +89,7 @@ export default function PublicProfilePage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, bio, link, sex, age, location, updated_at, avatar_url")
+        .select("display_name, bio, link, sex, age, location, updated_at, avatar_url, plan, accepting_sponsors")
         .eq("id", id)
         .maybeSingle();
 
@@ -173,6 +179,8 @@ export default function PublicProfilePage() {
       setAge(profile?.age ?? null);
       setLocation(profile?.location || "");
       setUpdatedAt(profile?.updated_at || null);
+      setPlan(String(profile?.plan || "free").toLowerCase());
+      setAcceptingSponsors(Boolean(profile?.accepting_sponsors));
       setLoading(false);
     };
 
@@ -246,6 +254,67 @@ export default function PublicProfilePage() {
             <div className="text-[11px] opacity-70 mt-1">Only visible to you</div>
           </div>
         )}
+
+        {viewerId && viewerId !== id && (
+          <div className="mt-5 w-full max-w-md text-left pit-panel p-4">
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit mb-1">Tier</div>
+            <div className="text-sm font-semibold mb-2 capitalize">{plan === "desk" ? "Desk" : plan === "press" ? "Press" : "Pit Pass"}</div>
+            <div className="text-sm text-muted-pit mb-3">
+              {acceptingSponsors ? "Accepting sponsors." : "Not accepting sponsors."}
+            </div>
+            {acceptingSponsors ? (
+              <>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <select
+                    value={giftTier}
+                    onChange={(e) => setGiftTier(e.target.value as "press" | "desk")}
+                    className="rounded-lg px-2 py-2 text-sm bg-black/20 border border-white/10"
+                  >
+                    <option value="press">Press ($12)</option>
+                    <option value="desk">Desk ($25)</option>
+                  </select>
+                  <select
+                    value={giftLength}
+                    onChange={(e) => setGiftLength(e.target.value as "month" | "ongoing")}
+                    className="rounded-lg px-2 py-2 text-sm bg-black/20 border border-white/10"
+                  >
+                    <option value="month">1 month</option>
+                    <option value="ongoing">Ongoing</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  disabled={gifting}
+                  onClick={async () => {
+                    setGiftMessage("");
+                    setGifting(true);
+                    const { error } = await supabase.rpc("cover_account", {
+                      recipient: id,
+                      gift_tier: giftTier,
+                      gift_length: giftLength,
+                    });
+                    setGifting(false);
+                    if (error) {
+                      setGiftMessage(error.message);
+                      return;
+                    }
+                    setPlan(giftTier);
+                    setGiftMessage(
+                      giftLength === "ongoing"
+                        ? "Covered on a renewing basis. Stripe will replace this stub."
+                        : "One month covered. Stripe will replace this stub."
+                    );
+                  }}
+                  className="btn-write w-full px-4 py-2 rounded-xl text-sm disabled:opacity-60"
+                >
+                  {gifting ? "Covering..." : "Cover this account"}
+                </button>
+                {giftMessage && <p className="text-xs text-muted-pit mt-2">{giftMessage}</p>}
+              </>
+            ) : null}
+          </div>
+        )}
+
       </div>
 
       <div className="flex gap-6 border-b border-white/10 mb-6 text-sm font-medium overflow-x-auto justify-center md:justify-start">
