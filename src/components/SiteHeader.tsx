@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AuthNav from "@/components/AuthNav";
 import BallpitWordmark from "@/components/BallpitWordmark";
+import TrashPitMark from "@/components/TrashPitMark";
 import { supabase } from "@/lib/supabaseClient";
 import {
   WIDGET_CATALOG,
@@ -172,7 +173,7 @@ export default function SiteHeader() {
               className="px-3 py-1.5 rounded-lg transition hover:opacity-100"
               style={{ color: "var(--pit-muted)" }}
             >
-              {item.label}
+              {item.label === "Satire" ? <TrashPitMark size="nav" /> : item.label}
             </Link>
           ))}
         </nav>
@@ -365,10 +366,10 @@ export default function SiteHeader() {
             Write
           </Link>
           <Link
-            href="/fan-fiction"
+            href="/trashpit"
             className="btn-metal hidden lg:inline-flex items-center px-3 py-1.5 rounded-xl text-xs"
           >
-            Satire Lab
+            <TrashPitMark size="nav" />
           </Link>
           <AuthNav />
         </div>
@@ -376,3 +377,4 @@ export default function SiteHeader() {
     </header>
   );
 }
+
