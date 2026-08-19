@@ -58,6 +58,7 @@ export default function SettingsPage() {
   const [aiCandidates, setAiCandidates] = useState<string[]>([]);
   const [pendingAvatar, setPendingAvatar] = useState<string>("");
   const [message, setMessage] = useState("");
+  const [acceptingSponsors, setAcceptingSponsors] = useState(false);
 
   const avatarAllowed = useMemo(() => {
     if (!avatarSetupDone && !avatarUrl) return true;
@@ -113,6 +114,7 @@ export default function SettingsPage() {
         );
         setAvatarUpdatedAt(profile.avatar_updated_at || null);
         setAvatarSetupDone(Boolean(profile.avatar_setup_done));
+        setAcceptingSponsors(Boolean(profile.accepting_sponsors));
       }
 
       setLoading(false);
@@ -224,6 +226,7 @@ export default function SettingsPage() {
       avatar_color: avatarColor,
       avatar_skin: avatarSkin,
       owned_skins: ownedSkins,
+      accepting_sponsors: acceptingSponsors,
     };
 
     if (avatarChanged) {
@@ -460,6 +463,20 @@ export default function SettingsPage() {
             />
           </div>
         </div>
+        <label className="flex items-center justify-between gap-3 text-sm py-2">
+          <span>
+            <span className="block">Accepting sponsors?</span>
+            <span className="block text-[11px] text-muted-pit">
+              Others can cover Press or Desk on this account. No accept step when they pay.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={acceptingSponsors}
+            onChange={(e) => setAcceptingSponsors(e.target.checked)}
+            className="h-4 w-4"
+          />
+        </label>
         <div>
           <label className="text-xs text-muted-pit block mb-1">Location</label>
           <input
