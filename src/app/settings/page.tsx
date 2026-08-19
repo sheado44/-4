@@ -499,8 +499,8 @@ export default function SettingsPage() {
       {message && <p className="text-sm text-yellow-500 mt-3">{message}</p>}
 
       <div className="mt-6 flex gap-4 text-sm">
-        <Link href="/wallet" className="text-muted-pit hover:opacity-100">
-          Wallet
+        <Link href="/moneypit" className="text-muted-pit hover:opacity-100">
+          theMoneyPit
         </Link>
         <Link href="/profile" className="text-muted-pit hover:opacity-100">
           Profile
