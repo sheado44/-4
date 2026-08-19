@@ -617,11 +617,23 @@ export default function ArticlePage() {
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
       {deskOnly && isOwnArticle && (
-        <div className="mb-6 rounded-xl border border-white/10 px-4 py-3 text-sm" style={{ background: "rgba(0,0,0,0.25)" }}>
-          <div className="font-semibold mb-1">On your desk only</div>
-          <p className="text-xs text-gray-300 leading-relaxed">
+        <div
+          className="mb-6 rounded-xl border px-4 py-3"
+          style={{
+            background: "color-mix(in srgb, #7a1f1f 40%, #1E2022 60%)",
+            borderColor: "rgba(212,160,86,0.45)",
+          }}
+        >
+          <div className="text-[10px] uppercase tracking-[0.22em] mb-1" style={{ color: "#D4A056" }}>
+            technical foul
+          </div>
+          <p className="text-lg font-extrabold mb-1" style={{ letterSpacing: "-0.03em" }}>
+            <span style={{ color: "#F4F7FB" }}>this play </span>
+            <span style={{ color: "#D4A056" }}>stays on your desk.</span>
+          </p>
+          <p className="text-xs leading-relaxed" style={{ color: "rgba(255,230,199,0.9)" }}>
             Same article page as a public piece — title, body, comments — but it is not
-            in the public feed. Only you can open this link.
+            in the public feed. Only you can open this link. No points awarded.
           </p>
         </div>
       )}
@@ -746,3 +758,4 @@ export default function ArticlePage() {
     </main>
   );
 }
+
