@@ -21,6 +21,7 @@ function applyTheme(bg: string, highlight: string, textMode: TextMode) {
   root.style.setProperty("--pit-muted", muted);
   root.style.setProperty("--pit-panel", panel);
   root.style.setProperty("--pit-card", card);
+  root.classList.toggle("pit-light", textMode === "black");
 
   document.body.style.backgroundColor = bg;
   document.body.style.color = text;
