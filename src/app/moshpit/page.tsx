@@ -28,6 +28,27 @@ const ROOMS: { id: Room; label: string }[] = [
 
 const MAX_LEN = 800;
 
+function splitBody(body: string) {
+  const m = body.match(/\n?\!\[gif\]\((.*?)\)\s*$/);
+  if (!m) return { text: body, gif: null as string | null };
+  return { text: body.slice(0, m.index).trimEnd(), gif: m[1] };
+}
+
+async function searchGifs(q: string) {
+  const query = q.trim() || "sports";
+  const url =
+    "https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&limit=12&rating=pg-13&q=" +
+    encodeURIComponent(query);
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const json = await res.json();
+  return (json.data || []).map((g: { id: string; images?: { downsized?: { url?: string }; preview_gif?: { url?: string } } }) => ({
+    id: g.id,
+    url: g.images?.downsized?.url || "",
+    preview: g.images?.preview_gif?.url || g.images?.downsized?.url || "",
+  })).filter((g: { url: string }) => g.url);
+}
+
 function initials(name: string) {
   return (name || "U")
     .split(" ")
@@ -48,6 +69,11 @@ export default function MoshpitPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
+  const [gifOpen, setGifOpen] = useState(false);
+  const [gifQuery, setGifQuery] = useState("");
+  const [gifHits, setGifHits] = useState<{ id: string; url: string; preview: string }[]>([]);
+  const [gifPicked, setGifPicked] = useState<string | null>(null);
+  const [gifBusy, setGifBusy] = useState(false);
 
   useEffect(() => {
     const boot = async () => {
@@ -141,8 +167,8 @@ export default function MoshpitPage() {
       return;
     }
     const text = draft.trim();
-    if (!text) {
-      setMessage("Write something first.");
+    if (!text && !gifPicked) {
+      setMessage("Write something or pick a GIF.");
       return;
     }
     if (text.length > MAX_LEN) {
@@ -155,7 +181,7 @@ export default function MoshpitPage() {
       user_id: userId,
       author_name: displayName || "User",
       room,
-      body: text,
+      body: gifPicked ? `${text}\n![gif](${gifPicked})` : text,
       parent_id: replyTo?.id || null,
     });
     setPosting(false);
@@ -167,6 +193,8 @@ export default function MoshpitPage() {
 
     setDraft("");
     setReplyTo(null);
+    setGifPicked(null);
+    setGifOpen(false);
     load(room, userId);
   };
 
@@ -226,9 +254,22 @@ export default function MoshpitPage() {
               <span title={formatTimeFull(post.created_at)}>{formatTime(post.created_at)}</span>
               {isReply && <span>reply</span>}
             </div>
-            <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--pit-text)" }}>
-              {post.body}
-            </p>
+            {(() => {
+              const parsed = splitBody(post.body);
+              return (
+                <>
+                  {parsed.text && (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--pit-text)" }}>
+                      {parsed.text}
+                    </p>
+                  )}
+                  {parsed.gif && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={parsed.gif} alt="" className="mt-3 max-h-56 rounded-xl" />
+                  )}
+                </>
+              );
+            })()}
             <div className="flex items-center gap-3 mt-3 text-xs">
               <button
                 type="button"
@@ -267,14 +308,10 @@ export default function MoshpitPage() {
     <main className="max-w-3xl mx-auto px-4 py-8">
       <p className="text-[10px] uppercase tracking-[0.18em] text-muted-pit mb-2">theBallpit</p>
       <h1 className="text-3xl font-extrabold mb-2">theMoshpit</h1>
-      <p className="text-sm text-muted-pit leading-relaxed mb-4">
-        theMoshpit is a rough room. Insults are allowed. theBallpit removes
-        exploitation, doxxing, credible threats, spam, and impersonation.
-        This is chat — not an article, not a score.
+      <p className="text-sm text-muted-pit mb-5">
+        Chat and trash talk. Same house rules.{" "}
+        <Link href="/rules" className="text-highlight-pit">Rules</Link>
       </p>
-      <Link href="/rules" className="text-xs text-highlight-pit mb-6 inline-block">
-        House rules →
-      </Link>
 
       <div className="flex flex-wrap gap-2 mb-6">
         {ROOMS.map((r) => (
@@ -313,10 +350,83 @@ export default function MoshpitPage() {
               placeholder={replyTo ? "Write a reply..." : "Say it."}
               className="w-full min-h-[110px] bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-sm outline-none mb-2"
             />
+            {gifPicked && (
+              <div className="mb-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={gifPicked} alt="" className="max-h-32 rounded-lg" />
+                <button type="button" className="text-xs text-muted-pit mt-1" onClick={() => setGifPicked(null)}>
+                  Remove GIF
+                </button>
+              </div>
+            )}
+            {gifOpen && (
+              <div className="mb-3 rounded-xl border border-white/10 p-3">
+                <div className="flex gap-2 mb-2">
+                  <input
+                    value={gifQuery}
+                    onChange={(e) => setGifQuery(e.target.value)}
+                    placeholder="Search GIFs"
+                    className="flex-1 rounded-lg px-3 py-2 text-sm outline-none bg-black/20 border border-white/10"
+                    onKeyDown={async (e) => {
+                      if (e.key === "Enter") {
+                        setGifBusy(true);
+                        setGifHits(await searchGifs(gifQuery));
+                        setGifBusy(false);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn-metal px-3 py-2 rounded-lg text-sm"
+                    onClick={async () => {
+                      setGifBusy(true);
+                      setGifHits(await searchGifs(gifQuery));
+                      setGifBusy(false);
+                    }}
+                  >
+                    Search
+                  </button>
+                </div>
+                {gifBusy && <p className="text-xs text-muted-pit">Searching...</p>}
+                <div className="grid grid-cols-3 gap-2">
+                  {gifHits.map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => {
+                        setGifPicked(g.url);
+                        setGifOpen(false);
+                      }}
+                      className="rounded-lg overflow-hidden border border-white/10"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={g.preview} alt="" className="w-full h-20 object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] text-muted-pit">
-                {draft.length}/{MAX_LEN}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const next = !gifOpen;
+                    setGifOpen(next);
+                    if (next && gifHits.length === 0) {
+                      setGifBusy(true);
+                      setGifHits(await searchGifs("sports"));
+                      setGifBusy(false);
+                    }
+                  }}
+                  className="btn-metal px-3 py-1.5 rounded-lg text-xs"
+                >
+                  GIF
+                </button>
+                <span className="text-[11px] text-muted-pit">
+                  {draft.length}/{MAX_LEN}
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={submit}
@@ -356,4 +466,3 @@ export default function MoshpitPage() {
     </main>
   );
 }
-
