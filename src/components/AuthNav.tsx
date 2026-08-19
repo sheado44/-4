@@ -94,6 +94,13 @@ export default function AuthNav() {
 
   return (
     <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      <Link
+        href="/notifications"
+        className="text-xs px-2 py-1 rounded-lg btn-metal"
+        title="Notifications"
+      >
+        Alerts
+      </Link>
       <Link href="/profile" className="flex items-center">
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element
