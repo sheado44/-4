@@ -3,237 +3,265 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { CREDIT_COST } from "@/lib/tiers";
+import { spendAiCredits } from "@/lib/aiCredits";
 
-type PromptPack = {
+type Tone = "funny" | "serious" | "mad" | "chaotic";
+
+type Setup = {
   id: string;
-  title: string;
-  template: string; // use {{key}} blanks
-  fields: { key: string; label: string; placeholder: string }[];
-  buildTitle: (vals: Record<string, string>) => string;
-  buildBody: (vals: Record<string, string>, tone: string) => string;
+  headline: string;
+  slots: { key: string; label: string; placeholder: string }[];
 };
 
-const TONES = ["Funny", "Chaotic", "Deadpan", "Overdramatic", "Sports Radio"] as const;
+const TONES: { id: Tone; label: string }[] = [
+  { id: "funny", label: "Funny" },
+  { id: "serious", label: "Serious" },
+  { id: "mad", label: "Mad" },
+  { id: "chaotic", label: "Chaotic" },
+];
 
-const PROMPT_PACKS: PromptPack[] = [
-  {
-    id: "locker",
-    title: "Locker Room Chaos",
-    template:
-      "At {{place}}, {{star}} suddenly {{verb}} while holding a {{object}}, and {{rival}} could only watch as {{outcome}}.",
-    fields: [
-      { key: "place", label: "place", placeholder: "Arrowhead Stadium" },
-      { key: "star", label: "star", placeholder: "Patrick Mahomes" },
-      { key: "verb", label: "verb", placeholder: "moonwalked" },
-      { key: "object", label: "object", placeholder: "glow-in-the-dark football" },
-      { key: "rival", label: "rival", placeholder: "the opposing mascot" },
-      { key: "outcome", label: "outcome", placeholder: "the scoreboard apologized" },
-    ],
-    buildTitle: (v) => `${v.star} ${v.verb} Into History at ${v.place}`,
-    buildBody: (v, tone) =>
-      `In a development nobody requested, ${v.star} reportedly ${v.verb} across ${v.place} while clutching a ${v.object}.\n\n` +
-      `${v.rival} tried to restore order, but it was already too late. By the end, ${v.outcome}.\n\n` +
-      `This ${tone.toLowerCase()} satire is not real reporting. It is pure Ballpit nonsense.\n\n` +
-      `![satire](https://placehold.co/1200x630/7c3aed/ffffff/png?text=Satire+Scene)`,
-  },
-  {
-    id: "press",
-    title: "Press Conference Meltdown",
-    template:
-      "{{coach}} told reporters in {{city}} that {{team}} would {{verb}} the season with a {{object}}, then added, \"{{quote}}.\"",
-    fields: [
-      { key: "coach", label: "coach", placeholder: "Coach Rivera" },
-      { key: "city", label: "city", placeholder: "Chicago" },
-      { key: "team", label: "team", placeholder: "the underdogs" },
-      { key: "verb", label: "verb", placeholder: "reinvent" },
-      { key: "object", label: "object", placeholder: "bag of frozen peas" },
-      { key: "quote", label: "quote", placeholder: "we were never not winning" },
-    ],
-    buildTitle: (v) => `${v.coach} Stuns ${v.city} With Unhinged Presser`,
-    buildBody: (v, tone) =>
-      `${v.coach} stood before the media in ${v.city} and announced that ${v.team} would ${v.verb} the season using a ${v.object}.\n\n` +
-      `"${v.quote}," ${v.coach} said, in a tone best described as ${tone.toLowerCase()}.\n\n` +
-      `Reporters requested clarification. The podium declined comment.\n\n` +
-      `![satire](https://placehold.co/1200x630/312e81/f5f3ff/png?text=Press+Conference+Satire)`,
-  },
+const SETUPS: Setup[] = [
   {
     id: "trade",
-    title: "Ridiculous Trade Rumor",
-    template:
-      "Sources say {{player}} is leaving {{teamA}} for {{teamB}} in exchange for {{asset}}, according to {{source}}, sparking {{reaction}}.",
-    fields: [
-      { key: "player", label: "player", placeholder: "Shohei Ohtani" },
-      { key: "teamA", label: "team A", placeholder: "the Cubs" },
-      { key: "teamB", label: "team B", placeholder: "a minor-league snack stand" },
-      { key: "asset", label: "asset", placeholder: "three draft picks and a blender" },
-      { key: "source", label: "source", placeholder: "a guy outside the stadium" },
-      { key: "reaction", label: "reaction", placeholder: "collective confusion" },
+    headline: "A shocking trade rumor nobody asked for",
+    slots: [
+      { key: "star", label: "Athlete / celebrity", placeholder: "Patrick Mahomes" },
+      { key: "team", label: "Team / franchise", placeholder: "the Jets" },
+      { key: "object", label: "Ridiculous object", placeholder: "a used air fryer" },
+      { key: "place", label: "Place", placeholder: "a Buc-ee's parking lot" },
     ],
-    buildTitle: (v) => `Report: ${v.player} Headed to ${v.teamB}`,
-    buildBody: (v, tone) =>
-      `According to ${v.source}, ${v.player} is moving from ${v.teamA} to ${v.teamB} for ${v.asset}.\n\n` +
-      `The leak, dripping with ${tone.toLowerCase()} energy, caused ${v.reaction} across the fanbase.\n\n` +
-      `This is satire. Do not rearrange your fantasy roster.\n\n` +
-      `![satire](https://placehold.co/1200x630/111827/fb923c/png?text=Trade+Rumor+Satire)`,
+  },
+  {
+    id: "awards",
+    headline: "An awards-night meltdown",
+    slots: [
+      { key: "star", label: "Famous person", placeholder: "Taylor Swift" },
+      { key: "award", label: "Award / title", placeholder: "Best Supporting Hot Dog" },
+      { key: "rival", label: "Rival", placeholder: "a mascot" },
+      { key: "snack", label: "Snack", placeholder: "gas-station taquitos" },
+    ],
+  },
+  {
+    id: "presser",
+    headline: "A press conference that went off the rails",
+    slots: [
+      { key: "coach", label: "Coach / boss", placeholder: "Andy Reid" },
+      { key: "verb", label: "Past-tense verb", placeholder: "yeeted" },
+      { key: "item", label: "Item", placeholder: "the Gatorade bucket" },
+      { key: "city", label: "City", placeholder: "Cleveland" },
+    ],
+  },
+  {
+    id: "dating",
+    headline: "A celebrity dating rumor with no sources",
+    slots: [
+      { key: "star", label: "Person", placeholder: "Travis Kelce" },
+      { key: "other", label: "Other person", placeholder: "the Popeyes cashier" },
+      { key: "spot", label: "Spotted at", placeholder: "a laundromat" },
+      { key: "prop", label: "Prop they were holding", placeholder: "a live lobster" },
+    ],
+  },
+  {
+    id: "record",
+    headline: "A record that definitely did not happen",
+    slots: [
+      { key: "athlete", label: "Athlete", placeholder: "Shohei Ohtani" },
+      { key: "stat", label: "Impossible stat", placeholder: "47 touchdowns in one quarter" },
+      { key: "foe", label: "Opponent", placeholder: "a youth soccer team" },
+      { key: "excuse", label: "Excuse", placeholder: "Mercury in retrograde" },
+    ],
   },
 ];
 
-function fillTemplate(template: string, values: Record<string, string>) {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
-    const val = (values[key] || "").trim();
-    return val || `〔${key}〕`;
-  });
+function pickSetup(avoid?: string) {
+  const pool = SETUPS.filter((s) => s.id !== avoid);
+  return pool[Math.floor(Math.random() * pool.length)] || SETUPS[0];
+}
+
+function buildSatire(setup: Setup, values: Record<string, string>, tone: Tone, author: string) {
+  const v = (key: string) =>
+    values[key]?.trim() || setup.slots.find((s) => s.key === key)?.placeholder || "someone";
+  const toneLine =
+    tone === "serious"
+      ? "Filed in a tone of grave national importance, which is a choice."
+      : tone === "mad"
+      ? "Written at a volume usually reserved for parking-lot arguments."
+      : tone === "chaotic"
+      ? "The facts have left the building. They took the snacks."
+      : "This is a bit. Treat it like a bit.";
+
+  let title = "Satire dispatch";
+  let body = "";
+
+  if (setup.id === "trade") {
+    title = `${v("star")} to ${v("team")} in deal centered on ${v("object")}`;
+    body = `Sources that do not exist say ${v("star")} is headed to ${v("team")} after talks held at ${v("place")}. The return package is reportedly ${v("object")} and “future considerations,” a phrase that here means nothing.\n\n${toneLine}\n\n${author} stresses this is satire. No front office was interviewed, because none would pick up.`;
+  } else if (setup.id === "awards") {
+    title = `${v("star")} snubbed for ${v("award")}, blames ${v("rival")}`;
+    body = `In a speech that ran longer than the ceremony, ${v("star")} accepted defeat for ${v("award")} by pointing at ${v("rival")} and demanding ${v("snack")} be added to the official gift bag.\n\n${toneLine}\n\nNone of this was broadcast. None of this happened. ${author} made it up on purpose.`;
+  } else if (setup.id === "presser") {
+    title = `${v("coach")} ${v("verb")} ${v("item")} in ${v("city")}`;
+    body = `The podium survived. ${v("item")} did not. ${v("coach")} ${v("verb")} it in ${v("city")} after a question about effort, vibes, and whether the season is “still a process.”\n\n${toneLine}\n\nSatire. Invented. If you quote this as news, that is on you.`;
+  } else if (setup.id === "dating") {
+    title = `${v("star")} and ${v("other")} spotted at ${v("spot")}`;
+    body = `A photographer who is also imaginary caught ${v("star")} with ${v("other")} at ${v("spot")}, holding ${v("prop")}. Friends say they are “keeping it casual,” which in this story means “this is fake.”\n\n${toneLine}\n\nFiled as satire by ${author}.`;
+  } else {
+    title = `${v("athlete")} posts ${v("stat")} against ${v("foe")}`;
+    body = `Box scores will not confirm that ${v("athlete")} put up ${v("stat")} versus ${v("foe")}. The official explanation is ${v("excuse")}.\n\n${toneLine}\n\nThis is satire from ${author}. It is not a recap.`;
+  }
+
+  return { title, body };
 }
 
 export default function SatireLabPage() {
-  const [authLoading, setAuthLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState("User");
-  const [packIndex, setPackIndex] = useState(0);
-  const [tone, setTone] = useState<(typeof TONES)[number]>("Funny");
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [resultTitle, setResultTitle] = useState("");
-  const [resultBody, setResultBody] = useState("");
-  const [message, setMessage] = useState("");
-  const [working, setWorking] = useState(false);
-  const [publishedId, setPublishedId] = useState<string | null>(null);
+  const [authorName, setAuthorName] = useState("User");
+  const [credits, setCredits] = useState(0);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  const pack = PROMPT_PACKS[packIndex];
+  const [setup, setSetup] = useState<Setup>(SETUPS[0]);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [tone, setTone] = useState<Tone>("funny");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const [articleId, setArticleId] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [inThePit, setInThePit] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
+    setSetup(pickSetup());
+    const boot = async () => {
       const { data } = await supabase.auth.getUser();
       const user = data.user;
       if (!user) {
-        setUserId(null);
         setAuthLoading(false);
         return;
       }
       setUserId(user.id);
-      setDisplayName(
-        user.user_metadata?.display_name || user.email?.split("@")[0] || "User"
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("display_name, ai_credits")
+        .eq("id", user.id)
+        .maybeSingle();
+      setAuthorName(
+        profile?.display_name ||
+          user.user_metadata?.display_name ||
+          user.email?.split("@")[0] ||
+          "User"
       );
+      setCredits(Number(profile?.ai_credits ?? 0));
       setAuthLoading(false);
     };
-    load();
+    boot();
   }, []);
 
-  useEffect(() => {
-    const next: Record<string, string> = {};
-    pack.fields.forEach((f) => {
-      next[f.key] = "";
-    });
-    setValues(next);
-    setResultTitle("");
-    setResultBody("");
+  const filled = useMemo(
+    () => setup.slots.every((s) => (values[s.key] || "").trim().length > 0),
+    [setup, values]
+  );
+
+  const refreshSetup = () => {
+    const next = pickSetup(setup.id);
+    setSetup(next);
+    setValues({});
+    setMessage("New blanks. Old piece on your desk is still there if you already generated.");
+  };
+
+  const generate = async () => {
     setMessage("");
-    setPublishedId(null);
-  }, [packIndex]);
-
-  const filledPrompt = useMemo(
-    () => fillTemplate(pack.template, values),
-    [pack.template, values]
-  );
-
-  const canGenerate = useMemo(
-    () => pack.fields.every((f) => (values[f.key] || "").trim().length > 0),
-    [pack.fields, values]
-  );
-
-  const refreshPack = () => {
-    setPackIndex((i) => (i + 1) % PROMPT_PACKS.length);
-  };
-
-  const awardPoints = async (uid: string, articleId: string) => {
-    await supabase.from("points_ledger").insert({
-      user_id: uid,
-      points: 5,
-      reason: "Published satire article",
-      article_id: articleId,
-    });
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("points")
-      .eq("id", uid)
-      .maybeSingle();
-    await supabase.from("profiles").upsert({
-      id: uid,
-      points: (profile?.points ?? 0) + 5,
-      updated_at: new Date().toISOString(),
-    });
-    window.dispatchEvent(new Event("ballpit-wallet-updated"));
-  };
-
-  const generateAndPost = async () => {
-    if (!userId) return;
-    if (!canGenerate) {
-      setMessage("Fill in every blank first.");
+    if (!userId) {
+      setMessage("Log in first.");
+      return;
+    }
+    if (!filled) {
+      setMessage("Fill every blank.");
+      return;
+    }
+    if (credits < CREDIT_COST.satire) {
+      setMessage(`Need ${CREDIT_COST.satire} AI credit. Open theMoneyPit.`);
       return;
     }
 
-    setWorking(true);
-    setMessage("");
-    setPublishedId(null);
-
-    try {
-      const cleaned: Record<string, string> = {};
-      pack.fields.forEach((f) => {
-        cleaned[f.key] = values[f.key].trim();
-      });
-
-      const title = pack.buildTitle(cleaned);
-      const bodyCore = pack.buildBody(cleaned, tone);
-      const body =
-        `![satire banner](https://placehold.co/1200x400/7c3aed/ffffff/png?text=SATIRE)\n\n` +
-        bodyCore;
-
-      // show output immediately
-      setResultTitle(title);
-      setResultBody(bodyCore);
-
-      // auto-post — no user choice
-      const { data, error } = await supabase
-        .from("articles")
-        .insert({
-          user_id: userId,
-          title,
-          section: "Satire",
-          body,
-          author_name: displayName,
-        })
-        .select("id")
-        .single();
-
-      if (error) {
-        setMessage(`Generated, but post failed: ${error.message}`);
-      } else {
-        await awardPoints(userId, data.id);
-        setPublishedId(data.id);
-        setMessage("Satire generated and posted automatically. +5 points");
-      }
-    } catch {
-      setMessage("Something went wrong while generating/posting.");
-    } finally {
-      setWorking(false);
+    setBusy(true);
+    const spend = await spendAiCredits(CREDIT_COST.satire, "satire");
+    if (!spend.ok) {
+      setMessage(spend.reason);
+      setBusy(false);
+      return;
     }
+    setCredits(spend.remaining);
+
+    const piece = buildSatire(setup, values, tone, authorName);
+    const { data, error } = await supabase
+      .from("articles")
+      .insert({
+        title: piece.title,
+        body: piece.body,
+        section: "Satire",
+        user_id: userId,
+        author_name: authorName,
+        status: "author_only",
+      })
+      .select("id")
+      .single();
+
+    setBusy(false);
+    if (error || !data) {
+      setMessage(error?.message || "Desk write failed.");
+      setTitle(piece.title);
+      setBody(piece.body);
+      setArticleId(null);
+      setInThePit(false);
+      return;
+    }
+
+    setTitle(piece.title);
+    setBody(piece.body);
+    setArticleId(data.id);
+    setInThePit(false);
+    setMessage("On your desk. Not in the pit yet.");
+  };
+
+  const throwInThePit = async () => {
+    if (!articleId || !userId) {
+      setMessage("Generate a piece first.");
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase
+      .from("articles")
+      .update({ status: "published", updated_at: new Date().toISOString() })
+      .eq("id", articleId)
+      .eq("user_id", userId);
+
+    setBusy(false);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setInThePit(true);
+    setMessage("It is in the pit.");
   };
 
   if (authLoading) {
     return (
-      <main className="max-w-3xl mx-auto px-4 py-10">
-        <p className="text-gray-300">Loading satire lab...</p>
+      <main className="max-w-2xl mx-auto px-4 py-10">
+        <p className="text-sm text-muted-pit">Loading the lab...</p>
       </main>
     );
   }
 
   if (!userId) {
     return (
-      <main className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <h1 className="text-3xl font-bold mb-3">Satire Lab</h1>
-        <p className="text-gray-300 mb-6">
-          Account required to generate and auto-post satire.
+      <main className="max-w-2xl mx-auto px-4 py-10 text-center">
+        <h1 className="text-3xl font-extrabold mb-2">Satire Lab</h1>
+        <p className="text-sm text-muted-pit mb-4">
+          You need a theBallpit account to run the lab.
         </p>
-        <Link href="/login" className="inline-block px-6 py-3 rounded-xl bg-forge-accent text-white font-medium">
+        <Link href="/login" className="btn-write inline-block px-5 py-2.5 rounded-xl text-sm">
           Log in / Sign up
         </Link>
       </main>
@@ -241,105 +269,104 @@ export default function SatireLabPage() {
   }
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10">
-      <div className="mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-600/20 text-purple-200 text-xs font-semibold mb-3">
-          SATIRE · auto-posted
+    <main className="max-w-2xl mx-auto px-4 py-10">
+      <div
+        className="sticky top-16 z-20 -mx-4 px-4 py-3 mb-6 border-y"
+        style={{
+          background: "color-mix(in srgb, #7a1f1f 55%, #1E2022 45%)",
+          borderColor: "rgba(255,180,120,0.35)",
+        }}
+      >
+        <div className="text-sm font-bold tracking-wide" style={{ color: "#FFE6C7" }}>
+          SATIRE
         </div>
-        <h1 className="text-3xl font-bold mb-2">Satire Lab</h1>
-        <p className="text-gray-300 text-sm">
-          Fill in the blanks. Generate. It posts automatically.
+        <p className="text-xs leading-relaxed" style={{ color: "rgba(255,230,199,0.92)" }}>
+          Fill-in-the-blank fiction. Not news. Generating saves it to your desk only. Public
+          satire feed happens only if you throw it in the pit.
         </p>
       </div>
 
-      <div className="bg-forge-900 border border-forge-800 rounded-2xl p-5 mb-6">
-        <div className="flex items-center justify-between gap-3 mb-4">
+      <h1 className="text-3xl font-extrabold mb-1">Satire Lab</h1>
+      <p className="text-sm text-muted-pit mb-5">
+        AI credits: {credits} · satire costs {CREDIT_COST.satire}
+      </p>
+
+      <div className="pit-panel p-5 mb-4">
+        <div className="flex items-start justify-between gap-3 mb-4">
           <div>
-            <div className="text-sm text-gray-400">Prompt set</div>
-            <div className="font-semibold">{pack.title}</div>
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">Setup</div>
+            <div className="font-semibold">{setup.headline}</div>
           </div>
-          <button
-            type="button"
-            onClick={refreshPack}
-            className="px-3 py-2 rounded-xl bg-black/20 text-sm hover:bg-black/30"
-          >
-            New blanks
+          <button type="button" onClick={refreshSetup} className="btn-metal text-xs px-3 py-1.5 rounded-lg">
+            Refresh
           </button>
         </div>
 
-        {/* Fill-in-the-blanks sentence */}
-        <div className="rounded-xl bg-black/20 border border-forge-800 p-4 mb-5 text-sm leading-relaxed text-gray-100">
-          {filledPrompt}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {TONES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTone(t.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs ${tone === t.id ? "btn-write" : "btn-metal"}`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        <div className="mb-4">
-          <label className="block text-sm text-gray-300 mb-1">Tone</label>
-          <select
-            value={tone}
-            onChange={(e) => setTone(e.target.value as (typeof TONES)[number])}
-            className="w-full bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm outline-none"
-          >
-            {TONES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-3 mb-5">
-          {pack.fields.map((field) => (
-            <div key={field.key}>
-              <label className="block text-xs uppercase tracking-wide text-gray-400 mb-1">
-                {field.label}
-              </label>
+        <div className="space-y-3">
+          {setup.slots.map((slot) => (
+            <label key={slot.key} className="block">
+              <span className="text-xs text-muted-pit block mb-1">{slot.label}</span>
               <input
-                value={values[field.key] || ""}
-                onChange={(e) =>
-                  setValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                }
-                placeholder={field.placeholder}
-                className="w-full bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm outline-none"
+                value={values[slot.key] || ""}
+                onChange={(e) => setValues((prev) => ({ ...prev, [slot.key]: e.target.value }))}
+                placeholder={slot.placeholder}
+                className="w-full rounded-xl px-3 py-2 text-sm outline-none"
               />
-            </div>
+            </label>
           ))}
         </div>
 
         <button
           type="button"
-          onClick={generateAndPost}
-          disabled={!canGenerate || working}
-          className="w-full px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-medium text-sm disabled:opacity-50"
+          onClick={generate}
+          disabled={busy}
+          className="btn-write w-full mt-4 px-4 py-2.5 rounded-xl text-sm disabled:opacity-60"
         >
-          {working ? "Generating & posting..." : "Generate & auto-post satire"}
+          {busy ? "Working..." : "Generate"}
         </button>
       </div>
 
-      {(resultTitle || resultBody) && (
-        <div className="bg-forge-900 border border-purple-500/30 rounded-2xl p-5 mb-4">
-          <div className="text-xs uppercase tracking-wide text-purple-200 mb-2">
-            AI result (posted)
+      {title && (
+        <div className="pit-panel p-5 mb-4">
+          <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit mb-2">
+            {inThePit ? "In the pit" : "On your desk"}
           </div>
-          <h2 className="text-xl font-bold mb-3">{resultTitle}</h2>
-          <div className="text-sm text-gray-100 leading-relaxed whitespace-pre-wrap">
-            {resultBody}
-          </div>
+          <h2 className="text-xl font-bold mb-3">{title}</h2>
+          <p className="text-sm whitespace-pre-wrap leading-relaxed mb-4">{body}</p>
+
+          {!inThePit && (
+            <button
+              type="button"
+              onClick={throwInThePit}
+              disabled={busy || !articleId}
+              className="btn-write w-full px-4 py-3 rounded-xl text-sm disabled:opacity-60"
+            >
+              throw it in the pit?
+            </button>
+          )}
+
+          {inThePit && articleId && (
+            <Link href={`/article/${articleId}`} className="btn-metal inline-block px-4 py-2 rounded-xl text-sm">
+              View in the pit
+            </Link>
+          )}
         </div>
       )}
 
-      {message && <p className="text-sm text-yellow-200 mb-3">{message}</p>}
-
-      {publishedId && (
-        <Link href={`/article/${publishedId}`} className="inline-block text-sm text-purple-200">
-          View posted satire →
-        </Link>
-      )}
-
-      <div className="mt-8">
-        <Link href="/" className="text-sm text-gray-300 hover:text-white">
-          ← Back home
-        </Link>
-      </div>
+      {message && <p className="text-sm text-muted-pit">{message}</p>}
     </main>
   );
 }
