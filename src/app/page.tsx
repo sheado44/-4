@@ -1419,7 +1419,7 @@ function Home() {
                     Profile
                   </Link>
                   <Link href="/wallet" className="text-muted-pit hover:opacity-100">
-                    Wallet
+                    theMoneyPit
                   </Link>
                   <Link href="/favorites" className="text-muted-pit hover:opacity-100">
                     Manage favorites
