@@ -8,10 +8,11 @@ import { spendAiCredits } from "@/lib/aiCredits";
 
 type Tone = "funny" | "serious" | "mad" | "chaotic";
 
+type Slot = { key: string; hint: string };
+
 type Setup = {
   id: string;
-  headline: string;
-  slots: { key: string; label: string; placeholder: string }[];
+  parts: (string | Slot)[];
 };
 
 const TONES: { id: Tone; label: string }[] = [
@@ -24,64 +25,85 @@ const TONES: { id: Tone; label: string }[] = [
 const SETUPS: Setup[] = [
   {
     id: "trade",
-    headline: "A shocking trade rumor nobody asked for",
-    slots: [
-      { key: "star", label: "Athlete / celebrity", placeholder: "Patrick Mahomes" },
-      { key: "team", label: "Team / franchise", placeholder: "the Jets" },
-      { key: "object", label: "Ridiculous object", placeholder: "a used air fryer" },
-      { key: "place", label: "Place", placeholder: "a Buc-ee's parking lot" },
+    parts: [
+      { key: "star", hint: "athlete" },
+      " is headed to ",
+      { key: "team", hint: "team" },
+      " in a deal for ",
+      { key: "object", hint: "ridiculous object" },
+      ", negotiated at ",
+      { key: "place", hint: "place" },
+      ".",
     ],
   },
   {
     id: "awards",
-    headline: "An awards-night meltdown",
-    slots: [
-      { key: "star", label: "Famous person", placeholder: "Taylor Swift" },
-      { key: "award", label: "Award / title", placeholder: "Best Supporting Hot Dog" },
-      { key: "rival", label: "Rival", placeholder: "a mascot" },
-      { key: "snack", label: "Snack", placeholder: "gas-station taquitos" },
+    parts: [
+      { key: "star", hint: "famous person" },
+      " lost ",
+      { key: "award", hint: "fake award" },
+      " to ",
+      { key: "rival", hint: "rival" },
+      " and demanded ",
+      { key: "snack", hint: "snack" },
+      " in the gift bag.",
     ],
   },
   {
     id: "presser",
-    headline: "A press conference that went off the rails",
-    slots: [
-      { key: "coach", label: "Coach / boss", placeholder: "Andy Reid" },
-      { key: "verb", label: "Past-tense verb", placeholder: "yeeted" },
-      { key: "item", label: "Item", placeholder: "the Gatorade bucket" },
-      { key: "city", label: "City", placeholder: "Cleveland" },
+    parts: [
+      { key: "coach", hint: "coach" },
+      " ",
+      { key: "verb", hint: "past-tense verb" },
+      " ",
+      { key: "item", hint: "item" },
+      " during a presser in ",
+      { key: "city", hint: "city" },
+      ".",
     ],
   },
   {
     id: "dating",
-    headline: "A celebrity dating rumor with no sources",
-    slots: [
-      { key: "star", label: "Person", placeholder: "Travis Kelce" },
-      { key: "other", label: "Other person", placeholder: "the Popeyes cashier" },
-      { key: "spot", label: "Spotted at", placeholder: "a laundromat" },
-      { key: "prop", label: "Prop they were holding", placeholder: "a live lobster" },
+    parts: [
+      { key: "star", hint: "person" },
+      " and ",
+      { key: "other", hint: "other person" },
+      " were spotted at ",
+      { key: "spot", hint: "place" },
+      " holding ",
+      { key: "prop", hint: "object" },
+      ".",
     ],
   },
   {
     id: "record",
-    headline: "A record that definitely did not happen",
-    slots: [
-      { key: "athlete", label: "Athlete", placeholder: "Shohei Ohtani" },
-      { key: "stat", label: "Impossible stat", placeholder: "47 touchdowns in one quarter" },
-      { key: "foe", label: "Opponent", placeholder: "a youth soccer team" },
-      { key: "excuse", label: "Excuse", placeholder: "Mercury in retrograde" },
+    parts: [
+      { key: "athlete", hint: "athlete" },
+      " put up ",
+      { key: "stat", hint: "impossible stat" },
+      " against ",
+      { key: "foe", hint: "opponent" },
+      " because of ",
+      { key: "excuse", hint: "excuse" },
+      ".",
     ],
   },
 ];
+
+function slotsOf(setup: Setup) {
+  return setup.parts.filter((p): p is Slot => typeof p !== "string");
+}
 
 function pickSetup(avoid?: string) {
   const pool = SETUPS.filter((s) => s.id !== avoid);
   return pool[Math.floor(Math.random() * pool.length)] || SETUPS[0];
 }
 
+function val(values: Record<string, string>, key: string, fallback: string) {
+  return values[key]?.trim() || fallback;
+}
+
 function buildSatire(setup: Setup, values: Record<string, string>, tone: Tone, author: string) {
-  const v = (key: string) =>
-    values[key]?.trim() || setup.slots.find((s) => s.key === key)?.placeholder || "someone";
   const toneLine =
     tone === "serious"
       ? "Filed in a tone of grave national importance, which is a choice."
@@ -91,27 +113,64 @@ function buildSatire(setup: Setup, values: Record<string, string>, tone: Tone, a
       ? "The facts have left the building. They took the snacks."
       : "This is a bit. Treat it like a bit.";
 
-  let title = "Satire dispatch";
-  let body = "";
+  const sentence = setup.parts
+    .map((p) => (typeof p === "string" ? p : val(values, p.key, p.hint)))
+    .join("");
 
   if (setup.id === "trade") {
-    title = `${v("star")} to ${v("team")} in deal centered on ${v("object")}`;
-    body = `Sources that do not exist say ${v("star")} is headed to ${v("team")} after talks held at ${v("place")}. The return package is reportedly ${v("object")} and “future considerations,” a phrase that here means nothing.\n\n${toneLine}\n\n${author} stresses this is satire. No front office was interviewed, because none would pick up.`;
-  } else if (setup.id === "awards") {
-    title = `${v("star")} snubbed for ${v("award")}, blames ${v("rival")}`;
-    body = `In a speech that ran longer than the ceremony, ${v("star")} accepted defeat for ${v("award")} by pointing at ${v("rival")} and demanding ${v("snack")} be added to the official gift bag.\n\n${toneLine}\n\nNone of this was broadcast. None of this happened. ${author} made it up on purpose.`;
-  } else if (setup.id === "presser") {
-    title = `${v("coach")} ${v("verb")} ${v("item")} in ${v("city")}`;
-    body = `The podium survived. ${v("item")} did not. ${v("coach")} ${v("verb")} it in ${v("city")} after a question about effort, vibes, and whether the season is “still a process.”\n\n${toneLine}\n\nSatire. Invented. If you quote this as news, that is on you.`;
-  } else if (setup.id === "dating") {
-    title = `${v("star")} and ${v("other")} spotted at ${v("spot")}`;
-    body = `A photographer who is also imaginary caught ${v("star")} with ${v("other")} at ${v("spot")}, holding ${v("prop")}. Friends say they are “keeping it casual,” which in this story means “this is fake.”\n\n${toneLine}\n\nFiled as satire by ${author}.`;
-  } else {
-    title = `${v("athlete")} posts ${v("stat")} against ${v("foe")}`;
-    body = `Box scores will not confirm that ${v("athlete")} put up ${v("stat")} versus ${v("foe")}. The official explanation is ${v("excuse")}.\n\n${toneLine}\n\nThis is satire from ${author}. It is not a recap.`;
+    return {
+      title: `${val(values, "star", "A star")} to ${val(values, "team", "a team")} for ${val(values, "object", "junk")}`,
+      body: `${sentence}\n\nSources that do not exist confirm the return package includes “future considerations.”\n\n${toneLine}\n\nSatire by ${author}. Not news.`,
+    };
   }
+  if (setup.id === "awards") {
+    return {
+      title: `${val(values, "star", "A celebrity")} snubbed for ${val(values, "award", "an award")}`,
+      body: `${sentence}\n\nNobody clapped. The cameras were also imaginary.\n\n${toneLine}\n\nSatire by ${author}. Not news.`,
+    };
+  }
+  if (setup.id === "presser") {
+    return {
+      title: `${val(values, "coach", "A coach")} ${val(values, "verb", "yeeted")} ${val(values, "item", "something")} in ${val(values, "city", "a city")}`,
+      body: `${sentence}\n\nThe podium survived. The quote did not, because it was never said.\n\n${toneLine}\n\nSatire by ${author}. Not news.`,
+    };
+  }
+  if (setup.id === "dating") {
+    return {
+      title: `${val(values, "star", "Someone")} and ${val(values, "other", "someone")} spotted together`,
+      body: `${sentence}\n\nFriends say they are “keeping it casual,” which in this story means this is fake.\n\n${toneLine}\n\nSatire by ${author}. Not news.`,
+    };
+  }
+  return {
+    title: `${val(values, "athlete", "An athlete")} posts ${val(values, "stat", "a fake stat")}`,
+    body: `${sentence}\n\nBox scores will not confirm any of this.\n\n${toneLine}\n\nSatire by ${author}. Not news.`,
+  };
+}
 
-  return { title, body };
+function Blank({
+  hint,
+  value,
+  onChange,
+}: {
+  hint: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const width = Math.max(hint.length, value.length, 8);
+  return (
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={hint}
+      className="inline-block mx-1 px-1 bg-transparent outline-none text-highlight-pit font-semibold"
+      style={{
+        width: `${width + 1}ch`,
+        border: "none",
+        borderBottom: "2px solid color-mix(in srgb, var(--pit-highlight) 70%, transparent)",
+        borderRadius: 0,
+      }}
+    />
+  );
 }
 
 export default function SatireLabPage() {
@@ -119,13 +178,11 @@ export default function SatireLabPage() {
   const [authorName, setAuthorName] = useState("User");
   const [credits, setCredits] = useState(0);
   const [authLoading, setAuthLoading] = useState(true);
-
-  const [setup, setSetup] = useState<Setup>(SETUPS[0]);
+  const [setup, setSetup] = useState<Setup>(SETUPS[2]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [tone, setTone] = useState<Tone>("funny");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-
   const [articleId, setArticleId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -158,16 +215,13 @@ export default function SatireLabPage() {
     boot();
   }, []);
 
-  const filled = useMemo(
-    () => setup.slots.every((s) => (values[s.key] || "").trim().length > 0),
-    [setup, values]
-  );
+  const slots = useMemo(() => slotsOf(setup), [setup]);
+  const filled = slots.every((s) => (values[s.key] || "").trim().length > 0);
 
   const refreshSetup = () => {
-    const next = pickSetup(setup.id);
-    setSetup(next);
+    setSetup(pickSetup(setup.id));
     setValues({});
-    setMessage("New blanks. Old piece on your desk is still there if you already generated.");
+    setMessage("New blanks.");
   };
 
   const generate = async () => {
@@ -236,7 +290,6 @@ export default function SatireLabPage() {
       .update({ status: "published", updated_at: new Date().toISOString() })
       .eq("id", articleId)
       .eq("user_id", userId);
-
     setBusy(false);
     if (error) {
       setMessage(error.message);
@@ -258,9 +311,7 @@ export default function SatireLabPage() {
     return (
       <main className="max-w-2xl mx-auto px-4 py-10 text-center">
         <h1 className="text-3xl font-extrabold mb-2">Satire Lab</h1>
-        <p className="text-sm text-muted-pit mb-4">
-          You need a theBallpit account to run the lab.
-        </p>
+        <p className="text-sm text-muted-pit mb-4">You need a theBallpit account to run the lab.</p>
         <Link href="/login" className="btn-write inline-block px-5 py-2.5 rounded-xl text-sm">
           Log in / Sign up
         </Link>
@@ -293,16 +344,13 @@ export default function SatireLabPage() {
 
       <div className="pit-panel p-5 mb-4">
         <div className="flex items-start justify-between gap-3 mb-4">
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">Setup</div>
-            <div className="font-semibold">{setup.headline}</div>
-          </div>
+          <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">Fill in the blanks</div>
           <button type="button" onClick={refreshSetup} className="btn-metal text-xs px-3 py-1.5 rounded-lg">
             Refresh
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-5">
           {TONES.map((t) => (
             <button
               key={t.id}
@@ -315,25 +363,26 @@ export default function SatireLabPage() {
           ))}
         </div>
 
-        <div className="space-y-3">
-          {setup.slots.map((slot) => (
-            <label key={slot.key} className="block">
-              <span className="text-xs text-muted-pit block mb-1">{slot.label}</span>
-              <input
-                value={values[slot.key] || ""}
-                onChange={(e) => setValues((prev) => ({ ...prev, [slot.key]: e.target.value }))}
-                placeholder={slot.placeholder}
-                className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+        <p className="text-lg md:text-xl leading-loose mb-5" style={{ color: "var(--pit-text)" }}>
+          {setup.parts.map((part, i) =>
+            typeof part === "string" ? (
+              <span key={i}>{part}</span>
+            ) : (
+              <Blank
+                key={part.key}
+                hint={part.hint}
+                value={values[part.key] || ""}
+                onChange={(v) => setValues((prev) => ({ ...prev, [part.key]: v }))}
               />
-            </label>
-          ))}
-        </div>
+            )
+          )}
+        </p>
 
         <button
           type="button"
           onClick={generate}
           disabled={busy}
-          className="btn-write w-full mt-4 px-4 py-2.5 rounded-xl text-sm disabled:opacity-60"
+          className="btn-write w-full px-4 py-2.5 rounded-xl text-sm disabled:opacity-60"
         >
           {busy ? "Working..." : "Generate"}
         </button>
@@ -346,7 +395,6 @@ export default function SatireLabPage() {
           </div>
           <h2 className="text-xl font-bold mb-3">{title}</h2>
           <p className="text-sm whitespace-pre-wrap leading-relaxed mb-4">{body}</p>
-
           {!inThePit && (
             <button
               type="button"
@@ -357,7 +405,6 @@ export default function SatireLabPage() {
               throw it in the pit?
             </button>
           )}
-
           {inThePit && articleId && (
             <Link href={`/article/${articleId}`} className="btn-metal inline-block px-4 py-2 rounded-xl text-sm">
               View in the pit
