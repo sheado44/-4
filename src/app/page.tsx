@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { formatTime } from "@/lib/time";
 import TbpIndex, { computeTbpBreakdown } from "@/components/TbpIndex";
+import { AlertsDeskWidget } from "@/components/NotificationLog";
+import { DEFAULT_WIDGETS, loadWidgetLayout, type WidgetId } from "@/lib/widgetLayout";
 
 type Article = {
   id: string;
@@ -602,83 +604,27 @@ function Home() {
 
   const [selectedLeagues, setSelectedLeagues] = useState<LeagueId[]>(DEFAULT_LEAGUES);
 
-  type WidgetId = "desk" | "scores" | "trending" | "watch" | "find" | "moshpit" | "rules";
-  const WIDGET_CATALOG: { id: WidgetId; label: string; defaultOn: boolean }[] = [
-    { id: "desk", label: "Your desk", defaultOn: true },
-    { id: "scores", label: "Scores & standings", defaultOn: true },
-    { id: "trending", label: "Trending IRL", defaultOn: true },
-    { id: "watch", label: "Watchlist", defaultOn: true },
-    { id: "find", label: "Find", defaultOn: true },
-    { id: "moshpit", label: "theMoshpit", defaultOn: false },
-    { id: "rules", label: "House rules", defaultOn: false },
-  ];
-  const DEFAULT_WIDGETS = WIDGET_CATALOG.map((w) => w.id);
   const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>(DEFAULT_WIDGETS);
   const [widgetOn, setWidgetOn] = useState<Record<WidgetId, boolean>>(
-    Object.fromEntries(WIDGET_CATALOG.map((w) => [w.id, w.defaultOn])) as Record<WidgetId, boolean>
+    Object.fromEntries(DEFAULT_WIDGETS.map((id) => [id, true])) as Record<WidgetId, boolean>
   );
-  const [arrangeOpen, setArrangeOpen] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("ballpit-widget-order");
-      if (raw) {
-        const parsed = JSON.parse(raw) as WidgetId[];
-        const next = parsed.filter((id) => DEFAULT_WIDGETS.includes(id));
-        DEFAULT_WIDGETS.forEach((id) => {
-          if (!next.includes(id)) next.push(id);
-        });
-        setWidgetOrder(next);
-      }
-      const onRaw = localStorage.getItem("ballpit-widget-on");
-      if (onRaw) {
-        const parsed = JSON.parse(onRaw) as Record<string, boolean>;
-        const next = { ...widgetOn };
-        WIDGET_CATALOG.forEach((w) => {
-          if (typeof parsed[w.id] === "boolean") next[w.id] = parsed[w.id];
-        });
-        setWidgetOn(next);
-      }
-    } catch {
-      /* keep default */
-    }
+    const apply = () => {
+      const layout = loadWidgetLayout();
+      setWidgetOrder(layout.order);
+      setWidgetOn(layout.on);
+    };
+    apply();
+    window.addEventListener("ballpit-layout-updated", apply);
+    return () => window.removeEventListener("ballpit-layout-updated", apply);
   }, []);
-
-  const persistWidgets = (order: WidgetId[], on: Record<WidgetId, boolean>) => {
-    localStorage.setItem("ballpit-widget-order", JSON.stringify(order));
-    localStorage.setItem("ballpit-widget-on", JSON.stringify(on));
-  };
-
-  const moveWidget = (id: WidgetId, dir: -1 | 1) => {
-    setWidgetOrder((prev) => {
-      const i = prev.indexOf(id);
-      const j = i + dir;
-      if (i < 0 || j < 0 || j >= prev.length) return prev;
-      const next = [...prev];
-      const tmp = next[i];
-      next[i] = next[j];
-      next[j] = tmp;
-      persistWidgets(next, widgetOn);
-      return next;
-    });
-  };
-
-  const toggleWidget = (id: WidgetId) => {
-    setWidgetOn((prev) => {
-      const next = { ...prev, [id]: !prev[id] };
-      persistWidgets(widgetOrder, next);
-      return next;
-    });
-  };
 
   const widgetPos = (id: WidgetId) => {
     const visible = widgetOrder.filter((w) => widgetOn[w]);
     const i = visible.indexOf(id);
     return i < 0 ? 99 : i;
   };
-
-  const widgetLabel = (id: WidgetId) =>
-    WIDGET_CATALOG.find((w) => w.id === id)?.label || id;
 
   useEffect(() => {
     const s = searchParams.get("section");
@@ -1423,63 +1369,6 @@ function Home() {
         <aside className="flex flex-col gap-4 lg:gap-5 min-w-0 order-2 lg:sticky lg:top-20 lg:self-start">
           {loggedIn ? (
             <>
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit">Studio</div>
-                <button
-                  type="button"
-                  onClick={() => setArrangeOpen((v) => !v)}
-                  className="text-xs px-3 py-1.5 rounded-lg btn-metal"
-                >
-                  {arrangeOpen ? "Done" : "Widgets"}
-                </button>
-              </div>
-              {arrangeOpen && (
-                <div className="pit-panel p-3 space-y-3">
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">
-                    Catalog
-                  </div>
-                  {WIDGET_CATALOG.map((w) => (
-                    <label key={w.id} className="flex items-center justify-between gap-2 text-sm">
-                      <span>{w.label}</span>
-                      <input
-                        type="checkbox"
-                        checked={widgetOn[w.id]}
-                        onChange={() => toggleWidget(w.id)}
-                        className="h-4 w-4"
-                      />
-                    </label>
-                  ))}
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit pt-2">
-                    Order (on widgets)
-                  </div>
-                  {widgetOrder.filter((id) => widgetOn[id]).map((id, i, arr) => (
-                    <div key={id} className="flex items-center justify-between gap-2 text-sm">
-                      <span>{widgetLabel(id)}</span>
-                      <div className="flex gap-1">
-                        <button
-                          type="button"
-                          disabled={i === 0}
-                          onClick={() => moveWidget(id, -1)}
-                          className="px-3 py-1 rounded-md btn-metal disabled:opacity-30"
-                        >
-                          Up
-                        </button>
-                        <button
-                          type="button"
-                          disabled={i === arr.length - 1}
-                          onClick={() => moveWidget(id, 1)}
-                          className="px-3 py-1 rounded-md btn-metal disabled:opacity-30"
-                        >
-                          Down
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  <p className="text-[11px] text-muted-pit">
-                    Saved on this device. Phones stack these under the feed.
-                  </p>
-                </div>
-              )}
               {widgetOn.desk && (
               <div className="pit-panel p-5" style={{ order: widgetPos("desk") }}>
                 <div className="flex items-center gap-3 mb-4">
@@ -1538,6 +1427,11 @@ function Home() {
                 </div>
               </div>
 
+              )}
+              {widgetOn.alerts && userId && (
+                <div style={{ order: widgetPos("alerts") }}>
+                  <AlertsDeskWidget userId={userId} />
+                </div>
               )}
               {widgetOn.scores && (
               <div style={{ order: widgetPos("scores") }}>
