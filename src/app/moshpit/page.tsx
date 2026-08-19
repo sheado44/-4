@@ -15,7 +15,11 @@ type Post = {
   body: string;
   parent_id: string | null;
   created_at: string;
+  audience?: "all" | "private";
+  audience_ids?: string[];
 };
+
+type VoicePerson = { id: string; name: string };
 
 type VoteMap = Record<string, { up: number; down: number; myVote: number | null }>;
 
@@ -74,6 +78,10 @@ export default function MoshpitPage() {
   const [gifHits, setGifHits] = useState<{ id: string; url: string; preview: string }[]>([]);
   const [gifPicked, setGifPicked] = useState<string | null>(null);
   const [gifBusy, setGifBusy] = useState(false);
+  const [voice, setVoice] = useState<"all" | "private">("all");
+  const [voicePeople, setVoicePeople] = useState<VoicePerson[]>([]);
+  const [voiceQuery, setVoiceQuery] = useState("");
+  const [voiceHits, setVoiceHits] = useState<VoicePerson[]>([]);
 
   useEffect(() => {
     const boot = async () => {
@@ -105,7 +113,7 @@ export default function MoshpitPage() {
     setLoading(true);
     const { data: postData } = await supabase
       .from("moshpit_posts")
-      .select("id, user_id, author_name, room, body, parent_id, created_at")
+      .select("id, user_id, author_name, room, body, parent_id, created_at, audience, audience_ids")
       .eq("room", currentRoom)
       .order("created_at", { ascending: false })
       .limit(120);
@@ -141,6 +149,22 @@ export default function MoshpitPage() {
 
   useEffect(() => {
     load(room, userId);
+    const channel = supabase
+      .channel("moshpit-live-" + room)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "moshpit_posts" },
+        () => load(room, userId)
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "moshpit_votes" },
+        () => load(room, userId)
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [room, userId]);
 
   const roots = useMemo(
@@ -176,6 +200,19 @@ export default function MoshpitPage() {
       return;
     }
 
+    const inherited = replyTo && replyTo.audience === "private";
+    const audience = inherited || voice === "private" ? "private" : "all";
+    const audience_ids = inherited
+      ? Array.from(new Set([...(replyTo.audience_ids || []), replyTo.user_id, userId]))
+      : audience === "private"
+      ? voicePeople.map((p) => p.id)
+      : [];
+
+    if (audience === "private" && audience_ids.length === 0) {
+      setMessage("Add at least one person to hear this, or switch Voice to All.");
+      return;
+    }
+
     setPosting(true);
     const { error } = await supabase.from("moshpit_posts").insert({
       user_id: userId,
@@ -183,6 +220,8 @@ export default function MoshpitPage() {
       room,
       body: gifPicked ? `${text}\n![gif](${gifPicked})` : text,
       parent_id: replyTo?.id || null,
+      audience,
+      audience_ids,
     });
     setPosting(false);
 
@@ -253,6 +292,7 @@ export default function MoshpitPage() {
               </Link>
               <span title={formatTimeFull(post.created_at)}>{formatTime(post.created_at)}</span>
               {isReply && <span>reply</span>}
+              {post.audience === "private" && <span>private</span>}
             </div>
             {(() => {
               const parsed = splitBody(post.body);
@@ -350,6 +390,88 @@ export default function MoshpitPage() {
               placeholder={replyTo ? "Write a reply..." : "Say it."}
               className="w-full min-h-[110px] bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-sm outline-none mb-2"
             />
+            <div className="mb-3">
+              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit mb-2">Voice</div>
+              <div className="flex gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setVoice("all")}
+                  className={`px-3 py-1.5 rounded-lg text-xs ${voice === "all" && !replyTo?.audience ? "btn-write" : "btn-metal"}`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVoice("private")}
+                  className={`px-3 py-1.5 rounded-lg text-xs ${voice === "private" || replyTo?.audience === "private" ? "btn-write" : "btn-metal"}`}
+                >
+                  Only some
+                </button>
+              </div>
+              {replyTo?.audience === "private" ? (
+                <p className="text-[11px] text-muted-pit">This reply stays in the private thread.</p>
+              ) : voice === "private" ? (
+                <div>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {voicePeople.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setVoicePeople((prev) => prev.filter((x) => x.id !== p.id))}
+                        className="text-xs px-2 py-1 rounded-full btn-metal"
+                      >
+                        {p.name} ×
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    value={voiceQuery}
+                    onChange={async (e) => {
+                      const q = e.target.value;
+                      setVoiceQuery(q);
+                      if (q.trim().length < 2) {
+                        setVoiceHits([]);
+                        return;
+                      }
+                      const { data } = await supabase
+                        .from("profiles")
+                        .select("id, display_name")
+                        .ilike("display_name", `%${q.trim()}%`)
+                        .limit(6);
+                      setVoiceHits(
+                        (data || [])
+                          .filter((row) => row.id !== userId)
+                          .map((row) => ({ id: row.id, name: row.display_name || "User" }))
+                      );
+                    }}
+                    placeholder="Add people by display name"
+                    className="w-full rounded-lg px-3 py-2 text-sm outline-none bg-black/20 border border-white/10"
+                  />
+                  {voiceHits.length > 0 && (
+                    <div className="mt-1 space-y-1">
+                      {voiceHits.map((hit) => (
+                        <button
+                          key={hit.id}
+                          type="button"
+                          className="block w-full text-left text-sm px-2 py-1 rounded-md btn-metal"
+                          onClick={() => {
+                            setVoicePeople((prev) =>
+                              prev.some((x) => x.id === hit.id) ? prev : [...prev, hit]
+                            );
+                            setVoiceQuery("");
+                            setVoiceHits([]);
+                          }}
+                        >
+                          {hit.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-pit">Everyone in this room can see it.</p>
+              )}
+            </div>
             {gifPicked && (
               <div className="mb-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
