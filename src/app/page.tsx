@@ -1402,16 +1402,22 @@ function Home() {
             })
           )}
 
-          {loggedIn && (
-            <div className="pt-4">
+          <div className="pt-4 flex flex-col sm:flex-row gap-2">
+            {loggedIn && (
               <Link
                 href={writeHref}
                 className="btn-write inline-flex items-center justify-center w-full sm:w-auto px-5 py-3 rounded-xl text-sm"
               >
                 {writeLabel}
               </Link>
-            </div>
-          )}
+            )}
+            <Link
+              href="/moshpit"
+              className="btn-metal inline-flex items-center justify-center w-full sm:w-auto px-5 py-3 rounded-xl text-sm"
+            >
+              theMoshpit
+            </Link>
+          </div>
         </div>
 
         <aside className="flex flex-col gap-4 lg:gap-5 min-w-0 order-2 lg:sticky lg:top-20 lg:self-start">
