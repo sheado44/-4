@@ -273,7 +273,7 @@ export default function ProfilePage() {
             ["articles", "Articles"],
             ["comments", "Comments"],
             ["reactions", "Reactions"],
-            ["satire", "Satire"],
+            ["satire", "trashPit"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -388,9 +388,9 @@ export default function ProfilePage() {
 
       {activeTab === "satire" && (
         <div className="pit-panel rounded-2xl p-10 text-center border border-purple-500/20">
-          <p className="font-medium mb-1">No satire yet</p>
-          <Link href="/fan-fiction" className="text-sm text-purple-200">
-            Write Satire →
+          <p className="font-medium mb-1">No trashPit yet</p>
+          <Link href="/trashpit" className="text-sm text-purple-200">
+            Write trashPit →
           </Link>
         </div>
       )}
@@ -409,3 +409,4 @@ export default function ProfilePage() {
     </main>
   );
 }
+
