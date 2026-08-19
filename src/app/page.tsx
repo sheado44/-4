@@ -602,26 +602,52 @@ function Home() {
 
   const [selectedLeagues, setSelectedLeagues] = useState<LeagueId[]>(DEFAULT_LEAGUES);
 
-  type WidgetId = "desk" | "scores" | "trending" | "watch" | "find";
-  const DEFAULT_WIDGETS: WidgetId[] = ["desk", "scores", "trending", "watch", "find"];
+  type WidgetId = "desk" | "scores" | "trending" | "watch" | "find" | "moshpit" | "rules";
+  const WIDGET_CATALOG: { id: WidgetId; label: string; defaultOn: boolean }[] = [
+    { id: "desk", label: "Your desk", defaultOn: true },
+    { id: "scores", label: "Scores & standings", defaultOn: true },
+    { id: "trending", label: "Trending IRL", defaultOn: true },
+    { id: "watch", label: "Watchlist", defaultOn: true },
+    { id: "find", label: "Find", defaultOn: true },
+    { id: "moshpit", label: "theMoshpit", defaultOn: false },
+    { id: "rules", label: "House rules", defaultOn: false },
+  ];
+  const DEFAULT_WIDGETS = WIDGET_CATALOG.map((w) => w.id);
   const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>(DEFAULT_WIDGETS);
+  const [widgetOn, setWidgetOn] = useState<Record<WidgetId, boolean>>(
+    Object.fromEntries(WIDGET_CATALOG.map((w) => [w.id, w.defaultOn])) as Record<WidgetId, boolean>
+  );
   const [arrangeOpen, setArrangeOpen] = useState(false);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem("ballpit-widget-order");
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as WidgetId[];
-      const allowed = DEFAULT_WIDGETS;
-      const next = parsed.filter((id) => allowed.includes(id));
-      allowed.forEach((id) => {
-        if (!next.includes(id)) next.push(id);
-      });
-      setWidgetOrder(next);
+      if (raw) {
+        const parsed = JSON.parse(raw) as WidgetId[];
+        const next = parsed.filter((id) => DEFAULT_WIDGETS.includes(id));
+        DEFAULT_WIDGETS.forEach((id) => {
+          if (!next.includes(id)) next.push(id);
+        });
+        setWidgetOrder(next);
+      }
+      const onRaw = localStorage.getItem("ballpit-widget-on");
+      if (onRaw) {
+        const parsed = JSON.parse(onRaw) as Record<string, boolean>;
+        const next = { ...widgetOn };
+        WIDGET_CATALOG.forEach((w) => {
+          if (typeof parsed[w.id] === "boolean") next[w.id] = parsed[w.id];
+        });
+        setWidgetOn(next);
+      }
     } catch {
       /* keep default */
     }
   }, []);
+
+  const persistWidgets = (order: WidgetId[], on: Record<WidgetId, boolean>) => {
+    localStorage.setItem("ballpit-widget-order", JSON.stringify(order));
+    localStorage.setItem("ballpit-widget-on", JSON.stringify(on));
+  };
 
   const moveWidget = (id: WidgetId, dir: -1 | 1) => {
     setWidgetOrder((prev) => {
@@ -632,12 +658,27 @@ function Home() {
       const tmp = next[i];
       next[i] = next[j];
       next[j] = tmp;
-      localStorage.setItem("ballpit-widget-order", JSON.stringify(next));
+      persistWidgets(next, widgetOn);
       return next;
     });
   };
 
-  const widgetPos = (id: WidgetId) => widgetOrder.indexOf(id);
+  const toggleWidget = (id: WidgetId) => {
+    setWidgetOn((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      persistWidgets(widgetOrder, next);
+      return next;
+    });
+  };
+
+  const widgetPos = (id: WidgetId) => {
+    const visible = widgetOrder.filter((w) => widgetOn[w]);
+    const i = visible.indexOf(id);
+    return i < 0 ? 99 : i;
+  };
+
+  const widgetLabel = (id: WidgetId) =>
+    WIDGET_CATALOG.find((w) => w.id === id)?.label || id;
 
   useEffect(() => {
     const s = searchParams.get("section");
@@ -1377,20 +1418,37 @@ function Home() {
           {loggedIn ? (
             <>
               <div className="flex items-center justify-between gap-2">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit">Desk widgets</div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit">Studio</div>
                 <button
                   type="button"
                   onClick={() => setArrangeOpen((v) => !v)}
                   className="text-xs px-3 py-1.5 rounded-lg btn-metal"
                 >
-                  {arrangeOpen ? "Done" : "Arrange"}
+                  {arrangeOpen ? "Done" : "Widgets"}
                 </button>
               </div>
               {arrangeOpen && (
-                <div className="pit-panel p-3 space-y-2">
-                  {widgetOrder.map((id, i) => (
+                <div className="pit-panel p-3 space-y-3">
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">
+                    Catalog
+                  </div>
+                  {WIDGET_CATALOG.map((w) => (
+                    <label key={w.id} className="flex items-center justify-between gap-2 text-sm">
+                      <span>{w.label}</span>
+                      <input
+                        type="checkbox"
+                        checked={widgetOn[w.id]}
+                        onChange={() => toggleWidget(w.id)}
+                        className="h-4 w-4"
+                      />
+                    </label>
+                  ))}
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit pt-2">
+                    Order (on widgets)
+                  </div>
+                  {widgetOrder.filter((id) => widgetOn[id]).map((id, i, arr) => (
                     <div key={id} className="flex items-center justify-between gap-2 text-sm">
-                      <span className="capitalize">{id === "watch" ? "Watchlist" : id}</span>
+                      <span>{widgetLabel(id)}</span>
                       <div className="flex gap-1">
                         <button
                           type="button"
@@ -1402,7 +1460,7 @@ function Home() {
                         </button>
                         <button
                           type="button"
-                          disabled={i === widgetOrder.length - 1}
+                          disabled={i === arr.length - 1}
                           onClick={() => moveWidget(id, 1)}
                           className="px-3 py-1 rounded-md btn-metal disabled:opacity-30"
                         >
@@ -1412,10 +1470,11 @@ function Home() {
                     </div>
                   ))}
                   <p className="text-[11px] text-muted-pit">
-                    Order is saved on this device. On phones, widgets stack under the feed.
+                    Saved on this device. Phones stack these under the feed.
                   </p>
                 </div>
               )}
+              {widgetOn.desk && (
               <div className="pit-panel p-5" style={{ order: widgetPos("desk") }}>
                 <div className="flex items-center gap-3 mb-4">
                   {avatarUrl ? (
@@ -1473,6 +1532,8 @@ function Home() {
                 </div>
               </div>
 
+              )}
+              {widgetOn.scores && (
               <div style={{ order: widgetPos("scores") }}>
               <ScoresDeskWidget
                 selectedLeagues={selectedLeagues}
@@ -1480,10 +1541,14 @@ function Home() {
               />
               </div>
 
+              )}
+              {widgetOn.trending && (
               <div style={{ order: widgetPos("trending") }}>
               <TrendingIrlWidget articles={articles} />
               </div>
 
+              )}
+              {widgetOn.watch && (
               <div className="pit-panel p-5" style={{ order: widgetPos("watch") }}>
                 <h3 className="font-semibold mb-3">Watchlist activity</h3>
                 {watchFeed.length === 0 ? (
@@ -1517,6 +1582,8 @@ function Home() {
                 )}
               </div>
 
+              )}
+              {widgetOn.find && (
               <div className="pit-panel p-5" style={{ order: widgetPos("find") }}>
                 <h3 className="font-semibold mb-3">Find</h3>
 
@@ -1611,6 +1678,30 @@ function Home() {
                   </div>
                 )}
               </div>
+              )}
+              {widgetOn.moshpit && (
+                <div className="pit-panel p-5" style={{ order: widgetPos("moshpit") }}>
+                  <h3 className="font-semibold mb-2">theMoshpit</h3>
+                  <p className="text-sm text-muted-pit mb-3">
+                    Trash talk and chat with no article attached.
+                  </p>
+                  <Link href="/moshpit" className="btn-write inline-block px-4 py-2 rounded-xl text-sm">
+                    Jump in
+                  </Link>
+                </div>
+              )}
+              {widgetOn.rules && (
+                <div className="pit-panel p-5" style={{ order: widgetPos("rules") }}>
+                  <h3 className="font-semibold mb-2">House rules</h3>
+                  <p className="text-sm text-muted-pit mb-3">
+                    theBallpit is a rough room. Insults are allowed. Exploitation, doxxing,
+                    threats, spam, and impersonation are removed.
+                  </p>
+                  <Link href="/rules" className="text-sm text-highlight-pit">
+                    Read the list →
+                  </Link>
+                </div>
+              )}
             </>
           ) : (
             <div className="pit-panel p-5 text-center">
