@@ -1,63 +1,65 @@
 export type WidgetId =
   | "desk"
   | "alerts"
-  | "scores"
   | "trending"
   | "watch"
   | "find"
   | "moshpit"
   | "rules";
 
-export const WIDGET_CATALOG: { id: WidgetId; label: string; defaultOn: boolean }[] = [
-  { id: "desk", label: "Your desk", defaultOn: true },
-  { id: "alerts", label: "Event log", defaultOn: true },
-  { id: "scores", label: "Scores & standings", defaultOn: true },
-  { id: "trending", label: "Trending IRL", defaultOn: true },
-  { id: "watch", label: "Watchlist", defaultOn: true },
-  { id: "find", label: "Find", defaultOn: true },
-  { id: "moshpit", label: "theMoshpit", defaultOn: false },
-  { id: "rules", label: "House rules", defaultOn: false },
+export const WIDGET_CATALOG: { id: WidgetId; label: string }[] = [
+  { id: "desk", label: "Your desk" },
+  { id: "alerts", label: "Event log" },
+  { id: "trending", label: "Trending IRL" },
+  { id: "watch", label: "Watchlist" },
+  { id: "find", label: "Find" },
+  { id: "moshpit", label: "theMoshpit" },
+  { id: "rules", label: "House rules" },
 ];
 
 export const DEFAULT_WIDGETS = WIDGET_CATALOG.map((w) => w.id);
 
-export function defaultWidgetOn(): Record<WidgetId, boolean> {
-  return Object.fromEntries(WIDGET_CATALOG.map((w) => [w.id, w.defaultOn])) as Record<
+const ORDER_KEY = "ballpit-widget-order";
+const ON_KEY = "ballpit-widget-on";
+
+export function loadWidgetLayout() {
+  let order = DEFAULT_WIDGETS.slice();
+  const on = Object.fromEntries(DEFAULT_WIDGETS.map((id) => [id, true])) as Record<
     WidgetId,
     boolean
   >;
-}
 
-export function loadWidgetLayout(): {
-  order: WidgetId[];
-  on: Record<WidgetId, boolean>;
-} {
-  const on = defaultWidgetOn();
-  let order = [...DEFAULT_WIDGETS];
   try {
-    const raw = localStorage.getItem("ballpit-widget-order");
-    if (raw) {
-      const parsed = JSON.parse(raw) as WidgetId[];
-      order = parsed.filter((id) => DEFAULT_WIDGETS.includes(id));
-      DEFAULT_WIDGETS.forEach((id) => {
-        if (!order.includes(id)) order.push(id);
-      });
+    const rawOrder = localStorage.getItem(ORDER_KEY);
+    if (rawOrder) {
+      const parsed = JSON.parse(rawOrder) as string[];
+      const known = parsed.filter((id): id is WidgetId =>
+        DEFAULT_WIDGETS.includes(id as WidgetId)
+      );
+      const missing = DEFAULT_WIDGETS.filter((id) => !known.includes(id));
+      order = [...known, ...missing];
     }
-    const onRaw = localStorage.getItem("ballpit-widget-on");
-    if (onRaw) {
-      const parsed = JSON.parse(onRaw) as Record<string, boolean>;
-      WIDGET_CATALOG.forEach((w) => {
-        if (typeof parsed[w.id] === "boolean") on[w.id] = parsed[w.id];
+
+    const rawOn = localStorage.getItem(ON_KEY);
+    if (rawOn) {
+      const parsed = JSON.parse(rawOn) as Record<string, boolean>;
+      DEFAULT_WIDGETS.forEach((id) => {
+        if (typeof parsed[id] === "boolean") on[id] = parsed[id];
       });
     }
   } catch {
-    /* defaults */
+    // keep defaults
   }
+
   return { order, on };
 }
 
 export function saveWidgetLayout(order: WidgetId[], on: Record<WidgetId, boolean>) {
-  localStorage.setItem("ballpit-widget-order", JSON.stringify(order));
-  localStorage.setItem("ballpit-widget-on", JSON.stringify(on));
-  window.dispatchEvent(new Event("ballpit-layout-updated"));
+  try {
+    localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+    localStorage.setItem(ON_KEY, JSON.stringify(on));
+    window.dispatchEvent(new Event("ballpit-layout-updated"));
+  } catch {
+    // ignore
+  }
 }
