@@ -6,6 +6,12 @@ import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import ComputeButton from "@/components/ComputeButton";
 
+function isTechnicalFoul(title: string, body: string) {
+  const plain = body.replace(/!\[[^\]]*\]\([^)]*\)/g, " ").trim();
+  const words = plain.split(/\s+/).filter(Boolean).length;
+  return title.trim().length < 12 || words < 80;
+}
+
 function EditorContent() {
   const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
@@ -303,6 +309,8 @@ function EditorContent() {
         ? `![img:${imagePlace}](${thumbnailUrl.trim()})\n\n${body.trim()}`
         : body.trim();
 
+      const foul = isTechnicalFoul(title.trim(), body.trim());
+
       const { data, error } = await supabase
         .from("articles")
         .insert({
@@ -311,21 +319,17 @@ function EditorContent() {
           section,
           body: finalBody,
           author_name: authorName,
+          status: foul ? "author_only" : "published",
         })
         .select("id")
         .single();
 
       if (error) {
         setMessage(`Publish failed: ${error.message}`);
-      } else {
-        const reward = section === "Satire" ? 5 : 50;
-        await awardPoints(
-          userId,
-          reward,
-          section === "Satire" ? "Published satire article" : "Published real article",
-          data.id
+      } else if (foul) {
+        setMessage(
+          "Technical foul. This piece is on your desk only — not in the public feed."
         );
-        setMessage(`Published successfully. +${reward} points`);
         setPublishedId(data.id);
         setTitle("");
         setBody("");
@@ -522,7 +526,7 @@ function EditorContent() {
               <p>{message}</p>
               {publishedId && (
                 <Link href={`/article/${publishedId}`} className="inline-block mt-2 text-forge-accent">
-                  View article →
+                  {message.startsWith("Technical foul") ? "View desk copy →" : "View article →"}
                 </Link>
               )}
             </div>
@@ -563,4 +567,5 @@ export default function EditorPage() {
     </Suspense>
   );
 }
+
 
