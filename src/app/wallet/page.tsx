@@ -3,291 +3,146 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-
-type StoreItem = {
-  id: string;
-  name: string;
-  description: string;
-  cost: number;
-  kind: "ai" | "skin" | "other";
-  skinId?: string;
-};
-
-const STORE_ITEMS: StoreItem[] = [
-  {
-    id: "ai-credit-5",
-    name: "5 AI Credits",
-    description: "Use for AI images and tools.",
-    cost: 50,
-    kind: "ai",
-  },
-  {
-    id: "ai-credit-20",
-    name: "20 AI Credits",
-    description: "Bigger AI pack.",
-    cost: 150,
-    kind: "ai",
-  },
-  {
-    id: "skin-leopard",
-    name: "Leopard Skin",
-    description: "Patterned comment avatar skin.",
-    cost: 100,
-    kind: "skin",
-    skinId: "leopard",
-  },
-  {
-    id: "skin-zebra",
-    name: "Zebra Skin",
-    description: "Patterned comment avatar skin.",
-    cost: 100,
-    kind: "skin",
-    skinId: "zebra",
-  },
-  {
-    id: "skin-camo",
-    name: "Camo Skin",
-    description: "Patterned comment avatar skin.",
-    cost: 100,
-    kind: "skin",
-    skinId: "camo",
-  },
-  {
-    id: "skin-galaxy",
-    name: "Galaxy Skin",
-    description: "Patterned comment avatar skin.",
-    cost: 100,
-    kind: "skin",
-    skinId: "galaxy",
-  },
-  {
-    id: "skin-carbon",
-    name: "Carbon Skin",
-    description: "Patterned comment avatar skin.",
-    cost: 100,
-    kind: "skin",
-    skinId: "carbon",
-  },
-];
-
-function parseOwned(owned: string | null | undefined) {
-  return Array.from(
-    new Set(
-      (owned || "none")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-    )
-  );
-}
+import { CREDIT_COST, TIERS, planAllowance, planLabel, type PlanId } from "@/lib/tiers";
+import { applyPlanCharge } from "@/lib/aiCredits";
 
 export default function WalletPage() {
-  const [points, setPoints] = useState(0);
-  const [aiCredits, setAiCredits] = useState(0);
-  const [ownedSkins, setOwnedSkins] = useState<string[]>(["none"]);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [plan, setPlan] = useState<PlanId>("free");
+  const [credits, setCredits] = useState(0);
+  const [periodEnd, setPeriodEnd] = useState<string | null>(null);
+  const [points, setPoints] = useState(0);
 
-  const loadWallet = async () => {
+  const load = async () => {
     const { data } = await supabase.auth.getUser();
     const user = data.user;
     if (!user) {
-      setUserId(null);
       setLoading(false);
       return;
     }
-
-    setUserId(user.id);
-    const { data: profile, error } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
-      .select("points, ai_credits, owned_skins")
+      .select("plan, ai_credits, credit_period_end, points")
       .eq("id", user.id)
       .maybeSingle();
-
-    if (error) {
-      setMessage(`Wallet load failed: ${error.message}`);
-    }
-
-    setPoints(profile?.points ?? 0);
-    setAiCredits(profile?.ai_credits ?? 0);
-    setOwnedSkins(parseOwned(profile?.owned_skins));
+    const p = String(profile?.plan || "free").toLowerCase();
+    setPlan(p === "desk" ? "desk" : p === "press" ? "press" : "free");
+    setCredits(Number(profile?.ai_credits ?? 0));
+    setPeriodEnd(profile?.credit_period_end || null);
+    setPoints(Number(profile?.points ?? 0));
     setLoading(false);
   };
 
   useEffect(() => {
-    loadWallet();
+    load();
+    const on = () => load();
+    window.addEventListener("ballpit-wallet-updated", on);
+    return () => window.removeEventListener("ballpit-wallet-updated", on);
   }, []);
 
-  const handleRedeem = async (item: StoreItem) => {
+  const charge = async (next: "press" | "desk") => {
+    setBusy(true);
     setMessage("");
-    if (!userId) {
-      setMessage("Log in to use your wallet.");
+    const res = await applyPlanCharge(next);
+    setBusy(false);
+    if (!res.ok) {
+      setMessage(res.reason);
       return;
     }
-
-    setBusyId(item.id);
-
-    try {
-      // fresh values from DB to avoid stale UI
-      const { data: profile, error: profileReadError } = await supabase
-        .from("profiles")
-        .select("points, ai_credits, owned_skins")
-        .eq("id", userId)
-        .single();
-
-      if (profileReadError || !profile) {
-        throw new Error(profileReadError?.message || "Could not read wallet.");
-      }
-
-      const currentPoints = profile.points ?? 0;
-      const currentCredits = profile.ai_credits ?? 0;
-      const currentOwned = parseOwned(profile.owned_skins);
-
-      if (item.kind === "skin" && item.skinId && currentOwned.includes(item.skinId)) {
-        setMessage("You already own that skin.");
-        setBusyId(null);
-        return;
-      }
-
-      if (currentPoints < item.cost) {
-        setMessage("Not enough points for that item.");
-        setBusyId(null);
-        return;
-      }
-
-      const newPoints = currentPoints - item.cost;
-      let newCredits = currentCredits;
-      let newOwned = [...currentOwned];
-
-      if (item.kind === "ai") {
-        if (item.id === "ai-credit-5") newCredits += 5;
-        if (item.id === "ai-credit-20") newCredits += 20;
-      }
-
-      if (item.kind === "skin" && item.skinId && !newOwned.includes(item.skinId)) {
-        newOwned.push(item.skinId);
-      }
-
-      const { error: ledgerError } = await supabase.from("points_ledger").insert({
-        user_id: userId,
-        points: -item.cost,
-        reason: `Redeemed: ${item.name}`,
-      });
-      if (ledgerError) throw new Error(`Ledger failed: ${ledgerError.message}`);
-
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({
-          points: newPoints,
-          ai_credits: newCredits,
-          owned_skins: newOwned.join(","),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", userId);
-
-      if (updateError) throw new Error(`Balance update failed: ${updateError.message}`);
-
-      setPoints(newPoints);
-      setAiCredits(newCredits);
-      setOwnedSkins(newOwned);
-      setMessage(`Purchase complete: ${item.name}. -${item.cost} pts`);
-    } catch (err: any) {
-      setMessage(err?.message || "Purchase failed.");
-    } finally {
-      setBusyId(null);
-    }
+    setPlan(next);
+    setCredits(res.remaining);
+    setMessage(
+      `${TIERS[next].label} filled with ${TIERS[next].credits} credits. Stripe will replace this test charge.`
+    );
+    load();
   };
 
   if (loading) {
     return (
-      <main className="max-w-3xl mx-auto px-4 py-10">
-        <p className="text-gray-300">Loading wallet...</p>
-      </main>
-    );
-  }
-
-  if (!userId) {
-    return (
-      <main className="max-w-3xl mx-auto px-4 py-10 text-center">
-        <h1 className="text-2xl font-bold mb-3">Wallet</h1>
-        <Link href="/login" className="text-forge-accent">
-          Log in / Sign up
-        </Link>
+      <main className="max-w-xl mx-auto px-4 py-10">
+        <p className="text-sm text-muted-pit">Loading wallet...</p>
       </main>
     );
   }
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Wallet</h1>
-        <p className="text-gray-300 text-sm">
-          Spend points on AI credits and avatar skins. All skins cost 100 pts.
-        </p>
-      </div>
+    <main className="max-w-xl mx-auto px-4 py-10">
+      <h1 className="text-3xl font-extrabold mb-2">Wallet</h1>
+      <p className="text-sm text-muted-pit mb-6">
+        Monthly AI pile. Charge fills it. Tools spend it. Leftover dies at the next charge.
+      </p>
 
-      <div className="grid sm:grid-cols-2 gap-4 mb-8">
-        <div className="bg-gradient-to-r from-orange-600/20 to-forge-900 border border-orange-500/30 rounded-2xl p-6">
-          <div className="text-xs uppercase tracking-wide text-gray-300 mb-1">Points</div>
-          <div className="text-4xl font-bold text-white mb-2">{points}</div>
-        </div>
-        <div className="bg-gradient-to-r from-blue-600/20 to-forge-900 border border-blue-400/30 rounded-2xl p-6">
-          <div className="text-xs uppercase tracking-wide text-gray-300 mb-1">AI Credits</div>
-          <div className="text-4xl font-bold text-white mb-2">{aiCredits}</div>
-        </div>
-      </div>
-
-      <h2 className="text-xl font-semibold mb-4">Store</h2>
-      <div className="space-y-4">
-        {STORE_ITEMS.map((item) => {
-          const owned =
-            item.kind === "skin" && item.skinId
-              ? ownedSkins.includes(item.skinId)
-              : false;
-          const canBuy = !owned && points >= item.cost;
-          return (
-            <div
-              key={item.id}
-              className="bg-forge-900 border border-forge-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-            >
-              <div>
-                <div className="font-semibold text-white mb-1">{item.name}</div>
-                <div className="text-sm text-gray-300 mb-2">{item.description}</div>
-                <div className="text-sm text-forge-accent font-medium">{item.cost} pts</div>
-              </div>
-              <button
-                onClick={() => handleRedeem(item)}
-                disabled={!canBuy || busyId === item.id}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
-                  owned
-                    ? "bg-black/20 text-gray-400 cursor-not-allowed"
-                    : canBuy
-                    ? "bg-forge-accent hover:bg-forge-accentHover text-white"
-                    : "bg-black/20 text-gray-400 cursor-not-allowed"
-                }`}
-              >
-                {owned
-                  ? "Owned"
-                  : busyId === item.id
-                  ? "Working..."
-                  : canBuy
-                  ? "Buy"
-                  : "Need more points"}
-              </button>
+      <div className="pit-panel p-5 mb-4">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">Current tier</div>
+        <div className="text-2xl font-bold mb-1">{planLabel(plan)}</div>
+        <p className="text-sm text-muted-pit mb-4">{TIERS[plan].tools}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-white/10 p-3">
+            <div className="text-xs text-muted-pit">AI credits</div>
+            <div className="text-2xl font-bold">
+              {credits}
+              <span className="text-sm text-muted-pit font-normal">
+                {" "}
+                / {planAllowance(plan)}
+              </span>
             </div>
-          );
-        })}
+          </div>
+          <div className="rounded-xl border border-white/10 p-3">
+            <div className="text-xs text-muted-pit">Points</div>
+            <div className="text-2xl font-bold text-highlight-pit">{points}</div>
+          </div>
+        </div>
+        {periodEnd && (
+          <p className="text-[11px] text-muted-pit mt-3">
+            This pile ends {new Date(periodEnd).toLocaleDateString()}. Next charge refills from
+            zero.
+          </p>
+        )}
       </div>
 
-      {message && <p className="mt-6 text-sm text-yellow-200">{message}</p>}
-
-      <div className="mt-10">
-        <Link href="/settings" className="text-sm text-gray-300 hover:text-white">
-          Equip skins in Settings →
-        </Link>
+      <div className="pit-panel p-5 mb-4">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit mb-2">
+          What credits buy
+        </div>
+        <ul className="text-sm space-y-1">
+          <li>Editor pass or satire = {CREDIT_COST.text} credit</li>
+          <li>Any image (inline, thumb, comment) = {CREDIT_COST.image} credits</li>
+          <li>A used credit is gone even if the picture fails review. No refunds.</li>
+        </ul>
       </div>
+
+      <div className="pit-panel p-5 mb-4 space-y-3">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">
+          Monthly charge (test until Stripe)
+        </div>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => charge("press")}
+          className="w-full btn-metal px-4 py-2.5 rounded-xl text-sm disabled:opacity-60"
+        >
+          Press · ${TIERS.press.price} · {TIERS.press.credits} credits
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => charge("desk")}
+          className="w-full btn-write px-4 py-2.5 rounded-xl text-sm disabled:opacity-60"
+        >
+          Desk · ${TIERS.desk.price} · {TIERS.desk.credits} credits
+        </button>
+        <p className="text-[11px] text-muted-pit">
+          Test buttons refill now. Real money comes later. Higher tier = better tools and a
+          bigger pile.
+        </p>
+        {message && <p className="text-sm text-muted-pit">{message}</p>}
+      </div>
+
+      <Link href="/" className="text-sm text-highlight-pit">
+        ← Home
+      </Link>
     </main>
   );
 }
