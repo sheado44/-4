@@ -15,7 +15,9 @@ const display = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "The Ballpit",
+  title: "theBallpit",
+  applicationName: "theBallpit",
+  appleWebApp: { title: "theBallpit" },
   description: "Sports, pop culture, and satire — jump in.",
 };
 
@@ -36,7 +38,7 @@ export default function RootLayout({
         >
           <div className="max-w-6xl mx-auto px-4 py-8 text-center">
             <div className="text-sm font-semibold" style={{ color: "var(--pit-text)" }}>
-              The Ballpit
+              theBallpit
             </div>
             <p className="text-xs mt-1 tracking-wide" style={{ color: "var(--pit-muted)" }}>
               Sports · Pop Culture · Satire
