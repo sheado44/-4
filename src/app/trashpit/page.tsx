@@ -6,6 +6,7 @@ import TrashPitMark from "@/components/TrashPitMark";
 import { supabase } from "@/lib/supabaseClient";
 import { CREDIT_COST } from "@/lib/tiers";
 import { spendAiCredits } from "@/lib/aiCredits";
+import ComputeButton from "@/components/ComputeButton";
 
 type Tone = "funny" | "serious" | "mad" | "chaotic" | "roast" | "locker" | "degenerate" | "unhinged";
 
@@ -453,14 +454,12 @@ export default function TrashPitLabPage() {
           )}
         </p>
 
-        <button
-          type="button"
-          onClick={generate}
-          disabled={busy}
-          className="btn-write w-full px-4 py-2.5 rounded-xl text-sm disabled:opacity-60"
-        >
-          {busy ? "Working..." : "Generate"}
-        </button>
+        <ComputeButton
+          cost={CREDIT_COST.satire}
+          label="Generate"
+          busy={busy}
+          onConfirm={generate}
+        />
       </div>
 
       {title && (
@@ -492,4 +491,5 @@ export default function TrashPitLabPage() {
     </main>
   );
 }
+
 
