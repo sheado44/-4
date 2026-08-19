@@ -1,133 +1,167 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-type Props = {
-  aiScore?: number | null;
-  body?: string;
-  avgRating?: number | null;
-  ratingCount?: number;
+type Breakdown = {
+  journalistic: number | null;
+  truth: number | null;
+  effort: number | null;
+  community: number | null;
+  communityStars: number | null;
+  index100: number | null;
 };
 
-function clamp10(n: number) {
-  return Math.max(0, Math.min(10, n));
+const W = {
+  journalistic: 0.4,
+  truth: 0.25,
+  effort: 0.15,
+  community: 0.2,
+};
+
+function clamp100(n: number) {
+  return Math.max(0, Math.min(100, n));
 }
 
-export function toTbp100(score10: number | null | undefined) {
-  if (score10 == null || !Number.isFinite(score10)) return null;
-  return Math.round(clamp10(score10) * 10);
-}
-
-function weighted(score100: number | null, weight: number) {
-  if (score100 == null) return 0;
-  return Math.round(score100 * weight * 10) / 10;
+function starsToHundred(avg: number) {
+  return clamp100((avg / 5) * 100);
 }
 
 export function computeTbpBreakdown(
   aiScore: number | null | undefined,
-  body: string | undefined,
+  _body: string | null | undefined,
   avgRating: number | null | undefined
-) {
-  const base = aiScore != null && Number.isFinite(aiScore) ? clamp10(Number(aiScore)) : null;
-  const words = (body || "").trim().split(/\s+/).filter(Boolean).length;
+): Breakdown {
+  const hasAi = aiScore != null && Number.isFinite(Number(aiScore));
+  const ai = hasAi ? clamp100(Number(aiScore)) : null;
 
-  const truth = base != null ? clamp10(base) : null;
-  const style = base != null ? clamp10(base - 0.3) : null;
-  const effort =
-    base != null ? clamp10(base * 0.7 + Math.min(3, words / 250)) : null;
-  const community = avgRating != null ? clamp10(avgRating * 2) : null;
+  const journalistic = ai == null ? null : clamp100(ai);
+  const truth = ai == null ? null : clamp100(ai);
+  const effort = ai == null ? null : clamp100(ai);
 
-  const truth100 = toTbp100(truth);
-  const style100 = toTbp100(style);
-  const effort100 = toTbp100(effort);
-  const community100 = toTbp100(community);
+  const communityStars =
+    avgRating != null && Number.isFinite(Number(avgRating))
+      ? Math.max(0, Math.min(5, Number(avgRating)))
+      : null;
+  const community = communityStars == null ? null : starsToHundred(communityStars);
 
-  const stylePts = weighted(style100, 0.4);
-  const truthPts = weighted(truth100, 0.25);
-  const effortPts = weighted(effort100, 0.15);
-  const communityPts = weighted(community100, 0.2);
+  const parts = [
+    journalistic == null ? null : journalistic * W.journalistic,
+    truth == null ? null : truth * W.truth,
+    effort == null ? null : effort * W.effort,
+    community == null ? null : community * W.community,
+  ].filter((n): n is number => n != null);
 
-  const hasAny =
-    style100 != null || truth100 != null || effort100 != null || community100 != null;
-  const index100 = hasAny
-    ? Math.round((stylePts + truthPts + effortPts + communityPts) * 10) / 10
-    : null;
+  const index100 = parts.length === 0 ? null : clamp100(parts.reduce((a, b) => a + b, 0));
 
-  return {
-    truth,
-    style,
-    effort,
-    community,
-    index: index100 != null ? index100 / 10 : null,
-    index100,
-    truth100,
-    style100,
-    effort100,
-    community100,
-    stylePts,
-    truthPts,
-    effortPts,
-    communityPts,
-  };
+  return { journalistic, truth, effort, community, communityStars, index100 };
 }
 
-export default function TbpIndex({ aiScore, body, avgRating, ratingCount = 0 }: Props) {
-  const [open, setOpen] = useState(false);
-  const b = useMemo(
-    () => computeTbpBreakdown(aiScore, body, avgRating),
-    [aiScore, body, avgRating]
+function Stars({ value }: { value: number }) {
+  const rounded = Math.round(value * 2) / 2;
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label={`${rounded} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((i) => {
+        const fill = rounded >= i ? 1 : rounded >= i - 0.5 ? 0.5 : 0;
+        return (
+          <span key={i} className="relative inline-block w-3.5 h-3.5 text-[14px] leading-none">
+            <span className="absolute inset-0" style={{ color: "rgba(255,255,255,0.18)" }}>
+              ★
+            </span>
+            {fill > 0 && (
+              <span
+                className="absolute inset-0 overflow-hidden"
+                style={{
+                  width: fill === 0.5 ? "50%" : "100%",
+                  color: "#F0A04B",
+                }}
+              >
+                ★
+              </span>
+            )}
+          </span>
+        );
+      })}
+    </span>
   );
+}
 
-  const rows = [
-    {
-      label: "Journalistic style",
-      score: b.style100,
-      pts: b.stylePts,
-      note: "40% of that score",
-    },
-    {
-      label: "Truth telling",
-      score: b.truth100,
-      pts: b.truthPts,
-      note: "25% of that score",
-    },
-    {
-      label: "Overall effort",
-      score: b.effort100,
-      pts: b.effortPts,
-      note: "15% of that score",
-    },
-    {
-      label: "Community stars",
-      score: b.community100,
-      pts: b.communityPts,
-      note: ratingCount
-        ? `20% of that score · ${ratingCount} rating${ratingCount === 1 ? "" : "s"}`
-        : "20% of that score · none yet",
-    },
-  ];
+function Row({
+  label,
+  share,
+  extra,
+  raw,
+  weight,
+  rightExtra,
+}: {
+  label: string;
+  share: string;
+  extra?: string;
+  raw: number | null;
+  weight: number;
+  rightExtra?: React.ReactNode;
+}) {
+  const weighted = raw == null ? null : Math.round(raw * weight * 10) / 10;
+  return (
+    <div className="flex items-start justify-between gap-3 py-1.5">
+      <div className="min-w-0">
+        <div className="text-xs font-semibold" style={{ color: "var(--pit-text)" }}>
+          {label}
+        </div>
+        <div className="text-[10px] text-muted-pit">
+          {share} of that score{extra ? ` · ${extra}` : ""}
+        </div>
+      </div>
+      <div className="text-right shrink-0">
+        {rightExtra}
+        {raw == null ? (
+          <div className="text-xs text-muted-pit">
+            —<div className="text-[10px]">no data</div>
+          </div>
+        ) : (
+          <div>
+            <div className="text-sm font-bold">{weighted}</div>
+            <div className="text-[10px] text-muted-pit">{Math.round(raw)} × weight</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function TbpIndex({
+  aiScore,
+  body,
+  avgRating,
+  ratingCount = 0,
+}: {
+  aiScore: number | null | undefined;
+  body?: string | null;
+  avgRating: number | null | undefined;
+  ratingCount?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const b = computeTbpBreakdown(aiScore, body, avgRating);
+  const shown = b.index100 == null ? "—" : Math.round(b.index100);
 
   return (
     <div className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full text-left rounded-xl px-3 py-2.5 border"
+        className="w-full text-left rounded-xl px-3 py-2.5 border border-white/10 hover:opacity-95 transition"
         style={{
           background:
-            "linear-gradient(135deg, color-mix(in srgb, var(--pit-highlight) 28%, transparent), rgba(0,0,0,0.25))",
-          borderColor: "color-mix(in srgb, var(--pit-highlight) 45%, transparent)",
-          boxShadow: "0 0 18px color-mix(in srgb, var(--pit-highlight) 18%, transparent)",
+            "linear-gradient(180deg, rgba(240,160,75,0.16), rgba(0,0,0,0.22))",
         }}
       >
-        <div className="text-[10px] uppercase tracking-[0.16em] text-highlight-pit font-semibold mb-0.5">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit font-semibold mb-0.5">
           tBp Index
         </div>
         <div className="flex items-end justify-between gap-2">
           <div className="text-2xl font-bold leading-none" style={{ color: "var(--pit-text)" }}>
-            {b.index100 != null ? b.index100 : "—"}
+            {shown}
           </div>
-          <div className="text-[10px] text-muted-pit">/ 100 · tap for breakdown</div>
+          <div className="text-[10px] text-muted-pit mb-0.5">/ 100 · tap for breakdown</div>
         </div>
       </button>
 
@@ -135,36 +169,43 @@ export default function TbpIndex({ aiScore, body, avgRating, ratingCount = 0 }: 
         <div
           className="absolute left-0 right-0 mt-2 z-30 rounded-xl border border-white/10 p-3 shadow-2xl"
           style={{
-            background: "color-mix(in srgb, var(--pit-panel) 94%, black 6%)",
+            background: "color-mix(in srgb, var(--pit-panel) 96%, black 4%)",
             backdropFilter: "blur(12px)",
           }}
         >
           <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit mb-2">
             How this number is built
           </div>
-          <div className="space-y-2">
-            {rows.map((row) => (
-              <div key={row.label} className="flex items-center justify-between gap-3 text-sm">
-                <div>
-                  <div style={{ color: "var(--pit-text)" }}>{row.label}</div>
-                  <div className="text-[10px] text-muted-pit">{row.note}</div>
+
+          <Row
+            label="Journalistic style"
+            share="40%"
+            raw={b.journalistic}
+            weight={W.journalistic}
+          />
+          <Row label="Truth telling" share="25%" raw={b.truth} weight={W.truth} />
+          <Row label="Overall effort" share="15%" raw={b.effort} weight={W.effort} />
+          <Row
+            label="Community stars"
+            share="20%"
+            extra={ratingCount ? `${ratingCount} rating${ratingCount === 1 ? "" : "s"}` : "no ratings"}
+            raw={b.community}
+            weight={W.community}
+            rightExtra={
+              b.communityStars != null ? (
+                <div className="flex items-center justify-end gap-1.5 mb-0.5">
+                  <Stars value={b.communityStars} />
+                  <span className="text-[11px] font-semibold text-highlight-pit">
+                    {b.communityStars.toFixed(1)}
+                  </span>
                 </div>
-                <div className="text-right">
-                  <div className="font-semibold">
-                    {row.score != null ? `${row.pts}` : "—"}
-                  </div>
-                  <div className="text-[10px] text-muted-pit">
-                    {row.score != null ? `${row.score} × weight` : "no data"}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between">
-            <span className="text-xs text-muted-pit">Sum of weighted parts</span>
-            <span className="text-lg font-bold text-highlight-pit">
-              {b.index100 != null ? `${b.index100} / 100` : "—"}
-            </span>
+              ) : null
+            }
+          />
+
+          <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between">
+            <div className="text-xs text-muted-pit">Sum of weighted parts</div>
+            <div className="text-sm font-bold text-highlight-pit">{shown} / 100</div>
           </div>
         </div>
       )}
