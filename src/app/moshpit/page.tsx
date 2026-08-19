@@ -82,6 +82,7 @@ export default function MoshpitPage() {
   const [voicePeople, setVoicePeople] = useState<VoicePerson[]>([]);
   const [voiceQuery, setVoiceQuery] = useState("");
   const [voiceHits, setVoiceHits] = useState<VoicePerson[]>([]);
+  const [friends, setFriends] = useState<VoicePerson[]>([]);
 
   useEffect(() => {
     const boot = async () => {
@@ -100,6 +101,23 @@ export default function MoshpitPage() {
             user.email?.split("@")[0] ||
             "User"
         );
+
+        const { data: favs } = await supabase
+          .from("favorites")
+          .select("favorite_user_id")
+          .eq("user_id", user.id);
+        const ids = (favs || []).map((f) => f.favorite_user_id).filter(Boolean);
+        if (ids.length) {
+          const { data: people } = await supabase
+            .from("profiles")
+            .select("id, display_name")
+            .in("id", ids);
+          setFriends(
+            (people || [])
+              .map((row) => ({ id: row.id, name: row.display_name || "User" }))
+              .sort((a, b) => a.name.localeCompare(b.name))
+          );
+        }
       }
     };
     boot();
@@ -429,7 +447,7 @@ export default function MoshpitPage() {
                     onChange={async (e) => {
                       const q = e.target.value;
                       setVoiceQuery(q);
-                      if (q.trim().length < 2) {
+                      if (q.trim().length < 1) {
                         setVoiceHits([]);
                         return;
                       }
@@ -437,18 +455,19 @@ export default function MoshpitPage() {
                         .from("profiles")
                         .select("id, display_name")
                         .ilike("display_name", `%${q.trim()}%`)
-                        .limit(6);
+                        .order("display_name", { ascending: true })
+                        .limit(12);
                       setVoiceHits(
                         (data || [])
                           .filter((row) => row.id !== userId)
                           .map((row) => ({ id: row.id, name: row.display_name || "User" }))
                       );
                     }}
-                    placeholder="Add people by display name"
+                    placeholder="Search names A–Z"
                     className="w-full rounded-lg px-3 py-2 text-sm outline-none bg-black/20 border border-white/10"
                   />
                   {voiceHits.length > 0 && (
-                    <div className="mt-1 space-y-1">
+                    <div className="mt-2 max-h-36 overflow-y-auto space-y-1">
                       {voiceHits.map((hit) => (
                         <button
                           key={hit.id}
@@ -465,6 +484,57 @@ export default function MoshpitPage() {
                           {hit.name}
                         </button>
                       ))}
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-center justify-between">
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">Favorites</div>
+                    {friends.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-[11px] text-highlight-pit"
+                        onClick={() =>
+                          setVoicePeople((prev) => {
+                            const have = new Set(prev.map((p) => p.id));
+                            return [...prev, ...friends.filter((f) => !have.has(f.id))];
+                          })
+                        }
+                      >
+                        Add all
+                      </button>
+                    )}
+                  </div>
+                  {friends.length === 0 ? (
+                    <p className="text-[11px] text-muted-pit mt-1">
+                      No favorites yet. Search a name above or favorite people from their profile.
+                    </p>
+                  ) : (
+                    <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
+                      {friends
+                        .filter((f) =>
+                          voiceQuery.trim()
+                            ? f.name.toLowerCase().includes(voiceQuery.trim().toLowerCase())
+                            : true
+                        )
+                        .map((f) => {
+                          const on = voicePeople.some((p) => p.id === f.id);
+                          return (
+                            <button
+                              key={f.id}
+                              type="button"
+                              onClick={() =>
+                                setVoicePeople((prev) =>
+                                  on ? prev.filter((p) => p.id !== f.id) : [...prev, f]
+                                )
+                              }
+                              className={`flex w-full items-center justify-between text-left text-sm px-2 py-1.5 rounded-md ${
+                                on ? "btn-write" : "btn-metal"
+                              }`}
+                            >
+                              <span>{f.name}</span>
+                              <span className="text-[11px]">{on ? "added" : "add"}</span>
+                            </button>
+                          );
+                        })}
                     </div>
                   )}
                 </div>
