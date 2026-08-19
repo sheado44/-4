@@ -5,6 +5,12 @@ import Link from "next/link";
 import AuthNav from "@/components/AuthNav";
 import BallpitWordmark from "@/components/BallpitWordmark";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  WIDGET_CATALOG,
+  loadWidgetLayout,
+  saveWidgetLayout,
+  type WidgetId,
+} from "@/lib/widgetLayout";
 
 type TextMode = "white" | "black";
 
@@ -42,7 +48,11 @@ export default function SiteHeader() {
   const [highlightColor, setHighlightColor] = useState("#F0A04B");
   const [textMode, setTextMode] = useState<TextMode>("white");
   const [open, setOpen] = useState(false);
+  const [layoutOpen, setLayoutOpen] = useState(false);
+  const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>([]);
+  const [widgetOn, setWidgetOn] = useState<Record<WidgetId, boolean>>({} as Record<WidgetId, boolean>);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const layoutRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const boot = async () => {
@@ -65,6 +75,9 @@ export default function SiteHeader() {
     };
 
     boot();
+    const layout = loadWidgetLayout();
+    setWidgetOrder(layout.order);
+    setWidgetOn(layout.on);
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       const isIn = Boolean(session?.user);
@@ -90,8 +103,8 @@ export default function SiteHeader() {
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target as Node)) setOpen(false);
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+      if (layoutRef.current && !layoutRef.current.contains(e.target as Node)) setLayoutOpen(false);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
@@ -243,6 +256,91 @@ export default function SiteHeader() {
             </div>
           )}
 
+
+          {loggedIn && (
+            <div className="relative" ref={layoutRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setLayoutOpen((v) => !v);
+                  setOpen(false);
+                }}
+                className="btn-metal text-xs px-3 py-1.5 rounded-lg"
+              >
+                Layout
+              </button>
+              {layoutOpen && (
+                <div
+                  className="absolute right-0 mt-2 w-64 rounded-xl border border-white/10 p-3 shadow-2xl z-50"
+                  style={{
+                    background: "color-mix(in srgb, var(--pit-panel) 94%, black 6%)",
+                    backdropFilter: "blur(12px)",
+                  }}
+                >
+                  <div className="text-[10px] uppercase tracking-[0.18em] mb-3" style={{ color: "var(--pit-muted)" }}>
+                    Layout
+                  </div>
+                  {WIDGET_CATALOG.map((w) => (
+                    <label key={w.id} className="flex items-center justify-between gap-2 text-sm mb-2">
+                      <span>{w.label}</span>
+                      <input
+                        type="checkbox"
+                        checked={!!widgetOn[w.id]}
+                        onChange={() => {
+                          const next = { ...widgetOn, [w.id]: !widgetOn[w.id] };
+                          setWidgetOn(next);
+                          saveWidgetLayout(widgetOrder, next);
+                        }}
+                        className="h-4 w-4"
+                      />
+                    </label>
+                  ))}
+                  <div className="text-[10px] uppercase tracking-[0.16em] mt-3 mb-2" style={{ color: "var(--pit-muted)" }}>
+                    Order
+                  </div>
+                  {widgetOrder.filter((id) => widgetOn[id]).map((id, i, arr) => (
+                    <div key={id} className="flex items-center justify-between gap-2 text-sm mb-1">
+                      <span>{WIDGET_CATALOG.find((w) => w.id === id)?.label || id}</span>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          disabled={i === 0}
+                          className="px-2 py-0.5 rounded btn-metal text-xs disabled:opacity-30"
+                          onClick={() => {
+                            const vis = widgetOrder.filter((x) => widgetOn[x]);
+                            const a = widgetOrder.indexOf(vis[i]);
+                            const b = widgetOrder.indexOf(vis[i - 1]);
+                            const next = [...widgetOrder];
+                            [next[a], next[b]] = [next[b], next[a]];
+                            setWidgetOrder(next);
+                            saveWidgetLayout(next, widgetOn);
+                          }}
+                        >
+                          Up
+                        </button>
+                        <button
+                          type="button"
+                          disabled={i === arr.length - 1}
+                          className="px-2 py-0.5 rounded btn-metal text-xs disabled:opacity-30"
+                          onClick={() => {
+                            const vis = widgetOrder.filter((x) => widgetOn[x]);
+                            const a = widgetOrder.indexOf(vis[i]);
+                            const b = widgetOrder.indexOf(vis[i + 1]);
+                            const next = [...widgetOrder];
+                            [next[a], next[b]] = [next[b], next[a]];
+                            setWidgetOrder(next);
+                            saveWidgetLayout(next, widgetOn);
+                          }}
+                        >
+                          Down
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <Link
             href="/editor"
             className="btn-write hidden sm:inline-flex items-center px-3.5 py-1.5 rounded-xl text-sm"
