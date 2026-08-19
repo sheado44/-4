@@ -14,7 +14,7 @@ export const WIDGET_CATALOG: { id: WidgetId; label: string }[] = [
   { id: "trending", label: "Trending IRL" },
   { id: "watch", label: "Watchlist" },
   { id: "find", label: "Find" },
-  { id: "moshpit", label: "theMoshpit" },
+  { id: "moshpit", label: "mashPit" },
   { id: "rules", label: "House rules" },
   { id: "fantasy", label: "fantasiDesk" },
 ];
@@ -65,3 +65,4 @@ export function saveWidgetLayout(order: WidgetId[], on: Record<WidgetId, boolean
     // ignore
   }
 }
+
