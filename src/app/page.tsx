@@ -1433,15 +1433,7 @@ function Home() {
                   <AlertsDeskWidget userId={userId} />
                 </div>
               )}
-              {widgetOn.scores && (
-              <div style={{ order: widgetPos("scores") }}>
-              <ScoresDeskWidget
-                selectedLeagues={selectedLeagues}
-                setSelectedLeagues={setSelectedLeagues}
-              />
-              </div>
-
-              )}
+                           {/* scores widget removed */}
               {widgetOn.trending && (
               <div style={{ order: widgetPos("trending") }}>
               <TrendingIrlWidget articles={articles} />
