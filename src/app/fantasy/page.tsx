@@ -5,6 +5,7 @@ import Link from "next/link";
 import FantasiDeskMark from "@/components/FantasiDeskMark";
 import { supabase } from "@/lib/supabaseClient";
 import { spendAiCredits } from "@/lib/aiCredits";
+import ComputeButton from "@/components/ComputeButton";
 
 type Plan = "free" | "press" | "desk";
 type Pos = "QB" | "RB" | "WR" | "TE" | "FLEX" | "K" | "DST";
@@ -329,14 +330,18 @@ export default function FantasyPage() {
             <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">Busy?</div>
             <div className="font-semibold">Set my week</div>
           </div>
-          <button
-            type="button"
-            onClick={setMyWeek}
-            disabled={!allowed(plan, NEED.setWeek) || busy === "setWeek"}
-            className="btn-write px-5 py-3 rounded-xl text-sm disabled:opacity-45"
-          >
-            {!allowed(plan, NEED.setWeek) ? "Press 🔒" : busy === "setWeek" ? "Setting..." : "Set my week · 5"}
-          </button>
+          {!allowed(plan, NEED.setWeek) ? (
+            <button type="button" disabled className="btn-metal px-5 py-3 rounded-xl text-sm opacity-45">
+              Press 🔒
+            </button>
+          ) : (
+            <ComputeButton
+              cost={COST.setWeek}
+              label="Set my week"
+              busy={busy === "setWeek"}
+              onConfirm={setMyWeek}
+            />
+          )}
         </div>
       </div>
 
@@ -555,14 +560,20 @@ function AiButton({
   busy: boolean;
   onClick: () => void;
 }) {
+  if (locked) {
+    return (
+      <button type="button" disabled className="btn-metal w-full px-4 py-2.5 rounded-xl text-sm opacity-45">
+        {need} 🔒
+      </button>
+    );
+  }
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={locked || busy}
-      className="btn-write w-full px-4 py-2.5 rounded-xl text-sm disabled:opacity-45"
-    >
-      {locked ? `${need} 🔒` : busy ? "Spending..." : `${label} · ${cost}`}
-    </button>
+    <ComputeButton
+      cost={cost}
+      label={label}
+      busy={busy}
+      onConfirm={onClick}
+    />
   );
 }
+
