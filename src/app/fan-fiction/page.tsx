@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { CREDIT_COST } from "@/lib/tiers";
 import { spendAiCredits } from "@/lib/aiCredits";
 
-type Tone = "funny" | "serious" | "mad" | "chaotic";
+type Tone = "funny" | "serious" | "mad" | "chaotic" | "roast" | "locker" | "degenerate" | "unhinged";
 
 type Slot = { key: string; hint: string };
 
@@ -15,11 +15,12 @@ type Setup = {
   parts: (string | Slot)[];
 };
 
-const TONES: { id: Tone; label: string }[] = [
+const TONES: { id: Tone; label: string; paid?: "press" | "desk" }[] = [
   { id: "funny", label: "Funny" },
-  { id: "serious", label: "Serious" },
-  { id: "mad", label: "Mad" },
-  { id: "chaotic", label: "Chaotic" },
+  { id: "roast", label: "Roast", paid: "press" },
+  { id: "locker", label: "Locker room", paid: "desk" },
+  { id: "degenerate", label: "Degenerate", paid: "desk" },
+  { id: "unhinged", label: "Unhinged", paid: "desk" },
 ];
 
 const SETUPS: Setup[] = [
@@ -103,14 +104,50 @@ function val(values: Record<string, string>, key: string, fallback: string) {
   return values[key]?.trim() || fallback;
 }
 
+/** Hard floor only. Crude adult jokes pass. This is the same gate the live model will use. */
+function reviewSatire(text: string): { ok: boolean; reason: string } {
+  const t = text.toLowerCase();
+
+  const minorHit =
+    /\b(preteen|pre-teen|pedo|pedophile|child porn|csam|loli|shota)\b/.test(t) ||
+    (/\b(kid|kids|child|children|minor|underage|teen|teenager|middle school|elementary)\b/.test(t) &&
+      /\b(nude|naked|sex|sexual|porn|rape|molest)\b/.test(t));
+  if (minorHit) {
+    return { ok: false, reason: "Out of bounds. Nothing saved to the desk." };
+  }
+
+  if (/\b(dox|doxx|social security|home address|swat them)\b/.test(t)) {
+    return { ok: false, reason: "Out of bounds. Nothing saved to the desk." };
+  }
+
+  if (
+    /\b(deepfake|revenge porn|real nude|leaked nudes|sex tape)\b/.test(t) &&
+    /\b(her|his|their|celeb|celebrity|actress|wife|girlfriend)\b/.test(t)
+  ) {
+    return { ok: false, reason: "Out of bounds. Nothing saved to the desk." };
+  }
+
+  if (/\b(i will kill|going to kill you|bomb the|shoot up)\b/.test(t)) {
+    return { ok: false, reason: "Out of bounds. Nothing saved to the desk." };
+  }
+
+  return { ok: true, reason: "" };
+}
+
 function buildSatire(setup: Setup, values: Record<string, string>, tone: Tone, author: string) {
   const toneLine =
-    tone === "serious"
-      ? "Filed in a tone of grave national importance, which is a choice."
+    tone === "roast"
+      ? "Written like a roast with the seatbelt off."
+      : tone === "locker"
+      ? "Locker-room volume. Still a bit."
+      : tone === "degenerate"
+      ? "Degenerate on purpose. Still satire."
+      : tone === "unhinged"
+      ? "Unhinged. The brakes were optional."
       : tone === "mad"
-      ? "Written at a volume usually reserved for parking-lot arguments."
-      : tone === "chaotic"
-      ? "The facts have left the building. They took the snacks."
+      ? "Written at parking-lot volume."
+      : tone === "serious"
+      ? "Filed like it matters. It does not."
       : "This is a bit. Treat it like a bit.";
 
   const sentence = setup.parts
@@ -177,6 +214,7 @@ export default function SatireLabPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [authorName, setAuthorName] = useState("User");
   const [credits, setCredits] = useState(0);
+  const [plan, setPlan] = useState<"free" | "press" | "desk">("free");
   const [authLoading, setAuthLoading] = useState(true);
   const [setup, setSetup] = useState<Setup>(SETUPS[2]);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -200,7 +238,7 @@ export default function SatireLabPage() {
       setUserId(user.id);
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name, ai_credits")
+        .select("display_name, ai_credits, plan")
         .eq("id", user.id)
         .maybeSingle();
       setAuthorName(
@@ -210,6 +248,8 @@ export default function SatireLabPage() {
           "User"
       );
       setCredits(Number(profile?.ai_credits ?? 0));
+      const p = String(profile?.plan || "free").toLowerCase();
+      setPlan(p === "desk" ? "desk" : p === "press" ? "press" : "free");
       setAuthLoading(false);
     };
     boot();
@@ -217,6 +257,12 @@ export default function SatireLabPage() {
 
   const slots = useMemo(() => slotsOf(setup), [setup]);
   const filled = slots.every((s) => (values[s.key] || "").trim().length > 0);
+
+  const toneAllowed = (t: (typeof TONES)[number]) => {
+    if (!t.paid) return true;
+    if (t.paid === "press") return plan === "press" || plan === "desk";
+    return plan === "desk";
+  };
 
   const refreshSetup = () => {
     setSetup(pickSetup(setup.id));
@@ -234,8 +280,23 @@ export default function SatireLabPage() {
       setMessage("Fill every blank.");
       return;
     }
+
+    const raw = slots.map((s) => values[s.key] || "").join(" ");
+    const gate = reviewSatire(raw);
+    if (!gate.ok) {
+      setMessage(gate.reason);
+      return;
+    }
+
     if (credits < CREDIT_COST.satire) {
       setMessage(`Need ${CREDIT_COST.satire} AI credit. Open theMoneyPit.`);
+      return;
+    }
+
+    const piece = buildSatire(setup, values, tone, authorName);
+    const outGate = reviewSatire(`${piece.title}\n${piece.body}`);
+    if (!outGate.ok) {
+      setMessage(outGate.reason);
       return;
     }
 
@@ -248,7 +309,6 @@ export default function SatireLabPage() {
     }
     setCredits(spend.remaining);
 
-    const piece = buildSatire(setup, values, tone, authorName);
     const { data, error } = await supabase
       .from("articles")
       .insert({
@@ -265,10 +325,6 @@ export default function SatireLabPage() {
     setBusy(false);
     if (error || !data) {
       setMessage(error?.message || "Desk write failed.");
-      setTitle(piece.title);
-      setBody(piece.body);
-      setArticleId(null);
-      setInThePit(false);
       return;
     }
 
@@ -333,7 +389,8 @@ export default function SatireLabPage() {
         </div>
         <p className="text-xs leading-relaxed" style={{ color: "rgba(255,230,199,0.92)" }}>
           Fill-in-the-blank fiction. Not news. Generating saves it to your desk only. Public
-          satire feed happens only if you throw it in the pit.
+          satire feed happens only if you throw it in the pit. Out-of-bounds prompts never hit
+          the desk.
         </p>
       </div>
 
@@ -351,16 +408,24 @@ export default function SatireLabPage() {
         </div>
 
         <div className="flex flex-wrap gap-2 mb-5">
-          {TONES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTone(t.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs ${tone === t.id ? "btn-write" : "btn-metal"}`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {TONES.map((t) => {
+            const on = toneAllowed(t);
+            return (
+              <button
+                key={t.id}
+                type="button"
+                disabled={!on}
+                onClick={() => on && setTone(t.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs ${
+                  tone === t.id ? "btn-write" : "btn-metal"
+                } disabled:opacity-40`}
+                title={!on ? `${t.paid === "desk" ? "Desk" : "Press"} voice` : t.label}
+              >
+                {t.label}
+                {!on ? " 🔒" : ""}
+              </button>
+            );
+          })}
         </div>
 
         <p className="text-lg md:text-xl leading-loose mb-5" style={{ color: "var(--pit-text)" }}>
