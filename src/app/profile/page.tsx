@@ -25,6 +25,7 @@ type Article = {
   section: string;
   body: string;
   created_at: string;
+  status?: string | null;
 };
 
 type Comment = {
@@ -103,7 +104,7 @@ export default function ProfilePage() {
 
       const { data: articleData } = await supabase
         .from("articles")
-        .select("id, title, section, body, created_at")
+        .select("id, title, section, body, created_at, status")
         .eq("user_id", authUser.id)
         .order("created_at", { ascending: false });
       setArticles(articleData || []);
@@ -241,8 +242,8 @@ export default function ProfilePage() {
           <Link href="/settings" className="px-4 py-2 rounded-xl text-sm btn-metal">
             Edit Profile
           </Link>
-          <Link href="/wallet" className="px-4 py-2 rounded-xl text-sm btn-write">
-            Wallet · {user.points} pts
+          <Link href="/moneypit" className="px-4 py-2 rounded-xl text-sm btn-write">
+            theMoneyPit · {user.points} pts
           </Link>
         </div>
       </div>
@@ -307,6 +308,11 @@ export default function ProfilePage() {
               >
                 <div className="flex items-center gap-2 text-xs text-muted-pit mb-1">
                   <span className="text-highlight-pit font-medium">{article.section}</span>
+                  {article.status === "author_only" && (
+                    <span className="px-2 py-0.5 rounded-md border border-white/15 text-[10px] uppercase tracking-wide">
+                      Desk only
+                    </span>
+                  )}
                   <span>•</span>
                   <span title={formatTimeFull(article.created_at)}>
                     {formatTime(article.created_at)}
