@@ -282,7 +282,7 @@ export default function SiteHeader() {
                     Layout
                   </div>
                   <p className="text-[11px] text-muted-pit mb-3">
-                    Check to show. Drag the handle to reorder.
+                    Check to show. Drag to stack your deck.
                   </p>
                   <div className="space-y-1">
                     {widgetOrder.map((id) => {
