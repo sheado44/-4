@@ -6,10 +6,29 @@ import { supabase } from "@/lib/supabaseClient";
 import { spendAiCredits } from "@/lib/aiCredits";
 
 type Plan = "free" | "press" | "desk";
-type Scoring = "standard" | "half" | "ppr";
 type Pos = "QB" | "RB" | "WR" | "TE" | "FLEX" | "K" | "DST";
 type SlotId = "QB" | "RB1" | "RB2" | "WR1" | "WR2" | "TE" | "FLEX" | "K" | "DST";
 type AiId = "setWeek" | "sitResearch" | "waiver" | "matchup" | "trade" | "engine";
+type Preset = "standard" | "half" | "ppr" | "custom";
+type StatKey =
+  | "passYds"
+  | "passTD"
+  | "int"
+  | "rushYds"
+  | "rushTD"
+  | "recYds"
+  | "rec"
+  | "recTD"
+  | "fum"
+  | "twoPt"
+  | "fg"
+  | "xp"
+  | "sack"
+  | "dstInt"
+  | "dstTd"
+  | "pa";
+
+type Scoring = Record<StatKey, { on: boolean; pts: number }>;
 
 type Player = {
   id: string;
@@ -17,7 +36,7 @@ type Player = {
   pos: Exclude<Pos, "FLEX">;
   team: string;
   opp: string;
-  proj: number;
+  stats: Partial<Record<StatKey, number>>;
 };
 
 const SLOTS: { id: SlotId; pos: Pos; label: string }[] = [
@@ -30,6 +49,25 @@ const SLOTS: { id: SlotId; pos: Pos; label: string }[] = [
   { id: "FLEX", pos: "FLEX", label: "FLEX" },
   { id: "K", pos: "K", label: "K" },
   { id: "DST", pos: "DST", label: "DST" },
+];
+
+const STATS: { key: StatKey; label: string; step: number }[] = [
+  { key: "passYds", label: "Passing yards", step: 0.01 },
+  { key: "passTD", label: "Passing TD", step: 0.5 },
+  { key: "int", label: "INT thrown", step: 0.5 },
+  { key: "rushYds", label: "Rush yards", step: 0.01 },
+  { key: "rushTD", label: "Rush TD", step: 0.5 },
+  { key: "recYds", label: "Rec yards", step: 0.01 },
+  { key: "rec", label: "Reception", step: 0.1 },
+  { key: "recTD", label: "Rec TD", step: 0.5 },
+  { key: "fum", label: "Fumble lost", step: 0.5 },
+  { key: "twoPt", label: "2-point", step: 0.5 },
+  { key: "fg", label: "FG made", step: 0.5 },
+  { key: "xp", label: "XP made", step: 0.5 },
+  { key: "sack", label: "DST sack", step: 0.5 },
+  { key: "dstInt", label: "DST INT", step: 0.5 },
+  { key: "dstTd", label: "DST TD", step: 0.5 },
+  { key: "pa", label: "Points allowed (per pt)", step: 0.1 },
 ];
 
 const COST: Record<AiId, number> = {
@@ -50,35 +88,49 @@ const NEED: Record<AiId, Plan> = {
   engine: "desk",
 };
 
+function baseScoring(rec: number): Scoring {
+  return {
+    passYds: { on: true, pts: 0.04 },
+    passTD: { on: true, pts: 4 },
+    int: { on: true, pts: -2 },
+    rushYds: { on: true, pts: 0.1 },
+    rushTD: { on: true, pts: 6 },
+    recYds: { on: true, pts: 0.1 },
+    rec: { on: rec > 0, pts: rec },
+    recTD: { on: true, pts: 6 },
+    fum: { on: true, pts: -2 },
+    twoPt: { on: true, pts: 2 },
+    fg: { on: true, pts: 3 },
+    xp: { on: true, pts: 1 },
+    sack: { on: true, pts: 1 },
+    dstInt: { on: true, pts: 2 },
+    dstTd: { on: true, pts: 6 },
+    pa: { on: false, pts: -0.1 },
+  };
+}
+
 const PLAYERS: Player[] = [
-  { id: "1", name: "Patrick Mahomes", pos: "QB", team: "KC", opp: "BUF", proj: 22.4 },
-  { id: "2", name: "Josh Allen", pos: "QB", team: "BUF", opp: "KC", proj: 23.1 },
-  { id: "3", name: "Lamar Jackson", pos: "QB", team: "BAL", opp: "CLE", proj: 21.8 },
-  { id: "4", name: "Christian McCaffrey", pos: "RB", team: "SF", opp: "SEA", proj: 21.2 },
-  { id: "5", name: "Breece Hall", pos: "RB", team: "NYJ", opp: "MIA", proj: 16.4 },
-  { id: "6", name: "Jahmyr Gibbs", pos: "RB", team: "DET", opp: "GB", proj: 17.1 },
-  { id: "7", name: "Derrick Henry", pos: "RB", team: "BAL", opp: "CLE", proj: 15.8 },
-  { id: "8", name: "CeeDee Lamb", pos: "WR", team: "DAL", opp: "PHI", proj: 16.9 },
-  { id: "9", name: "Justin Jefferson", pos: "WR", team: "MIN", opp: "CHI", proj: 17.6 },
-  { id: "10", name: "Amon-Ra St. Brown", pos: "WR", team: "DET", opp: "GB", proj: 15.4 },
-  { id: "11", name: "Tyreek Hill", pos: "WR", team: "MIA", opp: "NYJ", proj: 14.8 },
-  { id: "12", name: "Travis Kelce", pos: "TE", team: "KC", opp: "BUF", proj: 13.2 },
-  { id: "13", name: "Trey McBride", pos: "TE", team: "ARI", opp: "LAR", proj: 12.4 },
-  { id: "14", name: "George Kittle", pos: "TE", team: "SF", opp: "SEA", proj: 11.7 },
-  { id: "15", name: "Harrison Butker", pos: "K", team: "KC", opp: "BUF", proj: 8.4 },
-  { id: "16", name: "Bills DST", pos: "DST", team: "BUF", opp: "KC", proj: 7.1 },
+  { id: "1", name: "Patrick Mahomes", pos: "QB", team: "KC", opp: "BUF", stats: { passYds: 285, passTD: 2, int: 1, rushYds: 22, rushTD: 0, fum: 0 } },
+  { id: "2", name: "Josh Allen", pos: "QB", team: "BUF", opp: "KC", stats: { passYds: 268, passTD: 2, int: 0, rushYds: 44, rushTD: 1, fum: 0 } },
+  { id: "3", name: "Lamar Jackson", pos: "QB", team: "BAL", opp: "CLE", stats: { passYds: 230, passTD: 1, int: 0, rushYds: 68, rushTD: 1, fum: 0 } },
+  { id: "4", name: "Christian McCaffrey", pos: "RB", team: "SF", opp: "SEA", stats: { rushYds: 92, rushTD: 1, rec: 6, recYds: 48, recTD: 0, fum: 0 } },
+  { id: "5", name: "Breece Hall", pos: "RB", team: "NYJ", opp: "MIA", stats: { rushYds: 78, rushTD: 0, rec: 5, recYds: 36, recTD: 0, fum: 0 } },
+  { id: "6", name: "Jahmyr Gibbs", pos: "RB", team: "DET", opp: "GB", stats: { rushYds: 84, rushTD: 1, rec: 4, recYds: 29, recTD: 0, fum: 0 } },
+  { id: "7", name: "Derrick Henry", pos: "RB", team: "BAL", opp: "CLE", stats: { rushYds: 105, rushTD: 1, rec: 1, recYds: 8, recTD: 0, fum: 0 } },
+  { id: "8", name: "CeeDee Lamb", pos: "WR", team: "DAL", opp: "PHI", stats: { rec: 8, recYds: 98, recTD: 1, rushYds: 6, fum: 0 } },
+  { id: "9", name: "Justin Jefferson", pos: "WR", team: "MIN", opp: "CHI", stats: { rec: 7, recYds: 112, recTD: 1, fum: 0 } },
+  { id: "10", name: "Amon-Ra St. Brown", pos: "WR", team: "DET", opp: "GB", stats: { rec: 9, recYds: 86, recTD: 0, fum: 0 } },
+  { id: "11", name: "Tyreek Hill", pos: "WR", team: "MIA", opp: "NYJ", stats: { rec: 5, recYds: 74, recTD: 1, rushYds: 12, fum: 0 } },
+  { id: "12", name: "Travis Kelce", pos: "TE", team: "KC", opp: "BUF", stats: { rec: 6, recYds: 72, recTD: 1, fum: 0 } },
+  { id: "13", name: "Trey McBride", pos: "TE", team: "ARI", opp: "LAR", stats: { rec: 7, recYds: 68, recTD: 0, fum: 0 } },
+  { id: "14", name: "George Kittle", pos: "TE", team: "SF", opp: "SEA", stats: { rec: 5, recYds: 61, recTD: 1, fum: 0 } },
+  { id: "15", name: "Harrison Butker", pos: "K", team: "KC", opp: "BUF", stats: { fg: 2, xp: 3 } },
+  { id: "16", name: "Bills DST", pos: "DST", team: "BUF", opp: "KC", stats: { sack: 3, dstInt: 1, dstTd: 0, pa: 20 } },
 ];
 
 function allowed(plan: Plan, need: Plan) {
   if (need === "press") return plan === "press" || plan === "desk";
   return plan === "desk";
-}
-
-function bump(s: Scoring, pos: Player["pos"]) {
-  if (pos !== "WR" && pos !== "RB" && pos !== "TE") return 0;
-  if (s === "ppr") return 3.2;
-  if (s === "half") return 1.6;
-  return 0;
 }
 
 function fits(player: Player, slotPos: Pos) {
@@ -87,17 +139,17 @@ function fits(player: Player, slotPos: Pos) {
 }
 
 function emptyRoster(): Record<SlotId, string> {
-  return {
-    QB: "",
-    RB1: "",
-    RB2: "",
-    WR1: "",
-    WR2: "",
-    TE: "",
-    FLEX: "",
-    K: "",
-    DST: "",
-  };
+  return { QB: "", RB1: "", RB2: "", WR1: "", WR2: "", TE: "", FLEX: "", K: "", DST: "" };
+}
+
+function scorePlayer(p: Player, scoring: Scoring) {
+  let n = 0;
+  (Object.keys(scoring) as StatKey[]).forEach((k) => {
+    const rule = scoring[k];
+    if (!rule.on) return;
+    n += (p.stats[k] || 0) * rule.pts;
+  });
+  return Math.round(n * 10) / 10;
 }
 
 export default function FantasyPage() {
@@ -105,14 +157,12 @@ export default function FantasyPage() {
   const [plan, setPlan] = useState<Plan>("free");
   const [credits, setCredits] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [scoring, setScoring] = useState<Scoring>("ppr");
+  const [preset, setPreset] = useState<Preset>("ppr");
+  const [scoring, setScoring] = useState<Scoring>(() => baseScoring(1));
+  const [showRules, setShowRules] = useState(false);
   const [roster, setRoster] = useState<Record<SlotId, string>>(emptyRoster);
   const [sitA, setSitA] = useState("4");
   const [sitB, setSitB] = useState("6");
-  const [waiverPos, setWaiverPos] = useState<Player["pos"]>("RB");
-  const [matchTeam, setMatchTeam] = useState("KC");
-  const [give, setGive] = useState("11");
-  const [get, setGet] = useState("5");
   const [busy, setBusy] = useState<AiId | null>(null);
   const [message, setMessage] = useState("");
   const [output, setOutput] = useState("");
@@ -140,54 +190,27 @@ export default function FantasyPage() {
     boot();
   }, []);
 
+  const applyPreset = (id: Preset) => {
+    setPreset(id);
+    if (id === "standard") setScoring(baseScoring(0));
+    if (id === "half") setScoring(baseScoring(0.5));
+    if (id === "ppr") setScoring(baseScoring(1));
+  };
+
+  const editRule = (key: StatKey, patch: Partial<Scoring[StatKey]>) => {
+    setPreset("custom");
+    setScoring((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  };
+
   const ranked = useMemo(
     () =>
       [...PLAYERS]
-        .map((p) => ({ ...p, adj: +(p.proj + bump(scoring, p.pos)).toFixed(1) }))
+        .map((p) => ({ ...p, adj: scorePlayer(p, scoring) }))
         .sort((a, b) => b.adj - a.adj),
     [scoring]
   );
 
   const used = new Set(Object.values(roster).filter(Boolean));
-
-  const setSlot = (slot: SlotId, id: string) => {
-    setRoster((prev) => ({ ...prev, [slot]: id }));
-  };
-
-  const fillBest = () => {
-    const taken = new Set<string>();
-    const next = emptyRoster();
-    for (const slot of SLOTS) {
-      const pick = ranked.find((p) => fits(p, slot.pos) && !taken.has(p.id));
-      next[slot.id] = pick?.id || "";
-      if (pick) taken.add(pick.id);
-    }
-    setRoster(next);
-    setMessage("Best available from the stub board. Free. No credit.");
-  };
-
-  const buildWeekLineup = () => {
-    const taken = new Set<string>();
-    const next = emptyRoster();
-    const notes: string[] = [];
-    for (const slot of SLOTS) {
-      const pool = ranked.filter((p) => fits(p, slot.pos) && !taken.has(p.id));
-      let pick = pool[0];
-      if (slot.pos === "QB" || slot.id === "FLEX") {
-        const stacked = pool.find((p) =>
-          [...taken].some((id) => ranked.find((x) => x.id === id)?.team === p.team)
-        );
-        if (stacked && stacked.adj >= (pick?.adj || 0) - 2) pick = stacked;
-      }
-      next[slot.id] = pick?.id || "";
-      if (pick) {
-        taken.add(pick.id);
-        notes.push(`${slot.label}: ${pick.name} vs ${pick.opp} · ${pick.adj.toFixed(1)}`);
-      }
-    }
-    return { next, notes };
-  };
-
   const rosterTotal = SLOTS.reduce((s, slot) => {
     const p = ranked.find((x) => x.id === roster[slot.id]);
     return s + (p?.adj || 0);
@@ -198,23 +221,31 @@ export default function FantasyPage() {
   const sitWinner = a && b ? (a.adj >= b.adj ? a : b) : null;
   const sitLoser = a && b && sitWinner ? (sitWinner.id === a.id ? b : a) : null;
 
+  const fillBest = () => {
+    const taken = new Set<string>();
+    const next = emptyRoster();
+    for (const slot of SLOTS) {
+      const pick = ranked.find((p) => fits(p, slot.pos) && !taken.has(p.id));
+      next[slot.id] = pick?.id || "";
+      if (pick) taken.add(pick.id);
+    }
+    setRoster(next);
+    setMessage("Best available under this scoring. Free.");
+  };
+
   const runAi = async (id: AiId, title: string, text: string, after?: () => void) => {
     setMessage("");
-    if (!userId) {
-      setMessage("Log in first.");
-      return;
-    }
+    if (!userId) return;
     if (!allowed(plan, NEED[id])) {
       setMessage(NEED[id] === "desk" ? "Desk research." : "Press or Desk research.");
       return;
     }
-    const cost = COST[id];
-    if (credits < cost) {
-      setMessage(`Need ${cost} credits. Open theMoneyPit.`);
+    if (credits < COST[id]) {
+      setMessage(`Need ${COST[id]} credits. Open theMoneyPit.`);
       return;
     }
     setBusy(id);
-    const spend = await spendAiCredits(cost, `fantasy-${id}`);
+    const spend = await spendAiCredits(COST[id], `fantasy-${id}`);
     if (!spend.ok) {
       setMessage(spend.reason);
       setBusy(null);
@@ -229,17 +260,22 @@ export default function FantasyPage() {
   };
 
   const setMyWeek = () => {
-    const { next, notes } = buildWeekLineup();
-    const total = SLOTS.reduce((s, slot) => {
-      const p = ranked.find((x) => x.id === next[slot.id]);
-      return s + (p?.adj || 0);
-    }, 0);
+    const taken = new Set<string>();
+    const next = emptyRoster();
+    const notes: string[] = [];
+    for (const slot of SLOTS) {
+      const pool = ranked.filter((p) => fits(p, slot.pos) && !taken.has(p.id));
+      const pick = pool[0];
+      next[slot.id] = pick?.id || "";
+      if (pick) {
+        taken.add(pick.id);
+        notes.push(`${slot.label}: ${pick.name} · ${pick.adj.toFixed(1)}`);
+      }
+    }
     runAi(
       "setWeek",
       "Set my week · 5 credits",
-      `Lineup locked for this stub week in ${scoring.toUpperCase()}.\n\n` +
-        notes.join("\n") +
-        `\n\nProjected ${total.toFixed(1)}.\nBusy-manager pass: slots filled, one stack lean if it was close.\nBest available is still free if you only want a sort.`,
+      `Locked under ${preset.toUpperCase()} scoring.\n\n${notes.join("\n")}`,
       () => setRoster(next)
     );
   };
@@ -256,9 +292,6 @@ export default function FantasyPage() {
     return (
       <main className="max-w-xl mx-auto px-4 py-16 text-center">
         <h1 className="text-3xl font-extrabold mb-2">Fantasy</h1>
-        <p className="text-sm text-muted-pit mb-4">
-          You need a theBallpit account to use the Fantasy desk.
-        </p>
         <Link href="/login" className="btn-write inline-block px-5 py-2.5 rounded-xl text-sm">
           Log in / Sign up
         </Link>
@@ -273,15 +306,15 @@ export default function FantasyPage() {
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit">theBallpit</div>
           <h1 className="text-3xl md:text-4xl font-extrabold">Fantasy desk</h1>
           <p className="text-sm text-muted-pit mt-1">
-            Roster tools are free. Credits buy the week set and the research.
+            Scoring is yours. Board and standings follow the table.
           </p>
+          <Link href="/fantasy/golf" className="text-xs text-highlight-pit">
+            Golf card →
+          </Link>
         </div>
         <div className="text-right">
           <div className="text-2xl font-bold">{credits}</div>
           <div className="text-[11px] text-muted-pit">AI credits</div>
-          <Link href="/moneypit" className="text-xs text-highlight-pit">
-            theMoneyPit
-          </Link>
         </div>
       </div>
 
@@ -290,9 +323,6 @@ export default function FantasyPage() {
           <div>
             <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">Busy?</div>
             <div className="font-semibold">Set my week</div>
-            <p className="text-xs text-muted-pit">
-              One tap fills every slot for this week and explains it. Press+.
-            </p>
           </div>
           <button
             type="button"
@@ -300,18 +330,20 @@ export default function FantasyPage() {
             disabled={!allowed(plan, NEED.setWeek) || busy === "setWeek"}
             className="btn-write px-5 py-3 rounded-xl text-sm disabled:opacity-45"
           >
-            {!allowed(plan, NEED.setWeek)
-              ? "Press 🔒"
-              : busy === "setWeek"
-              ? "Setting week..."
-              : "Set my week · 5"}
+            {!allowed(plan, NEED.setWeek) ? "Press 🔒" : busy === "setWeek" ? "Setting..." : "Set my week · 5"}
           </button>
         </div>
       </div>
 
       <div className="pit-panel p-4 mb-6">
-        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit mb-3">
-          Scoring · free
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">Scoring · free</div>
+            <div className="text-xs text-muted-pit">Presets or open the table and write your own league.</div>
+          </div>
+          <button type="button" onClick={() => setShowRules((v) => !v)} className="btn-metal px-3 py-1.5 rounded-lg text-xs">
+            {showRules ? "Hide table" : "Edit stats"}
+          </button>
         </div>
         <div className="flex flex-wrap gap-2">
           {(
@@ -319,26 +351,64 @@ export default function FantasyPage() {
               ["standard", "Standard"],
               ["half", "Half PPR"],
               ["ppr", "Full PPR"],
+              ["custom", "Custom"],
             ] as const
           ).map(([id, label]) => (
             <button
               key={id}
               type="button"
-              onClick={() => setScoring(id)}
-              className={`px-4 py-2 rounded-xl text-sm ${scoring === id ? "btn-write" : "btn-metal"}`}
+              onClick={() => applyPreset(id)}
+              className={`px-4 py-2 rounded-xl text-sm ${preset === id ? "btn-write" : "btn-metal"}`}
             >
               {label}
             </button>
           ))}
         </div>
+
+        {showRules && (
+          <div className="mt-4 overflow-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[11px] uppercase tracking-wide text-muted-pit text-left">
+                  <th className="py-2 pr-2">Track</th>
+                  <th className="py-2 pr-2">Stat</th>
+                  <th className="py-2">Points each</th>
+                </tr>
+              </thead>
+              <tbody>
+                {STATS.map((s) => (
+                  <tr key={s.key} className="border-t border-white/5">
+                    <td className="py-2 pr-2">
+                      <input
+                        type="checkbox"
+                        checked={scoring[s.key].on}
+                        onChange={(e) => editRule(s.key, { on: e.target.checked })}
+                      />
+                    </td>
+                    <td className="py-2 pr-2">{s.label}</td>
+                    <td className="py-2">
+                      <input
+                        type="number"
+                        step={s.step}
+                        value={scoring[s.key].pts}
+                        onChange={(e) => editRule(s.key, { pts: Number(e.target.value) })}
+                        className="w-24 rounded-lg px-2 py-1 text-sm"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <section className="lg:col-span-4 space-y-4">
+        <section className="lg:col-span-4">
           <div className="pit-panel p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold">Board</h2>
-              <span className="text-[10px] uppercase text-muted-pit">free</span>
+              <span className="text-[10px] uppercase text-muted-pit">{preset}</span>
             </div>
             <div className="space-y-1 max-h-[560px] overflow-auto pr-1">
               {ranked.map((p, i) => (
@@ -372,19 +442,13 @@ export default function FantasyPage() {
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <div>
                 <h2 className="font-semibold">Roster</h2>
-                <p className="text-xs text-muted-pit">
-                  Standard slots. Unlimited. {rosterTotal.toFixed(1)} {scoring.toUpperCase()}
-                </p>
+                <p className="text-xs text-muted-pit">{rosterTotal.toFixed(1)} under this table</p>
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={fillBest} className="btn-metal px-3 py-1.5 rounded-lg text-xs">
                   Best available
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setRoster(emptyRoster())}
-                  className="btn-metal px-3 py-1.5 rounded-lg text-xs"
-                >
+                <button type="button" onClick={() => setRoster(emptyRoster())} className="btn-metal px-3 py-1.5 rounded-lg text-xs">
                   Clear
                 </button>
               </div>
@@ -395,7 +459,7 @@ export default function FantasyPage() {
                   <div className="text-xs font-semibold text-muted-pit">{slot.label}</div>
                   <select
                     value={roster[slot.id]}
-                    onChange={(e) => setSlot(slot.id, e.target.value)}
+                    onChange={(e) => setRoster((prev) => ({ ...prev, [slot.id]: e.target.value }))}
                     className="w-full rounded-xl px-3 py-2 text-sm"
                   >
                     <option value="">Empty</option>
@@ -403,7 +467,7 @@ export default function FantasyPage() {
                       .filter((p) => fits(p, slot.pos) && (!used.has(p.id) || roster[slot.id] === p.id))
                       .map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.name} · {p.team} · {p.adj.toFixed(1)}
+                          {p.name} · {p.adj.toFixed(1)}
                         </option>
                       ))}
                   </select>
@@ -414,7 +478,7 @@ export default function FantasyPage() {
 
           <div className="pit-panel p-4">
             <h3 className="font-semibold">Start / Sit</h3>
-            <p className="text-xs text-muted-pit mb-3">Higher board number wins. Free.</p>
+            <p className="text-xs text-muted-pit mb-3">Uses your table. Free.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
               <PlayerSelect value={sitA} onChange={setSitA} ranked={ranked} />
               <PlayerSelect value={sitB} onChange={setSitB} ranked={ranked} />
@@ -427,155 +491,20 @@ export default function FantasyPage() {
             )}
             <AiButton
               label="Research this call"
-              cost={COST.sitResearch}
+              cost={1}
               need="Press"
-              locked={!allowed(plan, NEED.sitResearch)}
+              locked={!allowed(plan, "press")}
               busy={busy === "sitResearch"}
               onClick={() => {
-                if (!a || !b || !sitWinner || !sitLoser) return;
-                runAi(
-                  "sitResearch",
-                  "Start / Sit research · 1 credit",
-                  `Board says start ${sitWinner.name}.\n\n${sitWinner.name} vs ${sitWinner.opp} is the cleaner role. ${sitLoser.name} is the ceiling chase.\n\nWriteup is paid. The compare above is free.`
-                );
+                if (!sitWinner || !sitLoser) return;
+                runAi("sitResearch", "Start / Sit research · 1", `Under this scoring, start ${sitWinner.name}.`);
               }}
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="pit-panel p-4">
-              <h3 className="font-semibold">Waiver intel</h3>
-              <p className="text-xs text-muted-pit mb-3">Not just the top proj. Press+.</p>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {(["QB", "RB", "WR", "TE"] as const).map((pos) => (
-                  <button
-                    key={pos}
-                    type="button"
-                    onClick={() => setWaiverPos(pos)}
-                    className={`px-3 py-1.5 rounded-lg text-xs ${
-                      waiverPos === pos ? "btn-write" : "btn-metal"
-                    }`}
-                  >
-                    {pos}
-                  </button>
-                ))}
-              </div>
-              <AiButton
-                label="Pull waiver brief"
-                cost={COST.waiver}
-                need="Press"
-                locked={!allowed(plan, NEED.waiver)}
-                busy={busy === "waiver"}
-                onClick={() => {
-                  const list = ranked.filter((p) => p.pos === waiverPos).slice(0, 3);
-                  runAi(
-                    "waiver",
-                    "Waiver intel · 2 credits",
-                    list
-                      .map((p, i) => `${i + 1}. ${p.name} — add if you need ${p.pos} vs ${p.opp}.`)
-                      .join("\n") + "\n\nResearch layer. Sorting the board is free."
-                  );
-                }}
-              />
-            </div>
-
-            <div className="pit-panel p-4">
-              <h3 className="font-semibold">Matchup writeup</h3>
-              <p className="text-xs text-muted-pit mb-3">Narrative. Desk.</p>
-              <select
-                value={matchTeam}
-                onChange={(e) => setMatchTeam(e.target.value)}
-                className="w-full rounded-xl px-3 py-2 text-sm mb-3"
-              >
-                {[...new Set(PLAYERS.map((p) => p.team))].map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-              <AiButton
-                label="Write the matchup"
-                cost={COST.matchup}
-                need="Desk"
-                locked={!allowed(plan, NEED.matchup)}
-                busy={busy === "matchup"}
-                onClick={() => {
-                  const mine = ranked.filter((p) => p.team === matchTeam);
-                  runAi(
-                    "matchup",
-                    "Matchup writeup · 4 credits",
-                    `${matchTeam} this stub week.\n\n` +
-                      mine.map((p) => `${p.name} vs ${p.opp}.`).join("\n")
-                  );
-                }}
-              />
-            </div>
-
-            <div className="pit-panel p-4">
-              <h3 className="font-semibold">Trade intel</h3>
-              <p className="text-xs text-muted-pit mb-3">Rest-of-season. Desk.</p>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div>
-                  <div className="text-[11px] text-muted-pit mb-1">Give</div>
-                  <PlayerSelect value={give} onChange={setGive} ranked={ranked} />
-                </div>
-                <div>
-                  <div className="text-[11px] text-muted-pit mb-1">Get</div>
-                  <PlayerSelect value={get} onChange={setGet} ranked={ranked} />
-                </div>
-              </div>
-              <AiButton
-                label="Analyze trade"
-                cost={COST.trade}
-                need="Desk"
-                locked={!allowed(plan, NEED.trade)}
-                busy={busy === "trade"}
-                onClick={() => {
-                  const g = ranked.find((p) => p.id === give);
-                  const t = ranked.find((p) => p.id === get);
-                  if (!g || !t || g.id === t.id) {
-                    setMessage("Pick two different players.");
-                    return;
-                  }
-                  runAi(
-                    "trade",
-                    "Trade intel · 8 credits",
-                    `Give ${g.name} for ${t.name}.\n` +
-                      (t.adj >= g.adj ? `Take ${t.name}.` : `Keep ${g.name}.`)
-                  );
-                }}
-              />
-            </div>
-
-            <div className="pit-panel p-4">
-              <h3 className="font-semibold">Pit engine</h3>
-              <p className="text-xs text-muted-pit mb-3">Stacks. Not a sort. Desk.</p>
-              <AiButton
-                label="Run engine"
-                cost={COST.engine}
-                need="Desk"
-                locked={!allowed(plan, NEED.engine)}
-                busy={busy === "engine"}
-                onClick={() => {
-                  const qb = ranked.find((p) => p.pos === "QB");
-                  const stack = ranked.find((p) => p.team === qb?.team && p.pos !== "QB");
-                  runAi(
-                    "engine",
-                    "Pit engine · 8 credits",
-                    `Build around ${qb?.name || "your QB"}.` +
-                      (stack ? ` Stack ${stack.name}.` : "") +
-                      `\nSet my week is the busy button. This is the nerd button.`
-                  );
-                }}
-              />
-            </div>
-          </div>
-
           {output && (
             <div className="pit-panel p-5">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit mb-2">
-                {outputTitle}
-              </div>
+              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit mb-2">{outputTitle}</div>
               <pre className="text-sm whitespace-pre-wrap font-sans leading-relaxed">{output}</pre>
             </div>
           )}
@@ -596,11 +525,7 @@ function PlayerSelect({
   ranked: (Player & { adj: number })[];
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-xl px-3 py-2 text-sm"
-    >
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl px-3 py-2 text-sm">
       {ranked.map((p) => (
         <option key={p.id} value={p.id}>
           {p.pos} {p.name} · {p.adj.toFixed(1)}
