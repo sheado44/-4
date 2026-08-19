@@ -3,14 +3,13 @@ export default function FantasiDeskMark({
 }: {
   size?: "hero" | "nav";
 }) {
-  const a = { color: "#D4A056" };
-  const i = { color: "#F4F7FB" };
+  const mark = { color: "#D4A056" };
   return (
     <span
       className={size === "nav" ? "text-sm font-extrabold" : "font-extrabold"}
       style={{ letterSpacing: "-0.03em" }}
     >
-      f<span style={a}>a</span>nt<span style={a}>a</span>s<span style={i}>i</span>Desk
+      fant<span style={mark}>a</span>s<span style={mark}>i</span>Desk
     </span>
   );
 }
