@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import FantasiDeskMark from "@/components/FantasiDeskMark";
 import { supabase } from "@/lib/supabaseClient";
 import { spendAiCredits } from "@/lib/aiCredits";
 
@@ -283,7 +284,7 @@ export default function FantasyPage() {
   if (loading) {
     return (
       <main className="max-w-6xl mx-auto px-4 py-10">
-        <p className="text-sm text-muted-pit">Loading Fantasy desk...</p>
+        <p className="text-sm text-muted-pit">Loading fantasiDesk...</p>
       </main>
     );
   }
@@ -291,7 +292,9 @@ export default function FantasyPage() {
   if (!userId) {
     return (
       <main className="max-w-xl mx-auto px-4 py-16 text-center">
-        <h1 className="text-3xl font-extrabold mb-2">Fantasy</h1>
+        <h1 className="text-3xl font-extrabold mb-2">
+          <FantasiDeskMark />
+        </h1>
         <Link href="/login" className="btn-write inline-block px-5 py-2.5 rounded-xl text-sm">
           Log in / Sign up
         </Link>
@@ -304,7 +307,9 @@ export default function FantasyPage() {
       <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit">theBallpit</div>
-          <h1 className="text-3xl md:text-4xl font-extrabold">Fantasy desk</h1>
+          <h1 className="text-3xl md:text-4xl font-extrabold">
+            <FantasiDeskMark />
+          </h1>
           <p className="text-sm text-muted-pit mt-1">
             Scoring is yours. Board and standings follow the table.
           </p>
