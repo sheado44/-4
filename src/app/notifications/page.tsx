@@ -3,14 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import NotificationLog, {
+import NotificationLog from "@/components/NotificationLog";
+import {
   DEFAULT_PREFS,
   PREF_LABELS,
   loadNotifyPrefs,
   saveNotifyPrefs,
   type PrefKey,
   type Prefs,
-} from "@/components/NotificationLog";
+} from "@/lib/notifyPrefs";
 
 export default function NotificationsPage() {
   const [userId, setUserId] = useState<string | null>(null);
