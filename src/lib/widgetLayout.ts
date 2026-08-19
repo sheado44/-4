@@ -5,7 +5,8 @@ export type WidgetId =
   | "watch"
   | "find"
   | "moshpit"
-  | "rules";
+  | "rules"
+  | "fantasy";
 
 export const WIDGET_CATALOG: { id: WidgetId; label: string }[] = [
   { id: "desk", label: "Your desk" },
@@ -15,6 +16,7 @@ export const WIDGET_CATALOG: { id: WidgetId; label: string }[] = [
   { id: "find", label: "Find" },
   { id: "moshpit", label: "theMoshpit" },
   { id: "rules", label: "House rules" },
+  { id: "fantasy", label: "fantasiDesk" },
 ];
 
 export const DEFAULT_WIDGETS = WIDGET_CATALOG.map((w) => w.id);
