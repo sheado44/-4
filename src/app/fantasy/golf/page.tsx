@@ -147,6 +147,7 @@ export default function GolfFantasyPage() {
     return (
       <main className="max-w-xl mx-auto px-4 py-16 text-center">
         <h1 className="text-3xl font-extrabold mb-2">Golf card</h1>
+        <p className="text-sm text-muted-pit mb-3">fantasiDesk is a product of theBallpit.</p>
         <p className="text-sm text-muted-pit mb-4">Log in to pick three.</p>
         <Link href="/login" className="btn-write inline-block px-5 py-2.5 rounded-xl text-sm">
           Log in / Sign up
@@ -160,11 +161,11 @@ export default function GolfFantasyPage() {
       <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
           <Link href="/fantasy" className="text-xs text-muted-pit hover:text-highlight-pit">
-            ← Fantasy desk
+            ← fantasiDesk
           </Link>
           <h1 className="text-3xl md:text-4xl font-extrabold mt-1">Golf card</h1>
           <p className="text-sm text-muted-pit mt-1">
-            Pick 3. Combined TOUR prize money is the score. Stub week · no cash pot.
+            A product of theBallpit. Pick 3. Combined TOUR prize money is the score. Stub week · no cash pot.
           </p>
         </div>
         <div className="text-right">
@@ -303,3 +304,4 @@ export default function GolfFantasyPage() {
     </main>
   );
 }
+
