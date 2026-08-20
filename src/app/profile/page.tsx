@@ -309,8 +309,11 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-2 text-xs text-muted-pit mb-1">
                   <span className="text-highlight-pit font-medium">{article.section}</span>
                   {article.status === "author_only" && (
-                    <span className="px-2 py-0.5 rounded-md border border-white/15 text-[10px] uppercase tracking-wide">
-                      Desk only
+                    <span
+                      className="px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wide"
+                      style={{ border: "1px solid rgba(212,160,86,0.55)", color: "#D4A056" }}
+                    >
+                      technical foul
                     </span>
                   )}
                   <span>•</span>
@@ -409,4 +412,5 @@ export default function ProfilePage() {
     </main>
   );
 }
+
 
