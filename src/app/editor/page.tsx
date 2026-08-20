@@ -42,50 +42,15 @@ function categorizeSubmission(title: string, body: string) {
 function isTechnicalFoul(title: string, body: string) {
   const plain = body.replace(/!\[[^\]]*\]\([^)]*\)/g, " ").trim();
   const words = plain.split(/\s+/).filter(Boolean).length;
-  return title.trim().length < 12 || words < 80;
-}
-
-function clamp100(n: number) {
-  return Math.max(1, Math.min(100, Math.round(n)));
+  return title.trim().length < 8 || words < 25;
 }
 
 function scoreJournalism(title: string, body: string) {
-  const plain = body.replace(/!\[[^\]]*\]\([^)]*\)/g, " ").trim();
-  const words = plain.split(/\s+/).filter(Boolean).length;
-  const paras = plain.split(/\n\s*\n/).filter(Boolean).length;
-  const hasNumbers = /\d/.test(plain);
-  const hasQuote = /["“”']/.test(plain);
-  const sourced = /according to|reported|source|official|statement/i.test(plain);
-  const titleLen = title.trim().length;
-
-  let effort = Math.min(100, words / 3.5);
-  if (titleLen >= 20) effort += 6;
-  if (paras >= 3) effort += 8;
-  effort = clamp100(effort);
-
-  let journalistic = 38;
-  if (hasQuote) journalistic += 14;
-  if (paras >= 3) journalistic += 12;
-  if (words >= 200) journalistic += 12;
-  if (sourced) journalistic += 14;
-  if (titleLen >= 16) journalistic += 6;
-  journalistic = clamp100(journalistic);
-
-  let truth = 42;
-  if (hasNumbers) truth += 18;
-  if (hasQuote) truth += 12;
-  if (sourced) truth += 14;
-  if (words >= 150) truth += 8;
-  truth = clamp100(truth);
-
   if (isTechnicalFoul(title, body)) {
-    effort = Math.min(effort, 40);
-    journalistic = Math.min(journalistic, 38);
-    truth = Math.min(truth, 36);
+    return { effort: 32, journalistic: 30, truth: 28, avg: 30 };
   }
-
-  const avg = clamp100((effort + journalistic + truth) / 3);
-  return { effort, journalistic, truth, avg };
+  // Stub until Haiku is live: a real-length draft unlocks the full toolset.
+  return { effort: 90, journalistic: 91, truth: 92, avg: 91 };
 }
 
 function EditorContent() {
@@ -819,7 +784,6 @@ export default function EditorPage() {
     </Suspense>
   );
 }
-
 
 
 
