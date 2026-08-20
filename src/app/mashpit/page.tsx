@@ -84,6 +84,12 @@ export default function MashPitPage() {
   const [voiceQuery, setVoiceQuery] = useState("");
   const [voiceHits, setVoiceHits] = useState<VoicePerson[]>([]);
   const [friends, setFriends] = useState<VoicePerson[]>([]);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchSort, setSearchSort] = useState<"time" | "comments" | "tbp">("time");
+  const [searchHits, setSearchHits] = useState<Post[]>([]);
+  const [searchVotes, setSearchVotes] = useState<VoteMap>({});
+  const [searchReplies, setSearchReplies] = useState<Record<string, number>>({});
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     const boot = async () => {
@@ -186,6 +192,13 @@ export default function MashPitPage() {
     };
   }, [room, userId]);
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      runSearch(searchQ, userId);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQ, userId]);
+
   const roots = useMemo(
     () => posts.filter((p) => !p.parent_id),
     [posts]
@@ -202,6 +215,74 @@ export default function MashPitPage() {
     );
     return map;
   }, [posts]);
+
+
+  function tbpForPost(id: string, vmap: VoteMap, replyCount: number) {
+    const v = vmap[id] || { up: 0, down: 0, myVote: null };
+    const total = v.up + v.down;
+    const crowd = total === 0 ? 50 : Math.round((100 * v.up) / total);
+    const bump = Math.min(20, replyCount * 2);
+    return Math.max(1, Math.min(100, Math.round(crowd * 0.8 + bump)));
+  }
+
+  const runSearch = async (q: string, currentUser: string | null) => {
+    const needle = q.trim().replace(/[%_,()]/g, " ").replace(/\s+/g, " ").trim();
+    if (needle.length < 2) {
+      setSearchHits([]);
+      setSearchVotes({});
+      setSearchReplies({});
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const { data: postData } = await supabase
+      .from("moshpit_posts")
+      .select("id, user_id, author_name, room, body, parent_id, created_at, audience, audience_ids")
+      .or(`body.ilike.%${needle}%,author_name.ilike.%${needle}%`)
+      .order("created_at", { ascending: false })
+      .limit(80);
+
+    const list = (postData || []) as Post[];
+    setSearchHits(list);
+
+    const ids = list.map((p) => p.id);
+    const next: VoteMap = {};
+    ids.forEach((id) => {
+      next[id] = { up: 0, down: 0, myVote: null };
+    });
+    const replyNext: Record<string, number> = {};
+    ids.forEach((id) => {
+      replyNext[id] = 0;
+    });
+
+    if (ids.length) {
+      const { data: voteData } = await supabase
+        .from("moshpit_votes")
+        .select("post_id, user_id, vote")
+        .in("post_id", ids);
+      for (const row of voteData || []) {
+        if (!next[row.post_id]) continue;
+        if (row.vote === 1) next[row.post_id].up += 1;
+        if (row.vote === -1) next[row.post_id].down += 1;
+        if (currentUser && row.user_id === currentUser) {
+          next[row.post_id].myVote = row.vote;
+        }
+      }
+      const { data: kids } = await supabase
+        .from("moshpit_posts")
+        .select("parent_id")
+        .in("parent_id", ids);
+      for (const row of kids || []) {
+        if (row.parent_id && replyNext[row.parent_id] != null) {
+          replyNext[row.parent_id] += 1;
+        }
+      }
+    }
+
+    setSearchVotes(next);
+    setSearchReplies(replyNext);
+    setSearching(false);
+  };
 
   const submit = async () => {
     setMessage("");
@@ -388,6 +469,38 @@ export default function MashPitPage() {
             {r.label}
           </button>
         ))}
+      </div>
+
+      <div className="pit-panel rounded-2xl p-3 mb-4">
+        <input
+          value={searchQ}
+          onChange={(e) => setSearchQ(e.target.value)}
+          placeholder="Search mashPit — words, names..."
+          className="w-full rounded-xl px-3 py-2 text-sm outline-none bg-black/20 border border-white/10 mb-3"
+        />
+        {searchQ.trim().length >= 2 && (
+          <div className="flex flex-wrap gap-2">
+            {([
+              ["time", "Newest"],
+              ["comments", "Comments"],
+              ["tbp", "tBp"],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setSearchSort(id)}
+                className={`px-3 py-1.5 rounded-lg text-xs ${
+                  searchSort === id ? "btn-write" : "btn-metal"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        <p className="text-[11px] text-muted-pit mt-2">
+          tBp here is mashPit score from thumbs and replies. Article tBp Index is on story cards.
+        </p>
       </div>
 
       <div className="pit-panel rounded-2xl p-4 mb-6">
@@ -642,7 +755,40 @@ export default function MashPitPage() {
         {message && <p className="text-sm text-yellow-200 mt-3">{message}</p>}
       </div>
 
-      {loading ? (
+      {searchQ.trim().length >= 2 ? (
+        searching ? (
+          <p className="text-sm text-muted-pit">Searching...</p>
+        ) : searchHits.length === 0 ? (
+          <p className="text-sm text-muted-pit">No mashPit hits for that.</p>
+        ) : (
+          <div className="space-y-3">
+            {[...searchHits]
+              .sort((a, b) => {
+                if (searchSort === "comments") {
+                  return (searchReplies[b.id] || 0) - (searchReplies[a.id] || 0);
+                }
+                if (searchSort === "tbp") {
+                  return (
+                    tbpForPost(b.id, searchVotes, searchReplies[b.id] || 0) -
+                    tbpForPost(a.id, searchVotes, searchReplies[a.id] || 0)
+                  );
+                }
+                return b.created_at.localeCompare(a.created_at);
+              })
+              .map((post) => (
+                <div key={post.id}>
+                  <div className="flex items-center gap-2 text-[11px] text-muted-pit mb-1 px-1">
+                    <span>{post.room}</span>
+                    <span>tBp {tbpForPost(post.id, searchVotes, searchReplies[post.id] || 0)}</span>
+                    <span>{searchReplies[post.id] || 0} comments</span>
+                    {post.parent_id && <span>reply</span>}
+                  </div>
+                  {renderPost(post, Boolean(post.parent_id))}
+                </div>
+              ))}
+          </div>
+        )
+      ) : loading ? (
         <p className="text-sm text-muted-pit">Loading the floor...</p>
       ) : roots.length === 0 ? (
         <p className="text-sm text-muted-pit">Quiet in here. Be first.</p>
@@ -659,3 +805,4 @@ export default function MashPitPage() {
     </main>
   );
 }
+
