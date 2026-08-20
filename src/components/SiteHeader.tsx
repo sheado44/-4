@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AuthNav from "@/components/AuthNav";
+import BossMode from "@/components/BossMode";
 import BallpitWordmark from "@/components/BallpitWordmark";
 import TrashPitMark from "@/components/TrashPitMark";
 import { supabase } from "@/lib/supabaseClient";
@@ -45,6 +46,7 @@ function applyDefaultSteel() {
 
 export default function SiteHeader() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [bossOn, setBossOn] = useState(false);
   const [bgColor, setBgColor] = useState("#1E2022");
   const [highlightColor, setHighlightColor] = useState("#F0A04B");
   const [textMode, setTextMode] = useState<TextMode>("white");
@@ -136,7 +138,16 @@ export default function SiteHeader() {
     applyTheme("#1E2022", "#F0A04B", "white");
   };
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setBossOn(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
+    <>
     <header
       className="sticky top-0 z-50 border-b"
       style={{
@@ -371,10 +382,22 @@ export default function SiteHeader() {
           >
             <TrashPitMark size="nav" />
           </Link>
+          <button
+            type="button"
+            onClick={() => setBossOn(true)}
+            className="hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-lg text-[11px] uppercase tracking-[0.14em]"
+            style={{ color: "var(--pit-muted)" }}
+            title="Fake office screen. Esc to leave."
+          >
+            Boss
+          </button>
           <AuthNav />
         </div>
       </div>
     </header>
+    <BossMode on={bossOn} onClose={() => setBossOn(false)} />
+    </>
   );
 }
+
 
