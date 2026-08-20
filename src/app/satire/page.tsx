@@ -1,4 +1,4 @@
-"use client";
+\"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -11,11 +11,100 @@ import ComputeButton from "@/components/ComputeButton";
 
 type Tone = "funny" | "serious" | "mad" | "chaotic" | "roast" | "locker" | "degenerate" | "unhinged";
 
-type Slot = { key: string; hint: string };
+type BankId =
+  | "role"
+  | "club"
+  | "place"
+  | "object"
+  | "verb"
+  | "award"
+  | "snack"
+  | "stat"
+  | "excuse"
+  | "rival";
+
+type Slot = { key: string; bank: BankId };
 
 type Setup = {
   id: string;
   parts: (string | Slot)[];
+};
+
+const BANKS: Record<BankId, string[]> = {
+  role: [
+    "the home closer",
+    "a backup quarterback",
+    "the visiting power forward",
+    "a mid-rotation winger",
+    "the special-teams captain",
+    "an unnamed assistant",
+    "the sideline reporter",
+    "a mascot in overtime",
+  ],
+  rival: [
+    "the road closer",
+    "a rival captain",
+    "the other sideline",
+    "a former teammate",
+    "the league office",
+    "a studio panel",
+  ],
+  club: [
+    "a snow-belt club",
+    "a sun-belt franchise",
+    "the college shop with the loud band",
+    "an expansion side",
+    "a small-market roster",
+    "the visiting locker room",
+  ],
+  place: [
+    "a packed dome",
+    "a mid-market arena",
+    "an unnamed practice facility",
+    "a hotel ballroom",
+    "a parking-lot podium",
+    "a lakeside presser",
+  ],
+  object: [
+    "a crate of orange slices",
+    "a slightly used podium",
+    "a Gatorade bucket of mystery",
+    "a laminated depth chart",
+    "one folding chair",
+    "a box of stale pretzels",
+  ],
+  verb: [
+    "yeeted",
+    "mic-dropped",
+    "table-flipped",
+    "speed-walked",
+    "whisper-screamed",
+    "accidentally launched",
+  ],
+  award: [
+    "a made-up hardware trophy",
+    "a participation plaque",
+    "the imaginary MVP toaster",
+    "a foam finger of the year",
+  ],
+  snack: [
+    "a sad fruit cup",
+    "cold nacho cheese",
+    "a single chicken tender",
+    "unlimited ketchup packets",
+  ],
+  stat: [
+    "47 fake touchdowns",
+    "a 0.000 batting line that still won",
+    "800 yards of vibes",
+    "a quadruple-double in a dream",
+  ],
+  excuse: [
+    "a haunted visor",
+    "the lighting in the tunnel",
+    "a rogue marching band",
+    "unspecified turf feelings",
+  ],
 };
 
 const TONES: { id: Tone; label: string; paid?: "press" | "desk" }[] = [
@@ -30,65 +119,65 @@ const SETUPS: Setup[] = [
   {
     id: "trade",
     parts: [
-      { key: "star", hint: "athlete" },
+      { key: "star", bank: "role" },
       " is headed to ",
-      { key: "team", hint: "team" },
+      { key: "team", bank: "club" },
       " in a deal for ",
-      { key: "object", hint: "ridiculous object" },
+      { key: "object", bank: "object" },
       ", negotiated at ",
-      { key: "place", hint: "place" },
+      { key: "place", bank: "place" },
       ".",
     ],
   },
   {
     id: "awards",
     parts: [
-      { key: "star", hint: "famous person" },
+      { key: "star", bank: "role" },
       " lost ",
-      { key: "award", hint: "fake award" },
+      { key: "award", bank: "award" },
       " to ",
-      { key: "rival", hint: "rival" },
+      { key: "rival", bank: "rival" },
       " and demanded ",
-      { key: "snack", hint: "snack" },
+      { key: "snack", bank: "snack" },
       " in the gift bag.",
     ],
   },
   {
     id: "presser",
     parts: [
-      { key: "coach", hint: "coach" },
+      { key: "coach", bank: "role" },
       " ",
-      { key: "verb", hint: "past-tense verb" },
+      { key: "verb", bank: "verb" },
       " ",
-      { key: "item", hint: "item" },
+      { key: "item", bank: "object" },
       " during a presser in ",
-      { key: "city", hint: "city" },
+      { key: "city", bank: "place" },
       ".",
     ],
   },
   {
     id: "dating",
     parts: [
-      { key: "star", hint: "person" },
+      { key: "star", bank: "role" },
       " and ",
-      { key: "other", hint: "other person" },
+      { key: "other", bank: "rival" },
       " were spotted at ",
-      { key: "spot", hint: "place" },
+      { key: "spot", bank: "place" },
       " holding ",
-      { key: "prop", hint: "object" },
+      { key: "prop", bank: "object" },
       ".",
     ],
   },
   {
     id: "record",
     parts: [
-      { key: "athlete", hint: "athlete" },
+      { key: "athlete", bank: "role" },
       " put up ",
-      { key: "stat", hint: "impossible stat" },
+      { key: "stat", bank: "stat" },
       " against ",
-      { key: "foe", hint: "opponent" },
+      { key: "foe", bank: "club" },
       " because of ",
-      { key: "excuse", hint: "excuse" },
+      { key: "excuse", bank: "excuse" },
       ".",
     ],
   },
@@ -105,6 +194,10 @@ function pickSetup(avoid?: string) {
 
 function val(values: Record<string, string>, key: string, fallback: string) {
   return values[key]?.trim() || fallback;
+}
+
+function bankLabel(slot: Slot) {
+  return BANKS[slot.bank][0];
 }
 
 /** Hard floor only. Crude adult jokes pass. This is the same gate the live model will use. */
@@ -154,7 +247,7 @@ function buildSatire(setup: Setup, values: Record<string, string>, tone: Tone, a
       : "This is a bit. Treat it like a bit.";
 
   const sentence = setup.parts
-    .map((p) => (typeof p === "string" ? p : val(values, p.key, p.hint)))
+    .map((p) => (typeof p === "string" ? p : val(values, p.key, bankLabel(p))))
     .join("");
 
   if (setup.id === "trade") {
@@ -188,28 +281,40 @@ function buildSatire(setup: Setup, values: Record<string, string>, tone: Tone, a
 }
 
 function Blank({
-  hint,
+  bank,
   value,
   onChange,
 }: {
-  hint: string;
+  bank: BankId;
   value: string;
   onChange: (v: string) => void;
 }) {
-  const width = Math.max(hint.length, value.length, 8);
+  const opts = BANKS[bank];
+  const shown = value || "________";
+  const width = Math.max(shown.length, 10);
   return (
-    <input
+    <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      placeholder={hint}
-      className="inline-block mx-1 px-1 bg-transparent outline-none text-highlight-pit font-semibold"
+      className="inline-block mx-1 px-0 bg-transparent outline-none font-semibold cursor-pointer"
       style={{
-        width: `${width + 1}ch`,
+        width: `${width + 2}ch`,
+        maxWidth: "100%",
         border: "none",
-        borderBottom: "2px solid color-mix(in srgb, var(--pit-highlight) 70%, transparent)",
+        borderBottom: "2px solid #D4A056",
         borderRadius: 0,
+        color: value ? "#D4A056" : "rgba(244,247,251,0.45)",
+        appearance: "none",
+        WebkitAppearance: "none",
       }}
-    />
+    >
+      <option value="">________</option>
+      {opts.map((o) => (
+        <option key={o} value={o} style={{ color: "#1E2022" }}>
+          {o}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -417,7 +522,7 @@ export default function SatireLabPage() {
 
       <div className="pit-panel p-5 mb-4">
         <div className="flex items-start justify-between gap-3 mb-4">
-          <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">Fill in the blanks</div>
+          <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit">Fill in the blanks · lists only, no real names</div>
           <button type="button" onClick={refreshSetup} className="btn-metal text-xs px-3 py-1.5 rounded-lg">
             Refresh
           </button>
@@ -451,7 +556,7 @@ export default function SatireLabPage() {
             ) : (
               <Blank
                 key={part.key}
-                hint={part.hint}
+                bank={part.bank}
                 value={values[part.key] || ""}
                 onChange={(v) => setValues((prev) => ({ ...prev, [part.key]: v }))}
               />
@@ -498,6 +603,7 @@ export default function SatireLabPage() {
     </main>
   );
 }
+
 
 
 
