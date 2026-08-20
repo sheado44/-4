@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { formatTime, formatTimeFull } from "@/lib/time";
+import WarriorMark, { isWarrior } from "@/components/WarriorMark";
 
 type Article = {
   id: string;
@@ -68,6 +69,7 @@ export default function PublicProfilePage() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [warriorComments, setWarriorComments] = useState<{ created_at: string }[]>([]);
   const [activeTab, setActiveTab] = useState<"articles" | "comments" | "satire">("articles");
   const [relationship, setRelationship] = useState<Relationship | null>(null);
   const [viewerId, setViewerId] = useState<string | null>(null);
@@ -107,6 +109,12 @@ export default function PublicProfilePage() {
         created_at: a.created_at,
       }));
       setArticles(mappedArticles);
+
+      const { data: stamp } = await supabase
+        .from("comments")
+        .select("created_at")
+        .eq("user_id", id);
+      setWarriorComments(stamp || []);
 
       if (viewer?.id) {
         const { data: commentData } = await supabase
@@ -221,6 +229,11 @@ export default function PublicProfilePage() {
         )}
 
         <h1 className="text-3xl md:text-4xl font-bold mb-2">{displayName}</h1>
+        {isWarrior(warriorComments) && (
+          <div className="mb-3">
+            <WarriorMark />
+          </div>
+        )}
 
         {details.length > 0 && (
           <p className="text-sm text-muted-pit mb-3">{details.join(" · ")}</p>
@@ -421,3 +434,4 @@ export default function PublicProfilePage() {
     </main>
   );
 }
+
