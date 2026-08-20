@@ -6,6 +6,8 @@ import FantasiDeskMark from "@/components/FantasiDeskMark";
 import { supabase } from "@/lib/supabaseClient";
 import { spendAiCredits } from "@/lib/aiCredits";
 import ComputeButton from "@/components/ComputeButton";
+import ModelPicker from "@/components/ModelPicker";
+import { creditCost, defaultModel, type AiModel } from "@/lib/creditTable";
 
 type Plan = "free" | "press" | "desk";
 type Pos = "QB" | "RB" | "WR" | "TE" | "FLEX" | "K" | "DST";
@@ -82,7 +84,7 @@ const COST: Record<AiId, number> = {
 };
 
 const NEED: Record<AiId, Plan> = {
-  setWeek: "press",
+  setWeek: "free",
   sitResearch: "press",
   waiver: "press",
   matchup: "desk",
@@ -157,6 +159,7 @@ function scorePlayer(p: Player, scoring: Scoring) {
 export default function FantasyPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [plan, setPlan] = useState<Plan>("free");
+  const [model, setModel] = useState<AiModel>("haiku");
   const [credits, setCredits] = useState(0);
   const [loading, setLoading] = useState(true);
   const [preset, setPreset] = useState<Preset>("ppr");
@@ -186,6 +189,7 @@ export default function FantasyPage() {
         .maybeSingle();
       const p = String(profile?.plan || "free").toLowerCase();
       setPlan(p === "desk" ? "desk" : p === "press" ? "press" : "free");
+      setModel(defaultModel(p === "desk" ? "desk" : p === "press" ? "press" : "free"));
       setCredits(Number(profile?.ai_credits ?? 0));
       setLoading(false);
     };
@@ -242,12 +246,14 @@ export default function FantasyPage() {
       setMessage(NEED[id] === "desk" ? "Desk research." : "Press or Desk research.");
       return;
     }
-    if (credits < COST[id]) {
-      setMessage(`Need ${COST[id]} credits. Open theMoneyPit.`);
+    const mapped = id === "setWeek" || id === "sitResearch" ? id : null;
+    const cost = mapped ? creditCost(mapped, model) ?? COST[id] : COST[id];
+    if (credits < cost) {
+      setMessage(`Need ${cost} credits. Open theMoneyPit.`);
       return;
     }
     setBusy(id);
-    const spend = await spendAiCredits(COST[id], `fantasy-${id}`);
+    const spend = await spendAiCredits(cost, `fantasy-${id}`);
     if (!spend.ok) {
       setMessage(spend.reason);
       setBusy(null);
@@ -276,7 +282,7 @@ export default function FantasyPage() {
     }
     runAi(
       "setWeek",
-      "Set my week · 5 credits",
+      "Set my week",
       `Locked under ${preset.toUpperCase()} scoring.\n\n${notes.join("\n")}`,
       () => setRoster(next)
     );
@@ -336,12 +342,16 @@ export default function FantasyPage() {
               Press 🔒
             </button>
           ) : (
-            <ComputeButton
-              cost={COST.setWeek}
-              label="Set my week"
-              busy={busy === "setWeek"}
-              onConfirm={setMyWeek}
-            />
+            <div>
+              <ModelPicker plan={plan} job="setWeek" value={model} onChange={setModel} />
+              <ComputeButton
+                job="setWeek"
+                model={model}
+                label="Set my week"
+                busy={busy === "setWeek"}
+                onConfirm={setMyWeek}
+              />
+            </div>
           )}
         </div>
       </div>
