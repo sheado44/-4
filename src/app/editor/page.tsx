@@ -12,6 +12,49 @@ function isTechnicalFoul(title: string, body: string) {
   return title.trim().length < 12 || words < 80;
 }
 
+function clamp100(n: number) {
+  return Math.max(1, Math.min(100, Math.round(n)));
+}
+
+function scoreJournalism(title: string, body: string) {
+  const plain = body.replace(/!\[[^\]]*\]\([^)]*\)/g, " ").trim();
+  const words = plain.split(/\s+/).filter(Boolean).length;
+  const paras = plain.split(/\n\s*\n/).filter(Boolean).length;
+  const hasNumbers = /\d/.test(plain);
+  const hasQuote = /["“”']/.test(plain);
+  const sourced = /according to|reported|source|official|statement/i.test(plain);
+  const titleLen = title.trim().length;
+
+  let effort = Math.min(100, words / 3.5);
+  if (titleLen >= 20) effort += 6;
+  if (paras >= 3) effort += 8;
+  effort = clamp100(effort);
+
+  let journalistic = 38;
+  if (hasQuote) journalistic += 14;
+  if (paras >= 3) journalistic += 12;
+  if (words >= 200) journalistic += 12;
+  if (sourced) journalistic += 14;
+  if (titleLen >= 16) journalistic += 6;
+  journalistic = clamp100(journalistic);
+
+  let truth = 42;
+  if (hasNumbers) truth += 18;
+  if (hasQuote) truth += 12;
+  if (sourced) truth += 14;
+  if (words >= 150) truth += 8;
+  truth = clamp100(truth);
+
+  if (isTechnicalFoul(title, body)) {
+    effort = Math.min(effort, 40);
+    journalistic = Math.min(journalistic, 38);
+    truth = Math.min(truth, 36);
+  }
+
+  const avg = clamp100((effort + journalistic + truth) / 3);
+  return { effort, journalistic, truth, avg };
+}
+
 function EditorContent() {
   const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
@@ -31,6 +74,14 @@ function EditorContent() {
   const [plan, setPlan] = useState<"free" | "press" | "desk">("free");
   const [userId, setUserId] = useState<string | null>(null);
   const [loggedInName, setLoggedInName] = useState<string | null>(null);
+  const [articleId, setArticleId] = useState<string | null>(null);
+  const [review, setReview] = useState<{
+    effort: number;
+    journalistic: number;
+    truth: number;
+    avg: number;
+  } | null>(null);
+  const [pitStatus, setPitStatus] = useState<"draft" | "foul" | "tools" | "published">("draft");
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
 
   const loadUser = async () => {
@@ -288,7 +339,7 @@ function EditorContent() {
     });
   };
 
-  const handlePublish = async () => {
+  const handleReview = async () => {
     setMessage("");
     setPublishedId(null);
     setLoading(true);
@@ -299,17 +350,21 @@ function EditorContent() {
         return;
       }
       if (!title.trim() || !body.trim()) {
-        setMessage("Please add a title and article text.");
+        setMessage("Add a title and the story text first.");
+        setLoading(false);
+        return;
+      }
+      if (section === "Satire") {
+        setMessage("Satire runs in trashPit, not this editor.");
         setLoading(false);
         return;
       }
 
+      const scored = scoreJournalism(title.trim(), body.trim());
+      setReview(scored);
       const authorName = loggedInName || "Anonymous";
-      const finalBody = thumbnailUrl.trim()
-        ? `![img:${imagePlace}](${thumbnailUrl.trim()})\n\n${body.trim()}`
-        : body.trim();
-
-      const foul = isTechnicalFoul(title.trim(), body.trim());
+      const foul = scored.avg < 55 || isTechnicalFoul(title.trim(), body.trim());
+      const status = foul ? "author_only" : "desk_edit";
 
       const { data, error } = await supabase
         .from("articles")
@@ -317,32 +372,80 @@ function EditorContent() {
           user_id: userId,
           title: title.trim(),
           section,
-          body: finalBody,
+          body: body.trim(),
           author_name: authorName,
-          status: foul ? "author_only" : "published",
+          status,
+          ai_score: scored.avg,
         })
         .select("id")
         .single();
 
       if (error) {
-        setMessage(`Publish failed: ${error.message}`);
-      } else if (foul) {
+        setMessage(`Review failed: ${error.message}`);
+        setLoading(false);
+        return;
+      }
+
+      setArticleId(data.id);
+      setPublishedId(data.id);
+      if (foul) {
+        setPitStatus("foul");
         setMessage(
-          "Technical foul. This piece is on your desk only — not in the public feed."
+          `Technical foul. Truth ${scored.truth} · journalistic ${scored.journalistic} · effort ${scored.effort}. Desk only — tools stay locked.`
         );
-        setPublishedId(data.id);
-        setTitle("");
-        setBody("");
-        setThumbnailUrl("");
-        setAiPrompt("");
-        setSection("Sports");
-        window.dispatchEvent(new Event("ballpit-wallet-updated"));
+      } else {
+        setPitStatus("tools");
+        setMessage(
+          `Review passed (${scored.avg}). Tools for this story are unlocked. Throw it in the pit when the edit is done.`
+        );
       }
     } catch {
-      setMessage("Something went wrong while publishing.");
+      setMessage("Review failed.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleThrowInPit = async () => {
+    if (!userId || !articleId) return;
+    setLoading(true);
+    setMessage("");
+    try {
+      const finalBody = thumbnailUrl.trim()
+        ? `![img:${imagePlace}](${thumbnailUrl.trim()})\n\n${body.trim()}`
+        : body.trim();
+      const { error } = await supabase
+        .from("articles")
+        .update({
+          title: title.trim(),
+          body: finalBody,
+          section,
+          status: "published",
+        })
+        .eq("id", articleId)
+        .eq("user_id", userId);
+      if (error) {
+        setMessage(error.message);
+        setLoading(false);
+        return;
+      }
+      const reward = 50;
+      await awardPoints(userId, reward, "Published real article", articleId);
+      setPitStatus("published");
+      setMessage(`In the pit. +${reward} points`);
+      window.dispatchEvent(new Event("ballpit-wallet-updated"));
+    } catch {
+      setMessage("Could not throw it in the pit.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const insertTable = () => {
+    insertAtCursor("\n| Header | Header | Header |\n| --- | --- | --- |\n|  |  |  |\n");
+  };
+  const insertGraph = () => {
+    insertAtCursor("\n![graph:auto](https://placehold.co/800x320/1f2937/f97316/png?text=graph)\n");
   };
 
   const previewHtml = body
@@ -409,6 +512,10 @@ function EditorContent() {
           Account tools only. AI credits: <span className="text-white font-medium">{aiCredits}</span>
         </p>
         <p className="text-sm mt-2 text-green-300">Logged in as {loggedInName}</p>
+        <p className="text-xs text-muted-pit mt-2">
+          Write the story first. Submit for review. Tables, graphs, and AI images unlock from the
+          three AI legs (truth, journalistic style, effort). Community stars are not in this gate.
+        </p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -438,6 +545,37 @@ function EditorContent() {
 
 
 
+          {pitStatus === "draft" && (
+            <p className="text-xs text-muted-pit mb-4">
+              Image placement, graphs, and AI generate stay locked until review passes.
+            </p>
+          )}
+
+          {pitStatus === "tools" && review && (
+            <div className="mb-4 p-4 rounded-2xl border border-white/10">
+              <div className="text-[10px] uppercase tracking-[0.16em] mb-1" style={{ color: "#D4A056" }}>
+                tools unlocked
+              </div>
+              <p className="text-sm mb-2">
+                tBp AI legs · truth {review.truth} · journalistic {review.journalistic} · effort {review.effort} · avg {review.avg}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {review.avg >= 55 && (
+                  <button type="button" onClick={insertTable} className="px-3 py-1.5 rounded-lg bg-black/20 text-sm">
+                    Insert table
+                  </button>
+                )}
+                {review.avg >= 75 && (
+                  <button type="button" onClick={insertGraph} className="px-3 py-1.5 rounded-lg bg-black/20 text-sm">
+                    Insert graph
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {pitStatus === "tools" && review && review.avg >= 90 && (
+          <>
           <div className="mb-4 p-4 rounded-2xl border border-forge-800 bg-forge-900">
             <div className="text-sm font-medium mb-2">Image placement</div>
             <p className="text-xs text-gray-400 mb-3">
@@ -488,6 +626,8 @@ function EditorContent() {
             />
             <p className="text-xs text-gray-400 mt-2">Failed reviews are not refunded. Uploads are off — AI only.</p>
           </div>
+          </>
+          )}
 
           {(uploading || uploadStatus) && (
             <p className="text-sm text-yellow-200 mb-3">
@@ -508,17 +648,29 @@ function EditorContent() {
             value={body}
             onChange={(e) => setBody(e.target.value)}
             className="w-full min-h-[300px] bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
-            placeholder="Write your article..."
+            placeholder="Write the story. Tools unlock after review."
+            disabled={pitStatus === "foul" || pitStatus === "published"}
           />
 
-          <div className="mt-4">
-            <button
-              onClick={handlePublish}
-              disabled={loading}
-              className="px-6 py-2.5 bg-forge-accent text-white font-medium rounded-xl text-sm disabled:opacity-60"
-            >
-              {loading ? "Publishing..." : "Publish"}
-            </button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {pitStatus === "draft" && (
+              <button
+                onClick={handleReview}
+                disabled={loading}
+                className="px-6 py-2.5 bg-forge-accent text-white font-medium rounded-xl text-sm disabled:opacity-60"
+              >
+                {loading ? "Reviewing..." : "Submit for review"}
+              </button>
+            )}
+            {pitStatus === "tools" && (
+              <button
+                onClick={handleThrowInPit}
+                disabled={loading}
+                className="px-6 py-2.5 bg-forge-accent text-white font-medium rounded-xl text-sm disabled:opacity-60"
+              >
+                {loading ? "Throwing..." : "Throw it in the pit?"}
+              </button>
+            )}
           </div>
 
           {message && (
@@ -567,5 +719,6 @@ export default function EditorPage() {
     </Suspense>
   );
 }
+
 
 
