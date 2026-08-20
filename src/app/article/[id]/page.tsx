@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { formatTime, formatTimeFull } from "@/lib/time";
-import PitBody from "@/components/PitInteractives";
+import PitBody, { POLL_STUB, FLIP_STUB, BA_STUB } from "@/components/PitInteractives";
 
 type Article = {
   id: string;
@@ -528,7 +528,7 @@ export default function ArticlePage() {
           </span>
         </div>
 
-        <p className="text-gray-100 text-sm leading-relaxed mb-3">{c.body}</p>
+        <PitBody body={c.body} compact />
 
         <div className="flex items-center gap-3 text-sm">
           <button
@@ -706,6 +706,18 @@ export default function ArticlePage() {
             }
             className="w-full min-h-[100px] bg-black/20 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
           />
+          <div className="flex flex-wrap gap-2 mt-2">
+            <button type="button" className="px-3 py-1.5 rounded-lg bg-black/20 text-xs" onClick={() => setCommentText((t) => t + "\n" + POLL_STUB)}>
+              Poll
+            </button>
+            <button type="button" className="px-3 py-1.5 rounded-lg bg-black/20 text-xs" onClick={() => setCommentText((t) => t + "\n" + FLIP_STUB)}>
+              Flip card
+            </button>
+            <button type="button" className="px-3 py-1.5 rounded-lg bg-black/20 text-xs" onClick={() => setCommentText((t) => t + "\n" + BA_STUB)}>
+              Before / after
+            </button>
+            <span className="text-[11px] text-muted-pit self-center">0 credits</span>
+          </div>
           <div className="mt-3">
             <button
               onClick={handleComment}
@@ -737,6 +749,7 @@ export default function ArticlePage() {
     </main>
   );
 }
+
 
 
 
