@@ -355,7 +355,7 @@ function EditorContent() {
         return;
       }
       if (section === "Satire") {
-        setMessage("Satire runs in trashPit, not this editor.");
+        setMessage("Satire runs in satireLab, not this editor.");
         setLoading(false);
         return;
       }
@@ -401,6 +401,62 @@ function EditorContent() {
       }
     } catch {
       setMessage("Review failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const handleDiscard = async () => {
+    if (!userId) {
+      setMessage("Log in first.");
+      return;
+    }
+    setLoading(true);
+    setMessage("");
+    try {
+      const authorName = loggedInName || "Anonymous";
+      if (articleId) {
+        const { error } = await supabase
+          .from("articles")
+          .update({
+            title: title.trim() || "Untitled",
+            body: body.trim(),
+            section,
+            status: "discarded",
+          })
+          .eq("id", articleId)
+          .eq("user_id", userId);
+        if (error) {
+          setMessage(error.message);
+          setLoading(false);
+          return;
+        }
+      } else {
+        const { data, error } = await supabase
+          .from("articles")
+          .insert({
+            user_id: userId,
+            title: title.trim() || "Untitled",
+            section,
+            body: body.trim(),
+            author_name: authorName,
+            status: "discarded",
+          })
+          .select("id")
+          .single();
+        if (error) {
+          setMessage(error.message);
+          setLoading(false);
+          return;
+        }
+        setArticleId(data.id);
+        setPublishedId(data.id);
+      }
+      setPitStatus("published");
+      setMessage("In the trashPit. Not in the feed. Only you can see it.");
+    } catch {
+      setMessage("Could not send to trashPit.");
     } finally {
       setLoading(false);
     }
@@ -663,12 +719,32 @@ function EditorContent() {
               </button>
             )}
             {pitStatus === "tools" && (
+              <>
               <button
                 onClick={handleThrowInPit}
                 disabled={loading}
                 className="px-6 py-2.5 bg-forge-accent text-white font-medium rounded-xl text-sm disabled:opacity-60"
               >
                 {loading ? "Throwing..." : "Throw it in the pit?"}
+              </button>
+              <button
+                type="button"
+                onClick={handleDiscard}
+                disabled={loading}
+                className="px-6 py-2.5 rounded-xl text-sm disabled:opacity-60 btn-metal"
+              >
+                Send to trashPit
+              </button>
+              </>
+            )}
+            {(pitStatus === "draft" || pitStatus === "foul") && articleId && (
+              <button
+                type="button"
+                onClick={handleDiscard}
+                disabled={loading}
+                className="px-6 py-2.5 rounded-xl text-sm disabled:opacity-60 btn-metal"
+              >
+                Send to trashPit
               </button>
             )}
           </div>
@@ -719,6 +795,7 @@ export default function EditorPage() {
     </Suspense>
   );
 }
+
 
 
 
