@@ -58,6 +58,7 @@ export default function SiteHeader() {
   const [overId, setOverId] = useState<WidgetId | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const layoutRef = useRef<HTMLDivElement | null>(null);
+  const [bossKey, setBossKey] = useState("Numpad5");
 
   useEffect(() => {
     const boot = async () => {
@@ -139,12 +140,35 @@ export default function SiteHeader() {
   };
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setBossOn(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    try {
+      const k = localStorage.getItem("ballpit-boss-hotkey") || "";
+      const ok = [
+        "Escape",
+        "Numpad0",
+        "Numpad1",
+        "Numpad5",
+        "Numpad8",
+        "NumpadEnter",
+        "Digit5",
+      ];
+      if (ok.includes(k)) setBossKey(k);
+    } catch {
+      // ignore
+    }
   }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === bossKey) {
+        e.preventDefault();
+        setBossOn((v) => !v);
+        return;
+      }
+      if (e.code === "Escape") setBossOn(false);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [bossKey]);
 
   return (
     <>
@@ -366,6 +390,40 @@ export default function SiteHeader() {
                       );
                     })}
                   </div>
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <div className="text-[10px] uppercase tracking-[0.16em] mb-1" style={{ color: "var(--pit-muted)" }}>
+                      Boss trigger
+                    </div>
+                    <select
+                      value={bossKey}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setBossKey(next);
+                        try {
+                          localStorage.setItem("ballpit-boss-hotkey", next);
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                      className="w-full rounded-lg px-3 py-2 text-xs outline-none"
+                      style={{
+                        background: "rgba(0,0,0,0.25)",
+                        color: "var(--pit-text)",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                      }}
+                    >
+                      <option value="Numpad5">Keypad 5</option>
+                      <option value="Numpad0">Keypad 0</option>
+                      <option value="Numpad1">Keypad 1</option>
+                      <option value="Numpad8">Keypad 8</option>
+                      <option value="NumpadEnter">Keypad Enter</option>
+                      <option value="Digit5">Top-row 5 (next to %)</option>
+                      <option value="Escape">Escape</option>
+                    </select>
+                    <p className="text-[10px] text-muted-pit mt-1">
+                      Keypad 5 is not the 5 under %. If trigger is not Esc, Esc still leaves.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -384,7 +442,7 @@ export default function SiteHeader() {
           </Link>
           <button
             type="button"
-            onClick={() => setBossOn(true)}
+            onClick={() => setBossOn((v) => !v)}
             className="hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-lg text-[11px] uppercase tracking-[0.14em]"
             style={{ color: "var(--pit-muted)" }}
             title="Fake office screen. Esc to leave."
