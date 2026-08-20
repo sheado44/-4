@@ -322,6 +322,14 @@ export default function ProfilePage() {
                       technical foul
                     </span>
                   )}
+                  {article.status === "desk_edit" && (
+                    <span
+                      className="px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wide"
+                      style={{ border: "1px solid rgba(244,247,251,0.35)", color: "#F4F7FB" }}
+                    >
+                      tools unlocked
+                    </span>
+                  )}
                   <span>•</span>
                   <span title={formatTimeFull(article.created_at)}>
                     {formatTime(article.created_at)}
@@ -418,6 +426,7 @@ export default function ProfilePage() {
     </main>
   );
 }
+
 
 
 
