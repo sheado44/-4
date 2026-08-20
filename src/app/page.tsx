@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import FantasyRailWidget from "@/components/FantasyRailWidget";
-import TrashPitMark from "@/components/TrashPitMark";
+import SatireMark from "@/components/SatireMark";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { formatTime } from "@/lib/time";
@@ -717,11 +717,11 @@ function Home() {
 
   const writeHref =
     section === "Satire"
-      ? "/trashpit"
+      ? "/satire"
       : `/editor?section=${encodeURIComponent(section === "All" ? "Sports" : section)}`;
 
   const writeLabel =
-    section === "All" ? "Write an article" : section === "Satire" ? "Write trashPit" : `Write in ${section}`;
+    section === "All" ? "Write an article" : section === "Satire" ? "Open satireLab" : `Write in ${section}`;
 
   const clearFilters = () => {
     setOnlyFavorites(false);
@@ -740,7 +740,7 @@ function Home() {
           </div>
           <p className="text-center text-xs md:text-sm text-muted-pit mt-4 mb-4 flex items-center justify-center gap-2">
             <span className="tracking-[0.22em] uppercase">Sports · Pop Culture ·</span>
-            <TrashPitMark size="nav" />
+            <SatireMark size="nav" />
           </p>
         </div>
       </section>
@@ -758,7 +758,7 @@ function Home() {
                 section === item ? "btn-write border-transparent" : "btn-metal"
               }`}
             >
-              {item === "Satire" ? <TrashPitMark size="nav" /> : item}
+              {item === "Satire" ? <SatireMark size="nav" /> : item}
             </button>
           ))}
 
@@ -855,7 +855,7 @@ function Home() {
         >
           <div className="max-w-6xl mx-auto px-4 py-3">
             <div className="flex items-baseline gap-2 mb-1">
-              <TrashPitMark size="nav" />
+              <SatireMark size="nav" />
               <span className="text-sm font-bold tracking-wide" style={{ color: "#FFE6C7" }}>
                 SATIRE
               </span>
@@ -1149,5 +1149,6 @@ export default function Page() {
     </Suspense>
   );
 }
+
 
 
