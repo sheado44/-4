@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import ComputeButton from "@/components/ComputeButton";
+import PitBody, { POLL_STUB, FLIP_STUB, BA_STUB } from "@/components/PitInteractives";
 import { defaultModel, type AiModel } from "@/lib/creditTable";
 
 
@@ -500,37 +501,9 @@ function EditorContent() {
   const insertGraph = () => {
     insertAtCursor("\n![graph:auto](https://placehold.co/800x320/1f2937/f97316/png?text=graph)\n");
   };
-
-  const previewHtml = body
-    .replace(/^### (.*$)/gim, "<h3>$1</h3>")
-    .replace(/^## (.*$)/gim, "<h2>$1</h2>")
-    .replace(/^# (.*$)/gim, "<h1>$1</h1>")
-    .replace(/\*\*(.*?)\*\*/gim, "<strong>$1</strong>")
-    .replace(/\*(.*?)\*/gim, "<em>$1</em>")
-    .replace(
-      /!\[(.*?)\]\((.*?)\)/gim,
-      function (_, alt, src) {
-        const place = (alt.match(/img:(\w+)/) || [])[1] || "middle";
-        const cls =
-          place === "left"
-            ? "w-full md:w-[42%] md:float-left md:mr-4 mb-3 rounded-xl"
-            : place === "right"
-            ? "w-full md:w-[42%] md:float-right md:ml-4 mb-3 rounded-xl"
-            : place === "top"
-            ? "w-full max-h-72 object-cover rounded-xl mb-4"
-            : place === "bottom"
-            ? "w-full max-h-72 object-cover rounded-xl mt-4"
-            : place === "split"
-            ? "w-full md:w-[48%] inline-block md:mr-[2%] mb-3 rounded-xl align-top"
-            : "w-2/3 mx-auto block rounded-xl my-4";
-        return '<img alt="" src="' + src + '" class="' + cls + '" />';
-      }
-    )
-    .replace(
-      /\[(.*?)\]\((.*?)\)/gim,
-      '<a href="$2" target="_blank" rel="noreferrer" class="text-orange-300 underline">$1</a>'
-    )
-    .replace(/\n/g, "<br />");
+  const insertPoll = () => insertAtCursor("\n" + POLL_STUB + "\n");
+  const insertFlip = () => insertAtCursor("\n" + FLIP_STUB + "\n");
+  const insertBa = () => insertAtCursor("\n" + BA_STUB + "\n");
 
   if (authLoading) {
     return (
@@ -613,7 +586,19 @@ function EditorContent() {
                     Insert graph
                   </button>
                 )}
+                <button type="button" onClick={insertPoll} className="px-3 py-1.5 rounded-lg bg-black/20 text-sm">
+                  Poll
+                </button>
+                <button type="button" onClick={insertFlip} className="px-3 py-1.5 rounded-lg bg-black/20 text-sm">
+                  Flip card
+                </button>
+                <button type="button" onClick={insertBa} className="px-3 py-1.5 rounded-lg bg-black/20 text-sm">
+                  Before / after
+                </button>
               </div>
+              <p className="text-[11px] text-muted-pit mt-2">
+                Interactive tiles · 0 credits. They run on the article page.
+              </p>
             </div>
           )}
 
@@ -758,12 +743,11 @@ function EditorContent() {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={thumbnailUrl} alt="Thumbnail" className="w-full max-h-56 object-cover rounded-xl mb-4" />
             )}
-            <div
-              className="text-gray-100 text-sm leading-relaxed"
-              dangerouslySetInnerHTML={{
-                __html: previewHtml || "<span class='text-gray-400'>Start writing to preview...</span>",
-              }}
-            />
+            {body.trim() ? (
+              <PitBody body={body} />
+            ) : (
+              <span className="text-gray-400 text-sm">Start writing to preview...</span>
+            )}
           </div>
         </div>
       </div>
@@ -784,6 +768,7 @@ export default function EditorPage() {
     </Suspense>
   );
 }
+
 
 
 
