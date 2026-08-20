@@ -440,15 +440,6 @@ export default function SiteHeader() {
           >
             <SatireMark size="nav" />
           </Link>
-          <button
-            type="button"
-            onClick={() => setBossOn((v) => !v)}
-            className="hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-lg text-[11px] uppercase tracking-[0.14em]"
-            style={{ color: "var(--pit-muted)" }}
-            title="Fake office screen. Esc to leave."
-          >
-            Boss
-          </button>
           <AuthNav />
         </div>
       </div>
@@ -457,6 +448,7 @@ export default function SiteHeader() {
     </>
   );
 }
+
 
 
 
