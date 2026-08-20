@@ -1,33 +1,55 @@
-"use client";
+import type { Metadata } from "next";
+import { Inter, Space_Grotesk } from "next/font/google";
+import "./globals.css";
+import SiteHeader from "@/components/SiteHeader";
+import ThemeApplier from "@/components/ThemeApplier";
 
-import Link from "next/link";
-import FantasiDeskMark from "@/components/FantasiDeskMark";
+const body = Inter({
+  subsets: ["latin"],
+  variable: "--font-body",
+});
 
-export default function FantasyRailWidget() {
+const display = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display",
+});
+
+export const metadata: Metadata = {
+  title: "theBallpit",
+  applicationName: "theBallpit",
+  appleWebApp: { title: "theBallpit" },
+  description: "theBallpit. fantasiDesk is a product of theBallpit.",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <div className="pit-panel p-5">
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.16em] text-muted-pit mb-1">
-            Widget
+    <html lang="en">
+      <body className={`${body.variable} ${display.variable} antialiased`}>
+        <ThemeApplier />
+        <SiteHeader />
+        <div className="min-h-[calc(100vh-4rem)]">{children}</div>
+        <footer
+          className="mt-10 border-t"
+          style={{ borderColor: "rgba(127,127,127,0.18)" }}
+        >
+          <div className="max-w-6xl mx-auto px-4 py-8 text-center">
+            <div className="text-sm font-semibold" style={{ color: "var(--pit-text)" }}>
+              theBallpit
+            </div>
+            <p className="text-xs mt-1 tracking-wide" style={{ color: "var(--pit-muted)" }}>
+              fantasiDesk is a product of theBallpit
+            </p>
+            <p className="text-xs mt-1 tracking-wide" style={{ color: "var(--pit-muted)" }}>
+              Sports · Pop Culture · Satire
+            </p>
           </div>
-          <FantasiDeskMark size="nav" />
-        </div>
-        <Link href="/fantasy" className="btn-write px-3 py-1.5 rounded-lg text-xs">
-          Open
-        </Link>
-      </div>
-      <p className="text-xs text-muted-pit mb-3">
-        Free roster tools. Credits for Set my week and research.
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <Link href="/fantasy" className="btn-metal px-3 py-1.5 rounded-lg text-xs">
-          NFL desk
-        </Link>
-        <Link href="/fantasy/golf" className="btn-metal px-3 py-1.5 rounded-lg text-xs">
-          Golf card
-        </Link>
-      </div>
-    </div>
+        </footer>
+      </body>
+    </html>
   );
 }
+
