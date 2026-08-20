@@ -5,6 +5,8 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { spendAiCredits } from "@/lib/aiCredits";
 import ComputeButton from "@/components/ComputeButton";
+import ModelPicker from "@/components/ModelPicker";
+import { creditCost, defaultModel, type AiModel, type PlanId } from "@/lib/creditTable";
 
 type Kind = "article" | "comment";
 
@@ -51,8 +53,10 @@ export default function ResearchTake({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [out, setOut] = useState("");
+  const [plan, setPlan] = useState<PlanId>("free");
+  const [model, setModel] = useState<AiModel>("haiku");
 
-  const cost = COST[kind];
+  const cost = creditCost("research", model) ?? COST[kind];
 
   useEffect(() => {
     const boot = async () => {
@@ -62,10 +66,14 @@ export default function ResearchTake({
       setUserId(user.id);
       const { data: profile } = await supabase
         .from("profiles")
-        .select("ai_credits")
+        .select("ai_credits, plan")
         .eq("id", user.id)
         .maybeSingle();
       setCredits(Number(profile?.ai_credits ?? 0));
+      const p = String(profile?.plan || "free").toLowerCase();
+      const next: PlanId = p === "desk" ? "desk" : p === "press" ? "press" : "free";
+      setPlan(next);
+      setModel(defaultModel(next));
     };
     boot();
   }, []);
@@ -110,8 +118,10 @@ export default function ResearchTake({
 
   return (
     <div className="mt-3">
+      <ModelPicker plan={plan} job="research" value={model} onChange={setModel} />
       <ComputeButton
-        cost={cost}
+        job="research"
+        model={model}
         label="Research this take"
         busy={busy}
         onConfirm={run}
