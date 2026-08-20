@@ -500,7 +500,7 @@ export default function ArticlePage() {
   const isSatire = article.section === "Satire";
   const author = article.author_name || "Unknown author";
   const isOwnArticle = Boolean(userId && article.user_id === userId);
-  const deskOnly = article.status === "author_only";
+  const deskOnly = article.status === "author_only" || article.status === "desk_edit";
   if (deskOnly && !isOwnArticle) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-10">
@@ -616,7 +616,7 @@ export default function ArticlePage() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
-      {deskOnly && isOwnArticle && (
+      {deskOnly && isOwnArticle && article.status === "author_only" && (
         <div
           className="mb-6 rounded-xl border px-4 py-3"
           style={{
@@ -634,6 +634,26 @@ export default function ArticlePage() {
           <p className="text-xs leading-relaxed" style={{ color: "rgba(255,230,199,0.9)" }}>
             Same article page as a public piece — title, body, comments — but it is not
             in the public feed. Only you can open this link. No points awarded.
+          </p>
+        </div>
+      )}
+      {deskOnly && isOwnArticle && article.status === "desk_edit" && (
+        <div
+          className="mb-6 rounded-xl border px-4 py-3"
+          style={{
+            borderColor: "rgba(212,160,86,0.45)",
+            background: "rgba(0,0,0,0.25)",
+          }}
+        >
+          <div className="text-[10px] uppercase tracking-[0.22em] mb-1" style={{ color: "#D4A056" }}>
+            tools unlocked
+          </div>
+          <p className="text-lg font-extrabold mb-1" style={{ letterSpacing: "-0.03em" }}>
+            <span style={{ color: "#F4F7FB" }}>review passed. </span>
+            <span style={{ color: "#D4A056" }}>not in the feed yet.</span>
+          </p>
+          <p className="text-xs text-muted-pit">
+            Finish tables / graphs / images in Write, then throw it in the pit.
           </p>
         </div>
       )}
@@ -758,4 +778,5 @@ export default function ArticlePage() {
     </main>
   );
 }
+
 
