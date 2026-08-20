@@ -2,15 +2,26 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import {
+  creditCost,
+  JOB_LABEL,
+  MODEL_LABEL,
+  type AiJob,
+  type AiModel,
+} from "@/lib/creditTable";
 
 export default function ComputeButton({
   cost,
+  job,
+  model = "haiku",
   label,
   busy = false,
   disabled = false,
   onConfirm,
 }: {
-  cost: number;
+  cost?: number;
+  job?: AiJob;
+  model?: AiModel;
   label: string;
   busy?: boolean;
   disabled?: boolean;
@@ -18,8 +29,9 @@ export default function ComputeButton({
 }) {
   const [open, setOpen] = useState(false);
   const [working, setWorking] = useState(false);
-  const locked = disabled || busy || working;
-  const n = Math.max(0, Number(cost) || 0);
+  const lookedUp = job ? creditCost(job, model) : null;
+  const n = Math.max(0, Number(cost ?? lookedUp ?? 0) || 0);
+  const locked = disabled || busy || working || lookedUp === null;
 
   const go = async () => {
     setWorking(true);
@@ -47,18 +59,13 @@ export default function ComputeButton({
             "inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 0 rgba(0,0,0,0.35)",
         }}
       >
-        <span
-          aria-hidden
-          className="inline-grid grid-cols-2 gap-[2px] shrink-0"
-        >
+        <span aria-hidden className="inline-grid grid-cols-2 gap-[2px] shrink-0">
           <span className="w-1.5 h-1.5 rounded-[1px] bg-[#1E2022]" />
           <span className="w-1.5 h-1.5 rounded-[1px] bg-[#D4A056]" />
           <span className="w-1.5 h-1.5 rounded-[1px] bg-[#D4A056]" />
           <span className="w-1.5 h-1.5 rounded-[1px] bg-[#1E2022]" />
         </span>
-        <span>
-          {busy || working ? "Computing..." : label}
-        </span>
+        <span>{busy || working ? "Computing..." : label}</span>
         <span style={{ color: "#7A5A22" }}>· {n}</span>
       </button>
 
@@ -81,8 +88,15 @@ export default function ComputeButton({
             </div>
             <p className="text-lg font-extrabold mb-2" style={{ letterSpacing: "-0.03em" }}>
               <span style={{ color: "#F4F7FB" }}>This spends </span>
-              <span style={{ color: "#D4A056" }}>{n} credit{n === 1 ? "" : "s"}.</span>
+              <span style={{ color: "#D4A056" }}>
+                {n} credit{n === 1 ? "" : "s"}.
+              </span>
             </p>
+            {job && (
+              <p className="text-sm text-muted-pit mb-1">
+                {JOB_LABEL[job]} · {MODEL_LABEL[model]}
+              </p>
+            )}
             <p className="text-sm text-muted-pit mb-4">
               No refund if the result is weak, blocked, or not what you wanted.
               Credits leave theMoneyPit when you confirm.
