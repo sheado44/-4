@@ -85,7 +85,7 @@ export default function MashPitPage() {
   const [voiceHits, setVoiceHits] = useState<VoicePerson[]>([]);
   const [friends, setFriends] = useState<VoicePerson[]>([]);
   const [searchQ, setSearchQ] = useState("");
-  const [searchSort, setSearchSort] = useState<"time" | "comments" | "tbp">("time");
+  const [searchSort, setSearchSort] = useState<"time" | "up" | "down">("time");
   const [searchHits, setSearchHits] = useState<Post[]>([]);
   const [searchVotes, setSearchVotes] = useState<VoteMap>({});
   const [searchReplies, setSearchReplies] = useState<Record<string, number>>({});
@@ -484,15 +484,15 @@ export default function MashPitPage() {
         <input
           value={searchQ}
           onChange={(e) => setSearchQ(e.target.value)}
-          placeholder="Search mashPit — words, names..."
+          placeholder="Keyword search..."
           className="w-full rounded-xl px-3 py-2 text-sm outline-none bg-black/20 border border-white/10 mb-3"
         />
         {searchQ.trim().length >= 2 && (
           <div className="flex flex-wrap gap-2">
             {([
               ["time", "Newest"],
-              ["comments", "Comments"],
-              ["tbp", "tBp"],
+              ["up", "Thumbs up"],
+              ["down", "Thumbs down"],
             ] as const).map(([id, label]) => (
               <button
                 key={id}
@@ -508,7 +508,7 @@ export default function MashPitPage() {
           </div>
         )}
         <p className="text-[11px] text-muted-pit mt-2">
-          tBp here is mashPit score from thumbs and replies. Article tBp Index is on story cards.
+          Keyword search in this room. Sort by time or thumbs.
         </p>
       </div>
 
@@ -773,23 +773,18 @@ export default function MashPitPage() {
           <div className="space-y-3">
             {[...searchHits]
               .sort((a, b) => {
-                if (searchSort === "comments") {
-                  return (searchReplies[b.id] || 0) - (searchReplies[a.id] || 0);
-                }
-                if (searchSort === "tbp") {
-                  return (
-                    tbpForPost(b.id, searchVotes, searchReplies[b.id] || 0) -
-                    tbpForPost(a.id, searchVotes, searchReplies[a.id] || 0)
-                  );
-                }
+                const va = searchVotes[a.id] || { up: 0, down: 0, myVote: null };
+                const vb = searchVotes[b.id] || { up: 0, down: 0, myVote: null };
+                if (searchSort === "up") return vb.up - va.up;
+                if (searchSort === "down") return vb.down - va.down;
                 return b.created_at.localeCompare(a.created_at);
               })
               .map((post) => (
                 <div key={post.id}>
                   <div className="flex items-center gap-2 text-[11px] text-muted-pit mb-1 px-1">
                     <span>{post.room}</span>
-                    <span>tBp {tbpForPost(post.id, searchVotes, searchReplies[post.id] || 0)}</span>
-                    <span>{searchReplies[post.id] || 0} comments</span>
+                    <span>▲ {(searchVotes[post.id] || { up: 0 }).up}</span>
+                    <span>▼ {(searchVotes[post.id] || { down: 0 }).down}</span>
                     {post.parent_id && <span>reply</span>}
                   </div>
                   {renderPost(post, Boolean(post.parent_id))}
@@ -814,5 +809,6 @@ export default function MashPitPage() {
     </main>
   );
 }
+
 
 
