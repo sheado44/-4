@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   title: "theBallpit",
   applicationName: "theBallpit",
   appleWebApp: { title: "theBallpit" },
-  description: "Sports, pop culture, and satire — jump in.",
+  description: "theBallpit. fantasiDesk is a product of theBallpit.",
 };
 
 export default function RootLayout({
@@ -41,6 +41,9 @@ export default function RootLayout({
               theBallpit
             </div>
             <p className="text-xs mt-1 tracking-wide" style={{ color: "var(--pit-muted)" }}>
+              fantasiDesk is a product of theBallpit
+            </p>
+            <p className="text-xs mt-1 tracking-wide" style={{ color: "var(--pit-muted)" }}>
               Sports · Pop Culture · Satire
             </p>
           </div>
@@ -49,3 +52,4 @@ export default function RootLayout({
     </html>
   );
 }
+
