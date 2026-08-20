@@ -596,40 +596,12 @@ function Home() {
     setTopicArticles([]);
     setSearching(true);
 
-    const nameQ = userNameQuery.trim();
-    const locQ = userLocationQuery.trim();
     const topicQ = topicQuery.trim();
 
-    if (!nameQ && !locQ && !topicQ) {
-      setSearchMessage("Enter a display name, location, or article topic.");
+    if (!topicQ) {
+      setSearchMessage("Enter a keyword for articles.");
       setSearching(false);
       return;
-    }
-
-    if (nameQ || locQ) {
-      let query = supabase
-        .from("profiles")
-        .select("id, display_name, location")
-        .neq("id", userId)
-        .limit(30);
-
-      if (nameQ) query = query.ilike("display_name", `%${nameQ}%`);
-      if (locQ) query = query.ilike("location", `%${locQ}%`);
-
-      const { data, error } = await query;
-      if (error) {
-        setSearchMessage(error.message);
-        setSearching(false);
-        return;
-      }
-
-      setSearchUsers(
-        (data || []).map((u) => ({
-          id: u.id,
-          display_name: u.display_name || "User",
-          location: u.location || null,
-        }))
-      );
     }
 
     if (topicQ) {
@@ -1100,34 +1072,14 @@ function Home() {
               )}
               {widgetOn.find && (
                 <div className="pit-panel p-5" style={{ order: widgetPos("find") }}>
-                  <h3 className="font-semibold mb-3">Find</h3>
+                  <h3 className="font-semibold mb-3">Article Search</h3>
                   <div className="space-y-2 mb-3">
-                    <input value={userNameQuery} onChange={(e) => setUserNameQuery(e.target.value)} placeholder="User display name" className="w-full rounded-xl px-3 py-2 text-sm outline-none" />
-                    <input value={userLocationQuery} onChange={(e) => setUserLocationQuery(e.target.value)} placeholder="User location" className="w-full rounded-xl px-3 py-2 text-sm outline-none" />
-                    <input value={topicQuery} onChange={(e) => setTopicQuery(e.target.value)} placeholder="Article topic" className="w-full rounded-xl px-3 py-2 text-sm outline-none" />
+                    <input value={topicQuery} onChange={(e) => setTopicQuery(e.target.value)} placeholder="Keyword" className="w-full rounded-xl px-3 py-2 text-sm outline-none" />
                     <button type="button" onClick={handleSearch} disabled={searching} className="btn-write w-full px-3 py-2.5 rounded-xl text-sm disabled:opacity-60">
-                      {searching ? "Searching..." : "Search"}
+                      {searching ? "Searching..." : "Search articles"}
                     </button>
                   </div>
                   {searchMessage && <p className="text-xs text-yellow-500 mb-2">{searchMessage}</p>}
-                  {searchUsers.length > 0 && (
-                    <div className="mb-4">
-                      <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit mb-2">Users</div>
-                      <div className="space-y-2">
-                        {searchUsers.map((u) => (
-                          <div key={u.id} className="flex items-center justify-between gap-2 rounded-lg border border-white/5 px-3 py-2" style={{ background: "rgba(0,0,0,0.12)" }}>
-                            <div className="min-w-0">
-                              <Link href={`/profile/${u.id}`} className="text-sm font-medium hover:opacity-80 block truncate">{u.display_name}</Link>
-                              <div className="text-[11px] text-muted-pit truncate">{u.location || "No location"}</div>
-                            </div>
-                            {!favoriteIds.has(u.id) && (
-                              <button onClick={() => addFavorite(u.id, u.display_name)} className="text-xs px-2 py-1 rounded-lg btn-write shrink-0">Add</button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   {topicArticles.length > 0 && (
                     <div>
                       <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit mb-2">Articles</div>
@@ -1197,4 +1149,5 @@ export default function Page() {
     </Suspense>
   );
 }
+
 
