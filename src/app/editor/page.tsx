@@ -7,6 +7,38 @@ import { supabase } from "@/lib/supabaseClient";
 import ComputeButton from "@/components/ComputeButton";
 import { defaultModel, type AiModel } from "@/lib/creditTable";
 
+
+function categorizeSubmission(title: string, body: string) {
+  const t = `${title} ${body}`.toLowerCase();
+  const sportsHit = (
+    t.match(
+      /\b(nfl|nba|mlb|nhl|ncaa|cfb|cbb|pga|ufc|wnba|mls|quarterback|touchdown|inning|homer|putt|forehand|playoff|roster|fantasy|coach|draft|sideline|kickoff|hockey|soccer|goalie)\b/g
+    ) || []
+  ).length;
+  const popHit = (
+    t.match(
+      /\b(album|oscar|netflix|marvel|grammy|celebrity|box office|trailer|spotify|tiktok|actor|actress|premiere|streaming|billboard|fashion|influencer)\b/g
+    ) || []
+  ).length;
+  let section: "Sports" | "Pop Culture" = sportsHit >= popHit ? "Sports" : "Pop Culture";
+  if (sportsHit === 0 && popHit === 0) section = "Sports";
+  let sub = "General";
+  if (section === "Sports") {
+    if (/\bnfl\b|quarterback|touchdown/.test(t)) sub = "NFL";
+    else if (/\bnba\b|wnba/.test(t)) sub = "NBA";
+    else if (/\bmlb\b|inning|homer/.test(t)) sub = "MLB";
+    else if (/\bnhl\b|hockey|goalie/.test(t)) sub = "NHL";
+    else if (/\bncaa\b|\bcfb\b|college football/.test(t)) sub = "CFB";
+    else if (/\bcbb\b|college basketball/.test(t)) sub = "CBB";
+    else if (/\bpga\b|golf|putt/.test(t)) sub = "Golf";
+  } else {
+    if (/netflix|marvel|oscar|trailer|actor/.test(t)) sub = "Film / TV";
+    else if (/album|grammy|spotify|billboard/.test(t)) sub = "Music";
+    else if (/tiktok|influencer|celebrity|fashion/.test(t)) sub = "Culture";
+  }
+  return { section, sub };
+}
+
 function isTechnicalFoul(title: string, body: string) {
   const plain = body.replace(/!\[[^\]]*\]\([^)]*\)/g, " ").trim();
   const words = plain.split(/\s+/).filter(Boolean).length;
@@ -60,6 +92,7 @@ function EditorContent() {
   const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
   const [section, setSection] = useState("Sports");
+  const [subcat, setSubcat] = useState("General");
   const [body, setBody] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [imagePlace, setImagePlace] = useState<"top" | "middle" | "bottom" | "left" | "right" | "split">("top");
@@ -114,9 +147,8 @@ function EditorContent() {
   useEffect(() => {
     loadUser();
 
-    const preset = searchParams.get("section");
-    if (preset === "Sports" || preset === "Pop Culture" || preset === "Satire") {
-      setSection(preset);
+    if (searchParams.get("section") === "Satire") {
+      setMessage("Satire runs in satireLab, not this editor.");
     }
   }, [searchParams]);
 
@@ -356,11 +388,9 @@ function EditorContent() {
         setLoading(false);
         return;
       }
-      if (section === "Satire") {
-        setMessage("Satire runs in satireLab, not this editor.");
-        setLoading(false);
-        return;
-      }
+      const cat = categorizeSubmission(title.trim(), body.trim());
+      setSection(cat.section);
+      setSubcat(cat.sub);
 
       const scored = scoreJournalism(title.trim(), body.trim());
       setReview(scored);
@@ -578,27 +608,17 @@ function EditorContent() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         <div>
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm text-gray-300 mb-1.5">Title</label>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-300 mb-1.5">Section</label>
-              <select
-                value={section}
-                onChange={(e) => setSection(e.target.value)}
-                className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
-              >
-                <option>Sports</option>
-                <option>Pop Culture</option>
-                <option>Satire</option>
-              </select>
-            </div>
+          <div className="mb-4">
+            <label className="block text-sm text-gray-300 mb-1.5">Title</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full bg-forge-900 border border-forge-800 rounded-xl px-4 py-3 text-sm outline-none"
+            />
+            <p className="text-[11px] text-muted-pit mt-2">
+              No section picker. Review assigns Sports or Pop Culture
+              {pitStatus !== "draft" ? ` · ${section} / ${subcat}` : "."}
+            </p>
           </div>
 
 
@@ -799,6 +819,7 @@ export default function EditorPage() {
     </Suspense>
   );
 }
+
 
 
 
