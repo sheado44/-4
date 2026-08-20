@@ -296,6 +296,7 @@ export default function FantasyPage() {
         <h1 className="text-3xl font-extrabold mb-2">
           <FantasiDeskMark />
         </h1>
+        <p className="text-sm text-muted-pit mb-5">A product of theBallpit.</p>
         <Link href="/login" className="btn-write inline-block px-5 py-2.5 rounded-xl text-sm">
           Log in / Sign up
         </Link>
@@ -307,12 +308,12 @@ export default function FantasyPage() {
     <main className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
-          <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit">theBallpit</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-muted-pit">a product of theBallpit</div>
           <h1 className="text-3xl md:text-4xl font-extrabold">
             <FantasiDeskMark />
           </h1>
           <p className="text-sm text-muted-pit mt-1">
-            Scoring is yours. Board and standings follow the table.
+            Scoring is yours. Board and standings follow the table. Same login, same credits.
           </p>
           <Link href="/fantasy/golf" className="text-xs text-highlight-pit">
             Golf card →
@@ -576,4 +577,5 @@ function AiButton({
     />
   );
 }
+
 
