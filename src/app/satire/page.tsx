@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import SatireMark from "@/components/SatireMark";
 import { supabase } from "@/lib/supabaseClient";
-import { CREDIT_COST } from "@/lib/tiers";
+import { creditCost, defaultModel, type AiModel } from "@/lib/creditTable";
+import ModelPicker from "@/components/ModelPicker";
 import { spendAiCredits } from "@/lib/aiCredits";
 import ComputeButton from "@/components/ComputeButton";
 
@@ -227,6 +228,7 @@ export default function SatireLabPage() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [inThePit, setInThePit] = useState(false);
+  const [model, setModel] = useState<AiModel>("haiku");
 
   useEffect(() => {
     setSetup(pickSetup());
@@ -251,7 +253,9 @@ export default function SatireLabPage() {
       );
       setCredits(Number(profile?.ai_credits ?? 0));
       const p = String(profile?.plan || "free").toLowerCase();
-      setPlan(p === "desk" ? "desk" : p === "press" ? "press" : "free");
+      const nextPlan = p === "desk" ? "desk" : p === "press" ? "press" : "free";
+      setPlan(nextPlan);
+      setModel(defaultModel(nextPlan));
       setAuthLoading(false);
     };
     boot();
@@ -290,8 +294,9 @@ export default function SatireLabPage() {
       return;
     }
 
-    if (credits < CREDIT_COST.satire) {
-      setMessage(`Need ${CREDIT_COST.satire} AI credit. Open theMoneyPit.`);
+    const cost = creditCost("satireLab", model) ?? 1;
+    if (credits < cost) {
+      setMessage(`Need ${cost} AI credit. Open theMoneyPit.`);
       return;
     }
 
@@ -303,7 +308,7 @@ export default function SatireLabPage() {
     }
 
     setBusy(true);
-    const spend = await spendAiCredits(CREDIT_COST.satire, "satire");
+    const spend = await spendAiCredits(cost, "satireLab");
     if (!spend.ok) {
       setMessage(spend.reason);
       setBusy(false);
@@ -407,7 +412,7 @@ export default function SatireLabPage() {
         <span style={{ color: "#D4A056" }}>on purpose.</span>
       </p>
       <p className="text-sm text-muted-pit mb-5">
-        AI credits: {credits} · a generate costs {CREDIT_COST.satire}
+        AI credits: {credits}
       </p>
 
       <div className="pit-panel p-5 mb-4">
@@ -454,8 +459,10 @@ export default function SatireLabPage() {
           )}
         </p>
 
+        <ModelPicker plan={plan} job="satireLab" value={model} onChange={setModel} />
         <ComputeButton
-          cost={CREDIT_COST.satire}
+          job="satireLab"
+          model={model}
           label="Run satireLab"
           busy={busy}
           onConfirm={generate}
