@@ -210,10 +210,10 @@ function BaBlock({ before, after }: { before: string; after: string }) {
   );
 }
 
-export default function PitBody({ body }: { body: string }) {
+export default function PitBody({ body, compact = false }: { body: string; compact?: boolean }) {
   const blocks = useMemo(() => splitPit(body || ""), [body]);
   return (
-    <article className="max-w-none mb-10 overflow-hidden">
+    <article className={`max-w-none overflow-hidden ${compact ? "mb-3" : "mb-10"}`}>
       {blocks.map((b, i) => {
         if (b.type === "poll") return <PollBlock key={i} q={b.q} opts={b.opts} />;
         if (b.type === "flip") return <FlipBlock key={i} front={b.front} back={b.back} />;
@@ -226,7 +226,7 @@ export default function PitBody({ body }: { body: string }) {
         }
         if (!b.text.trim()) return null;
         return (
-          <p key={i} className="text-gray-100 leading-relaxed mb-5">
+          <p key={i} className={`text-gray-100 leading-relaxed ${compact ? "mb-2 text-sm" : "mb-5"}`}>
             {b.text}
           </p>
         );
