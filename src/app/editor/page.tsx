@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import ComputeButton from "@/components/ComputeButton";
+import { defaultModel, type AiModel } from "@/lib/creditTable";
 
 function isTechnicalFoul(title: string, body: string) {
   const plain = body.replace(/!\[[^\]]*\]\([^)]*\)/g, " ").trim();
@@ -72,6 +73,7 @@ function EditorContent() {
   const [generating, setGenerating] = useState(false);
   const [aiCredits, setAiCredits] = useState(0);
   const [plan, setPlan] = useState<"free" | "press" | "desk">("free");
+  const [imgModel, setImgModel] = useState<AiModel>("haiku");
   const [userId, setUserId] = useState<string | null>(null);
   const [loggedInName, setLoggedInName] = useState<string | null>(null);
   const [articleId, setArticleId] = useState<string | null>(null);
@@ -660,7 +662,8 @@ function EditorContent() {
             </p>
             <div className="mb-4">
               <ComputeButton
-                cost={1}
+                job="thumbnail"
+                model={imgModel}
                 label="Generate thumbnail from story"
                 busy={generating}
                 disabled={plan === "free"}
@@ -674,7 +677,8 @@ function EditorContent() {
               className="w-full min-h-[90px] bg-black/20 border border-forge-800 rounded-xl px-3 py-2 text-sm outline-none mb-3"
             />
             <ComputeButton
-              cost={1}
+              job="image"
+              model={imgModel}
               label="Generate inline image"
               busy={generating}
               disabled={plan === "free"}
@@ -795,6 +799,7 @@ export default function EditorPage() {
     </Suspense>
   );
 }
+
 
 
 
