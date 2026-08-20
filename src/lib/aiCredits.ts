@@ -10,7 +10,7 @@ export async function spendAiCredits(cost: number, reason: string) {
   if (error) {
     const msg = error.message || "Could not spend credits.";
     if (msg.toLowerCase().includes("not enough")) {
-      return { ok: false, remaining: 0, reason: "No AI credits left." };
+      return { ok: false, remaining: 0, reason: "No AI credits left. Reload in theMoneyPit." };
     }
     return { ok: false, remaining: 0, reason: msg };
   }
@@ -29,6 +29,13 @@ export async function applyPlanCharge(plan: "press" | "desk") {
   if (error) return { ok: false, remaining: 0, reason: error.message };
   window.dispatchEvent(new Event("ballpit-wallet-updated"));
   return { ok: true, remaining: Number(data ?? 0), reason: "" };
+}
+
+export async function buyCreditPack(pack: "small" | "mid" | "big") {
+  const { data, error } = await supabase.rpc("buy_credit_pack", { pack });
+  if (error) return { ok: false, banked: 0, reason: error.message };
+  window.dispatchEvent(new Event("ballpit-wallet-updated"));
+  return { ok: true, banked: Number(data ?? 0), reason: "" };
 }
 
 export { CREDIT_COST };
