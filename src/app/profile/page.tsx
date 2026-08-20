@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { formatTime, formatTimeFull } from "@/lib/time";
+import WarriorMark, { isWarrior } from "@/components/WarriorMark";
 
 type ProfileUser = {
   id: string;
@@ -219,6 +220,11 @@ export default function ProfilePage() {
         )}
 
         <h1 className="text-3xl md:text-4xl font-bold mb-1">{user.displayName}</h1>
+        {isWarrior(comments) && (
+          <div className="mb-2">
+            <WarriorMark />
+          </div>
+        )}
         <p className="text-muted-pit mb-2">{user.email}</p>
 
         {details.length > 0 && (
@@ -412,5 +418,6 @@ export default function ProfilePage() {
     </main>
   );
 }
+
 
 
