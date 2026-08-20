@@ -92,6 +92,15 @@ export default function MashPitPage() {
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("q") || "";
+      if (q.trim().length >= 2) setSearchQ(q.trim().slice(0, 80));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
     const boot = async () => {
       const { data } = await supabase.auth.getUser();
       const user = data.user;
@@ -805,4 +814,5 @@ export default function MashPitPage() {
     </main>
   );
 }
+
 
