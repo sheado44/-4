@@ -5,7 +5,7 @@ import Link from "next/link";
 import AuthNav from "@/components/AuthNav";
 import BossMode from "@/components/BossMode";
 import BallpitWordmark from "@/components/BallpitWordmark";
-import TrashPitMark from "@/components/TrashPitMark";
+import SatireMark from "@/components/SatireMark";
 import { supabase } from "@/lib/supabaseClient";
 import {
   WIDGET_CATALOG,
@@ -208,7 +208,7 @@ export default function SiteHeader() {
               className="px-3 py-1.5 rounded-lg transition hover:opacity-100"
               style={{ color: "var(--pit-muted)" }}
             >
-              {item.label === "Satire" ? <TrashPitMark size="nav" /> : item.label}
+              {item.label === "Satire" ? <SatireMark size="nav" /> : item.label}
             </Link>
           ))}
         </nav>
@@ -435,10 +435,10 @@ export default function SiteHeader() {
             Write
           </Link>
           <Link
-            href="/trashpit"
+            href="/satire"
             className="btn-metal hidden lg:inline-flex items-center px-3 py-1.5 rounded-xl text-xs"
           >
-            <TrashPitMark size="nav" />
+            <SatireMark size="nav" />
           </Link>
           <button
             type="button"
@@ -457,5 +457,6 @@ export default function SiteHeader() {
     </>
   );
 }
+
 
 
